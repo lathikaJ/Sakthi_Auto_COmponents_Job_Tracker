@@ -310,11 +310,29 @@ function DashboardPage() {
       title={`Machine Shop Audit (${isAdmin ? "Admin View" : "Employee View"})`}
       description="Interactive audit control matrix. Click card body for internal breakdown options or blue links for direct Excel access."
       action={
-        isAdmin ? (
-          <Button asChild className="bg-brand text-white font-bold hover:bg-brand-hover shadow-sm">
-            <Link to="/assignments">+ New Monthly Assignment</Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              assignments.refetch();
+              deviationsQuery.refetch();
+              window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
+              window.dispatchEvent(new Event("sakthi_signatures_updated"));
+              toast.success("Dashboard data & review queue refreshed successfully!");
+            }}
+            className="bg-white border-slate-300 text-slate-700 font-bold hover:bg-slate-50 gap-1.5 shadow-2xs text-xs"
+            title="Click to refresh live audit matrix, assignments, and submission review queue"
+          >
+            <RefreshCcw className="h-3.5 w-3.5 text-emerald-600" /> Refresh Data
           </Button>
-        ) : undefined
+
+          {isAdmin && (
+            <Button asChild className="bg-brand text-white font-bold hover:bg-brand-hover shadow-sm text-xs">
+              <Link to="/assignments">+ New Monthly Assignment</Link>
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="space-y-6">
@@ -340,11 +358,15 @@ function DashboardPage() {
                 onClick={() => setDashboardTab("review_jobs")}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
                   dashboardTab === "review_jobs"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400"
+                    : "bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100"
                 }`}
               >
-                <FileText className="h-4 w-4" /> Review Jobs
+                <FileText className="h-4 w-4 text-indigo-600" />
+                <span>Review Jobs Queue</span>
+                <span className="rounded-full bg-indigo-700 px-2 py-0.2 text-[10px] font-extrabold text-white">
+                  Active
+                </span>
               </button>
 
               <button
@@ -578,7 +600,7 @@ function DashboardPage() {
                       <span className="text-xs text-slate-500 font-medium">Click any box to open dedicated full page</span>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                       {/* BOX 1: Submitted Audits Register */}
                       <div
                         onClick={() => setCurrentView("submitted_audits_page")}
@@ -602,7 +624,7 @@ function DashboardPage() {
                         </div>
 
                         <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:underline">
-                          <span>Open Full Register Page</span>
+                          <span>Open Register Page</span>
                           <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
@@ -625,41 +647,69 @@ function DashboardPage() {
                             Electronic Signatures Directory
                           </h4>
                           <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            10 Member transparent PNG signature database & authentication scanner.
+                            10 Member transparent PNG signature database & authentication.
                           </p>
                         </div>
 
                         <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-sky-700 group-hover:underline">
-                          <span>Open Signature Directory Page</span>
+                          <span>Open Signature Page</span>
                           <ArrowRight className="h-4 w-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
 
-                      {/* BOX 3: Employee Activity Logs */}
+                      {/* BOX 3: Employee Job Review & Verification Queue */}
                       <div
-                        onClick={() => setCurrentView("activity_logs_page")}
-                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
+                        onClick={() => setDashboardTab("review_jobs")}
+                        className="group cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-center justify-between">
-                            <div className="rounded-lg bg-indigo-100 p-2.5 text-indigo-700 group-hover:scale-105 transition-transform">
-                              <Calendar className="h-5 w-5" />
+                            <div className="rounded-lg bg-indigo-600 p-2.5 text-white group-hover:scale-105 transition-transform">
+                              <FileText className="h-5 w-5" />
                             </div>
-                            <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-800 border border-indigo-300">
-                              Security Trail
+                            <span className="rounded-full bg-indigo-200 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
+                              Admin Review
                             </span>
                           </div>
                           <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                            Employee Activity & Login Logs
+                            Review Jobs Queue
                           </h4>
                           <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            Complete security log history of all employee logins, logouts, and system events.
+                            Review employee submitted audits, check evidences & E-Signatures, approve/reject.
                           </p>
                         </div>
 
-                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-indigo-700 group-hover:underline">
-                          <span>Open Activity Logs Page</span>
-                          <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
+                        <div className="mt-5 border-t border-indigo-200 pt-3 flex items-center justify-between text-xs font-bold text-indigo-800 group-hover:underline">
+                          <span>Open Review Queue</span>
+                          <ArrowRight className="h-4 w-4 text-indigo-700 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+
+                      {/* BOX 4: Employee Activity Logs */}
+                      <div
+                        onClick={() => setCurrentView("activity_logs_page")}
+                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-purple-500 hover:shadow-md flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div className="rounded-lg bg-purple-100 p-2.5 text-purple-700 group-hover:scale-105 transition-transform">
+                              <Calendar className="h-5 w-5" />
+                            </div>
+                            <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800 border border-purple-300">
+                              Security Trail
+                            </span>
+                          </div>
+                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-purple-700 transition-colors">
+                            Employee Activity & Login Logs
+                          </h4>
+                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
+                            Complete security log history of employee logins, logouts, and system events.
+                          </p>
+                        </div>
+
+                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-purple-700 group-hover:underline">
+                          <span>Open Activity Logs</span>
+                          <ArrowRight className="h-4 w-4 text-purple-600 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
                     </div>
