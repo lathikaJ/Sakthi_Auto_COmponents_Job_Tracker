@@ -149,11 +149,6 @@ function SignInPage() {
             </Button>
           </form>
         </div>
-
-        {/* Roster hint */}
-        <p className="mt-6 text-center text-xs text-slate-deep-foreground/70">
-          Admin: <strong>690867</strong> · Employees: <strong>688079, 663875, 710250, 666468</strong>
-        </p>
       </div>
     </div>
   );

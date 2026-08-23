@@ -27,12 +27,12 @@ export const Route = createFileRoute("/_authenticated/audits")({
   },
   head: () => ({
     meta: [
-      { title: "Audit Records — Sakthi Spark" },
+      { title: "Audit Records — Sakthi Auto" },
       {
         name: "description",
         content: "Browse planned, ongoing and completed audits across the plant.",
       },
-      { property: "og:title", content: "Audit Records — Sakthi Spark" },
+      { property: "og:title", content: "Audit Records — Sakthi Auto" },
       { property: "og:description", content: "Filterable register of all plant audits." },
     ],
   }),

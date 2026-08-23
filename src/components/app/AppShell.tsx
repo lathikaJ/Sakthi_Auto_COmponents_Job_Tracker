@@ -119,10 +119,10 @@ export function AppShell({
                 </span>
               </div>
               <h2 className="mt-1.5 text-2xl font-black tracking-tight text-white flex items-center gap-2 drop-shadow-xs">
-                Welcome, {profile.full_name}! 👋
+                Welcome, {profile.full_name}
               </h2>
               <p className="mt-0.5 text-xs font-semibold text-amber-100">
-                {profile.department} · {profile.designation} — Sakthi Spark Quality Audit Management System
+                {profile.department} · {profile.designation} — Sakthi Auto Quality Audit System
               </p>
             </div>
 
