@@ -393,184 +393,187 @@ function DashboardPage() {
 
         {/* Tab 1: Main Overview & Matrix */}
         {dashboardTab === "overview" && (
-          <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Instruction Banner */}
-            <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-xs font-bold text-sky-900 flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-sky-600" /> Interactive Drill-Down Navigation Enabled
-                </p>
-                <p className="text-xs text-sky-700 mt-0.5 font-medium">
-                  • Click anywhere on a card container ➔ Opens <strong>Internal Option Boxes & Breakdown</strong><br />
-                  • Click the blue link (e.g., <em>Open Excel Grid &gt;</em>) ➔ Opens <strong>Excel Spreadsheet View</strong>
-                </p>
-              </div>
-              <span className="rounded-full bg-sky-200/80 px-3 py-1 text-[11px] font-bold text-sky-900">
-                4 Audits Active
-              </span>
-            </div>
+          <div>
+            {/* PAGE 1: MAIN DASHBOARD CARDS & SUMMARY VIEW */}
+            {currentView === "dashboard" && (
+              <div className="space-y-8 animate-in fade-in duration-200">
+                {/* Instruction Banner */}
+                <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-sky-900 flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-sky-600" /> Interactive Page-by-Page Navigation
+                    </p>
+                    <p className="text-xs text-sky-700 mt-0.5 font-medium">
+                      • Click any audit card container ➔ Moves to <strong>Page 2: Option Boxes & Master Lists</strong><br />
+                      • Click blue action links (e.g., <em>Open Excel Grid &gt;</em>) ➔ Moves to <strong>Page 3: Excel Control Sheet Matrix</strong>
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-sky-200/80 px-3 py-1 text-[11px] font-bold text-sky-900">
+                    4 Audits Active
+                  </span>
+                </div>
 
-            {/* ── Main 4 Audit Cards Grid ── */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {/* CARD 1: TOTAL AUDIT */}
-              <div
-                onClick={() => handleCardBodyClick("Total Audit")}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      1. Total Audit
-                    </span>
-                    <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700 group-hover:scale-105 transition-transform">
-                      <ClipboardList className="h-5 w-5" />
+                {/* ── Main 4 Audit Cards Grid ── */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* CARD 1: TOTAL AUDIT */}
+                  <div
+                    onClick={() => handleCardBodyClick("Total Audit")}
+                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          1. Total Audit
+                        </span>
+                        <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700 group-hover:scale-105 transition-transform">
+                          <ClipboardList className="h-5 w-5" />
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+                          {totalAuditCount}
+                        </span>
+                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                          Master options: Product, Reval & Dock Audits
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleActionLinkClick(e, "Total Audit")}
+                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                      >
+                        View Breakdown List &gt;
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                      {totalAuditCount}
-                    </span>
-                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                      Master options: Product, Reval & Dock Audits
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleActionLinkClick(e, "Total Audit")}
-                    className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                  {/* CARD 2: ONGOING AUDIT */}
+                  <div
+                    onClick={() => handleCardBodyClick("Ongoing Audit")}
+                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-sky-500 hover:shadow-md flex flex-col justify-between"
                   >
-                    View Breakdown List &gt;
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          2. Ongoing Audit
+                        </span>
+                        <div className="rounded-lg bg-sky-100 p-2 text-sky-700 group-hover:scale-105 transition-transform">
+                          <Timer className="h-5 w-5" />
+                        </div>
+                      </div>
 
-              {/* CARD 2: ONGOING AUDIT */}
-              <div
-                onClick={() => handleCardBodyClick("Ongoing Audit")}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-sky-500 hover:shadow-md flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      2. Ongoing Audit
-                    </span>
-                    <div className="rounded-lg bg-sky-100 p-2 text-sky-700 group-hover:scale-105 transition-transform">
-                      <Timer className="h-5 w-5" />
+                      <div className="mt-4">
+                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+                          {ongoingAuditCount}
+                        </span>
+                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                          3 Separate Excel options (Product, Reval, Dock)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleActionLinkClick(e, "Ongoing Audit")}
+                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                      >
+                        Open Excel Grid &gt;
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                      {ongoingAuditCount}
-                    </span>
-                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                      3 Separate Excel options (Product, Reval, Dock)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleActionLinkClick(e, "Ongoing Audit")}
-                    className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                  {/* CARD 3: COMPLETED AUDIT */}
+                  <div
+                    onClick={() => handleCardBodyClick("Completed Audit")}
+                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
                   >
-                    Open Excel Grid &gt;
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          3. Completed Audit
+                        </span>
+                        <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700 group-hover:scale-105 transition-transform">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                      </div>
 
-              {/* CARD 3: COMPLETED AUDIT */}
-              <div
-                onClick={() => handleCardBodyClick("Completed Audit")}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      3. Completed Audit
-                    </span>
-                    <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700 group-hover:scale-105 transition-transform">
-                      <CheckCircle2 className="h-5 w-5" />
+                      <div className="mt-4">
+                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+                          {completedAuditCount}
+                        </span>
+                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                          Verified audit logs & inspector sign-offs
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleActionLinkClick(e, "Completed Audit")}
+                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                      >
+                        View Completed Logs &gt;
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                      {completedAuditCount}
-                    </span>
-                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                      Verified audit logs & inspector sign-offs
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleActionLinkClick(e, "Completed Audit")}
-                    className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                  {/* CARD 4: DEVIATION OBSERVATION */}
+                  <div
+                    onClick={() => handleCardBodyClick("Deviation Observation")}
+                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-amber-500 hover:shadow-md flex flex-col justify-between"
                   >
-                    View Completed Logs &gt;
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          4. Deviation Observation
+                        </span>
+                        <div className="rounded-lg bg-amber-100 p-2 text-amber-700 group-hover:scale-105 transition-transform">
+                          <AlertTriangle className="h-5 w-5" />
+                        </div>
+                      </div>
 
-              {/* CARD 4: DEVIATION OBSERVATION */}
-              <div
-                onClick={() => handleCardBodyClick("Deviation Observation")}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-amber-500 hover:shadow-md flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      4. Deviation Observation
-                    </span>
-                    <div className="rounded-lg bg-amber-100 p-2 text-amber-700 group-hover:scale-105 transition-transform">
-                      <AlertTriangle className="h-5 w-5" />
+                      <div className="mt-4">
+                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+                          {deviationAuditCount}
+                        </span>
+                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                          Logged non-conformances & CAPA plans
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleActionLinkClick(e, "Deviation Observation")}
+                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                      >
+                        Open Deviation Register &gt;
+                      </button>
                     </div>
                   </div>
-
-                  <div className="mt-4">
-                    <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                      {deviationAuditCount}
-                    </span>
-                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                      Logged non-conformances & CAPA plans
-                    </p>
-                  </div>
                 </div>
 
-                <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleActionLinkClick(e, "Deviation Observation")}
-                    className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
-                  >
-                    Open Deviation Register &gt;
-                  </button>
-                </div>
+                {/* Admin Feature: Submitted Audits Register (Part No, Part Name, Employee Name, Submitted Date) */}
+                {isAdmin && <SubmittedAuditsRegister />}
+
+                {/* Admin Feature: 10 Member Electronic Signatures Database & Authentication */}
+                {isAdmin && <ElectronicSignatureRegistry />}
+
+                {/* Admin Feature: Employee Login & Logout Access Logs */}
+                {isAdmin && <EmployeeActivityLogs />}
               </div>
-            </div>
-
-            {/* Admin Feature: Submitted Audits Register (Part No, Part Name, Employee Name, Submitted Date) */}
-            {isAdmin && <SubmittedAuditsRegister />}
-
-            {/* Admin Feature: 10 Member Electronic Signatures Database & Authentication */}
-            {isAdmin && <ElectronicSignatureRegistry />}
-
-            {/* Admin Feature: Employee Login & Logout Access Logs */}
-            {isAdmin && <EmployeeActivityLogs />}
-          </div>
-        )}
+            )}
 
         {/* ==================================================================== */}
         {/* VIEW 2: INSIDE AUDITS BREAKDOWN / OPTION BOXES VIEW ('inside_audits') */}
@@ -1235,6 +1238,8 @@ function DashboardPage() {
             />
           </div>
         )}
+      </div>
+    )}
       </div>
     </AppShell>
   );
