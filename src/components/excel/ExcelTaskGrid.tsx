@@ -114,8 +114,9 @@ export function ExcelTaskGrid({
 
   // Handle cell edit
   const handleCellChange = (id: string, field: keyof ExcelTaskRow, value: any) => {
-    if (!isAdmin) {
-      toast.error("Access Denied: Only Admins can modify task cells.");
+    // Employees are explicitly granted access to update the Status column
+    if (!isAdmin && field !== "status") {
+      toast.error("Access Denied: Only Admins can modify master task metadata. Employees can update the Status column.");
       return;
     }
     setRows((prev) =>
@@ -712,7 +713,7 @@ export function ExcelTaskGrid({
                     />
                   </td>
 
-                  {/* H: Status */}
+                  {/* H: Status - FULL ACCESS FOR ALL EMPLOYEES */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "status" })}
                     className={`border-r border-slate-200 p-1 ${
@@ -724,7 +725,8 @@ export function ExcelTaskGrid({
                     <select
                       value={r.status}
                       onChange={(e) => handleCellChange(r.id, "status", e.target.value)}
-                      className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-emerald-500"
+                      title="Update Audit Task Status (All Employees Access Granted)"
+                      className="h-8 w-full rounded border border-emerald-500 bg-emerald-50/70 px-2 text-xs font-bold text-emerald-900 shadow-xs focus:ring-2 focus:ring-emerald-500 cursor-pointer hover:bg-emerald-100 transition-colors"
                     >
                       {STATUSES.map((st) => (
                         <option key={st} value={st}>
