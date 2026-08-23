@@ -156,7 +156,12 @@ function DashboardPage() {
     };
   }, []);
 
-  const allTaskRows: Assignment[] = (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[];
+  const rawTaskRows: Assignment[] = (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[];
+  const currentEmpNumber = profile?.employee_number;
+  const allTaskRows = isAdmin
+    ? rawTaskRows
+    : rawTaskRows.filter((r) => !currentEmpNumber || r.assigned_to_employee_number === currentEmpNumber);
+
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
   // Task categories
@@ -320,62 +325,67 @@ function DashboardPage() {
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            <Layers className="h-4 w-4" /> Overview & Matrix
+            <Layers className="h-4 w-4" /> {isAdmin ? "Overview & Matrix" : "My Assigned Tasks & Reporting Queue"}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setDashboardTab("review_jobs")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-              dashboardTab === "review_jobs"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <FileText className="h-4 w-4" /> Review Jobs
-          </button>
+          {/* Admin Specialized Features */}
+          {isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => setDashboardTab("review_jobs")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+                  dashboardTab === "review_jobs"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <FileText className="h-4 w-4" /> Review Jobs
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setDashboardTab("analytics")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-              dashboardTab === "analytics"
-                ? "bg-teal-700 text-white shadow-sm"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <Package className="h-4 w-4" /> Analytics Pie Chart
-          </button>
+              <button
+                type="button"
+                onClick={() => setDashboardTab("analytics")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+                  dashboardTab === "analytics"
+                    ? "bg-teal-700 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <Package className="h-4 w-4" /> Analytics Pie Chart (Admin Only)
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setDashboardTab("activity_logs")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-              dashboardTab === "activity_logs"
-                ? "bg-sky-700 text-white shadow-sm"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            <Calendar className="h-4 w-4" /> All Employee Login & Logout Grid
-          </button>
+              <button
+                type="button"
+                onClick={() => setDashboardTab("activity_logs")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+                  dashboardTab === "activity_logs"
+                    ? "bg-sky-700 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <Calendar className="h-4 w-4" /> All Employee Login & Logout Grid
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Tab 2: Review Jobs */}
-        {dashboardTab === "review_jobs" && (
+        {/* Tab 2: Review Jobs (Admin Only) */}
+        {isAdmin && dashboardTab === "review_jobs" && (
           <div className="animate-in fade-in duration-200">
             <JobReviewTab isAdmin={isAdmin} />
           </div>
         )}
 
-        {/* Tab 3: Analytics Pie Chart */}
-        {dashboardTab === "analytics" && (
+        {/* Tab 3: Analytics Pie Chart (Admin Only) */}
+        {isAdmin && dashboardTab === "analytics" && (
           <div className="animate-in fade-in duration-200">
             <AnalyticsPieChartTab />
           </div>
         )}
 
-        {/* Tab 4: All Employee Logins/Logouts Grid */}
-        {dashboardTab === "activity_logs" && (
+        {/* Tab 4: All Employee Logins/Logouts Grid (Admin Only) */}
+        {isAdmin && dashboardTab === "activity_logs" && (
           <div className="animate-in fade-in duration-200">
             <EmployeeActivityLogsGrid />
           </div>

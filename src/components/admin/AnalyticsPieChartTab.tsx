@@ -18,6 +18,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { useAuth } from "@/hooks/useAuth";
+
 type DataPoint = {
   name: string;
   value: number;
@@ -26,7 +28,21 @@ type DataPoint = {
 };
 
 export function AnalyticsPieChartTab() {
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [activeTab, setActiveTab] = useState<"category" | "health">("category");
+
+  if (!isAdmin) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center text-slate-800 space-y-2">
+        <ShieldAlert className="mx-auto h-10 w-10 text-amber-600" />
+        <h3 className="text-lg font-bold text-slate-900">Admin Special Feature Only</h3>
+        <p className="text-xs font-medium text-slate-600 max-w-md mx-auto">
+          The Analytics Pie Chart and plant-wide distribution metrics are specialized features restricted exclusively to Quality Operations Admins.
+        </p>
+      </div>
+    );
+  }
 
   // 1. Audit Distribution Dataset
   const categoryData: DataPoint[] = [
