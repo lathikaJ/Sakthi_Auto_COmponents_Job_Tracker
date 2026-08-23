@@ -110,15 +110,7 @@ export function AppShell({
         {profile?.full_name && (
           <div className="mb-6 rounded-2xl border border-orange-400/40 bg-gradient-to-r from-orange-600 via-amber-600 to-slate-900 p-5 text-white shadow-md flex items-center justify-between flex-wrap gap-4">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-extrabold text-white backdrop-blur-xs border border-white/30">
-                  {isAdmin ? "👑 Quality Operations Admin" : "👷 Quality Inspector"}
-                </span>
-                <span className="text-xs font-mono text-amber-100 font-bold">
-                  Emp #{profile.employee_number}
-                </span>
-              </div>
-              <h2 className="mt-1.5 text-2xl font-black tracking-tight text-white flex items-center gap-2 drop-shadow-xs">
+              <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-2 drop-shadow-xs">
                 Welcome, {profile.full_name}
               </h2>
             </div>
