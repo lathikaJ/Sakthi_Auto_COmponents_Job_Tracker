@@ -283,13 +283,9 @@ export function ElectronicSignatureRegistry() {
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 truncate" title={member.employee_name}>
+                  <h4 className="text-xs font-extrabold text-slate-900 truncate" title={member.employee_name}>
                     {member.employee_name}
                   </h4>
-                  <p className="text-[11px] font-medium text-slate-500 truncate" title={member.designation}>
-                    {member.designation}
-                  </p>
-                  <p className="text-[10px] font-mono text-slate-400 truncate">{member.department}</p>
                 </div>
 
                 {/* E-Signature Image Container */}

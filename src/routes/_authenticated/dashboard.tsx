@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
+  FileCheck2,
   Building2,
   UserCheck,
   Calendar,
@@ -21,6 +22,7 @@ import {
   Check,
   ArrowRight,
   Trash2,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -82,7 +84,9 @@ function DashboardPage() {
   const { isAdmin, profile, loading } = useAuth();
 
   // State Management
-  const [currentView, setCurrentView] = useState<"dashboard" | "inside_audits" | "excel_view">("dashboard");
+  const [currentView, setCurrentView] = useState<
+    "dashboard" | "inside_audits" | "excel_view" | "submitted_audits_page" | "signatures_page" | "activity_logs_page"
+  >("dashboard");
   const [selectedAuditType, setSelectedAuditType] = useState<string>("Ongoing Audit");
   const [excelSubTab, setExcelSubTab] = useState<"all" | "Product" | "Revalidation" | "Process">("all");
   const [totalSubSelection, setTotalSubSelection] = useState<"options" | "Product" | "Revalidation" | "Process">("options");
@@ -564,16 +568,168 @@ function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Admin Feature: Submitted Audits Register (Part No, Part Name, Employee Name, Submitted Date) */}
-                {isAdmin && <SubmittedAuditsRegister />}
+                {/* ── Admin Quality Tools & Verification Hubs Option Boxes ── */}
+                {isAdmin && (
+                  <div className="space-y-4 pt-4 border-t border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" /> Admin Quality Tools & Verification Hubs
+                      </h3>
+                      <span className="text-xs text-slate-500 font-medium">Click any box to open dedicated full page</span>
+                    </div>
 
-                {/* Admin Feature: 10 Member Electronic Signatures Database & Authentication */}
-                {isAdmin && <ElectronicSignatureRegistry />}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                      {/* BOX 1: Submitted Audits Register */}
+                      <div
+                        onClick={() => setCurrentView("submitted_audits_page")}
+                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div className="rounded-lg bg-emerald-100 p-2.5 text-emerald-700 group-hover:scale-105 transition-transform">
+                              <FileCheck2 className="h-5 w-5" />
+                            </div>
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
+                              Live Register
+                            </span>
+                          </div>
+                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                            Submitted Audits Register
+                          </h4>
+                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
+                            Track Part No, Part Name, Employee Name & Submitted Date Timestamps.
+                          </p>
+                        </div>
 
-                {/* Admin Feature: Employee Login & Logout Access Logs */}
-                {isAdmin && <EmployeeActivityLogs />}
+                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:underline">
+                          <span>Open Full Register Page</span>
+                          <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+
+                      {/* BOX 2: Electronic Signatures Directory */}
+                      <div
+                        onClick={() => setCurrentView("signatures_page")}
+                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-sky-500 hover:shadow-md flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div className="rounded-lg bg-sky-100 p-2.5 text-sky-700 group-hover:scale-105 transition-transform">
+                              <UserCheck className="h-5 w-5" />
+                            </div>
+                            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 border border-sky-300">
+                              10 Personnel
+                            </span>
+                          </div>
+                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors">
+                            Electronic Signatures Directory
+                          </h4>
+                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
+                            10 Member transparent PNG signature database & authentication scanner.
+                          </p>
+                        </div>
+
+                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-sky-700 group-hover:underline">
+                          <span>Open Signature Directory Page</span>
+                          <ArrowRight className="h-4 w-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+
+                      {/* BOX 3: Employee Activity Logs */}
+                      <div
+                        onClick={() => setCurrentView("activity_logs_page")}
+                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div className="rounded-lg bg-indigo-100 p-2.5 text-indigo-700 group-hover:scale-105 transition-transform">
+                              <Calendar className="h-5 w-5" />
+                            </div>
+                            <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-800 border border-indigo-300">
+                              Security Trail
+                            </span>
+                          </div>
+                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                            Employee Activity & Login Logs
+                          </h4>
+                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
+                            Complete security log history of all employee logins, logouts, and system events.
+                          </p>
+                        </div>
+
+                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-indigo-700 group-hover:underline">
+                          <span>Open Activity Logs Page</span>
+                          <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+
+        {/* ==================================================================== */}
+        {/* VIEW 1.B: DEDICATED PAGE FOR SUBMITTED AUDITS REGISTER               */}
+        {/* ==================================================================== */}
+        {currentView === "submitted_audits_page" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <button
+                type="button"
+                onClick={handleResetToDashboard}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
+              </button>
+              <span className="text-xs font-bold text-slate-500">
+                Admin Feature: Submitted Audits Register Page
+              </span>
+            </div>
+            <SubmittedAuditsRegister />
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* VIEW 1.C: DEDICATED PAGE FOR ELECTRONIC SIGNATURES DIRECTORY        */}
+        {/* ==================================================================== */}
+        {currentView === "signatures_page" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <button
+                type="button"
+                onClick={handleResetToDashboard}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
+              </button>
+              <span className="text-xs font-bold text-slate-500">
+                Admin Feature: Electronic Signatures Directory Page
+              </span>
+            </div>
+            <ElectronicSignatureRegistry />
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* VIEW 1.D: DEDICATED PAGE FOR EMPLOYEE ACTIVITY & LOGIN LOGS         */}
+        {/* ==================================================================== */}
+        {currentView === "activity_logs_page" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <button
+                type="button"
+                onClick={handleResetToDashboard}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
+              </button>
+              <span className="text-xs font-bold text-slate-500">
+                Admin Feature: Employee Activity & Login Logs Page
+              </span>
+            </div>
+            <EmployeeActivityLogs />
+          </div>
+        )}
 
         {/* ==================================================================== */}
         {/* VIEW 2: INSIDE AUDITS BREAKDOWN / OPTION BOXES VIEW ('inside_audits') */}

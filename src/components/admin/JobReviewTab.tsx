@@ -241,8 +241,8 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                         <User className="h-3.5 w-3.5 text-slate-400" />
                         {item.employee_name}
                       </div>
-                      <span className="text-[11px] font-semibold text-slate-500 font-mono">
-                        Emp #{item.employee_number} · {item.department}
+                      <span className="text-[11px] font-mono font-bold text-slate-600">
+                        Emp #{item.employee_number}
                       </span>
                     </td>
 
