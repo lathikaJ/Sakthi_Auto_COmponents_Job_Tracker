@@ -69,6 +69,7 @@ function SignInPage() {
             designation: info.designation,
           })
         );
+        window.dispatchEvent(new Event("sakthi_auth_state_changed"));
       }
 
       // Record login event for admin tracking

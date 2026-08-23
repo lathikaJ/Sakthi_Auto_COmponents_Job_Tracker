@@ -131,43 +131,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // ─── Fallback default employee session (Silambarasan S) ────────────────
-      const defaultEmp = "688079";
-      const defaultInfo = ROSTER[defaultEmp] || {
-        name: "SILAMBARASAN S",
-        role: "employee" as const,
-        department: "Machining Line 1",
-        designation: "Senior Quality Engineer",
-      };
-      setSession({
-        access_token: "demo_token",
-        token_type: "bearer",
-        expires_in: 3600,
-        refresh_token: "demo_refresh",
-        user: {
-          id: defaultEmp,
-          app_metadata: {},
-          user_metadata: { employee_number: defaultEmp, full_name: defaultInfo.name },
-          aud: "authenticated",
-          created_at: new Date().toISOString(),
-          email: `emp${defaultEmp}@sakthispark.local`,
-        },
-      } as Session);
-      setProfile({
-        id: defaultEmp,
-        employee_number: defaultEmp,
-        full_name: defaultInfo.name,
-        department: defaultInfo.department,
-        designation: defaultInfo.designation,
-      });
-      setRole(defaultInfo.role);
+      // ─── No active session ────────────────────────────────────────────────
+      setSession(null);
+      setProfile(null);
+      setRole(null);
       setLoading(false);
     };
 
     void load();
 
+    const handleCustomAuth = () => {
+      void load();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("sakthi_auth_state_changed", handleCustomAuth);
+      window.addEventListener("storage", handleCustomAuth);
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      // Only reload if it's a real Supabase auth event AND there's no demo session
       if (event === "SIGNED_OUT") {
         void load();
       }
@@ -175,6 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("sakthi_auth_state_changed", handleCustomAuth);
+        window.removeEventListener("storage", handleCustomAuth);
+      }
       sub.subscription.unsubscribe();
     };
   }, [queryClient]);
