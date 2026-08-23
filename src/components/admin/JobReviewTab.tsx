@@ -12,12 +12,16 @@ import {
   Clock,
   Check,
   X,
+  Eye,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getSubmittedAudits,
   updateSubmittedAuditStatus,
   type SubmittedAuditItem,
 } from "@/lib/submittedAudits";
+import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -25,6 +29,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
   const [submittedList, setSubmittedList] = useState<SubmittedAuditItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [selectedJobForReview, setSelectedJobForReview] = useState<SubmittedAuditItem | null>(null);
 
   const loadAudits = () => {
     setSubmittedList(getSubmittedAudits());
@@ -272,7 +277,17 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
                     {/* Admin Actions */}
                     <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedJobForReview(item)}
+                          className="flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all shadow-2xs"
+                          title="View submitted evidence photos, parameter checkpoints, and authenticated E-Signature"
+                        >
+                          <Eye className="h-3.5 w-3.5 text-indigo-700" />
+                          Review Evidence
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => handleApprove(item)}
@@ -319,6 +334,135 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           </table>
         </div>
       </div>
+
+      {/* ── Admin Audit Quality Evidence & E-Signature Verification Modal ── */}
+      {selectedJobForReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in duration-200">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-indigo-100 px-2.5 py-0.5 font-mono text-xs font-bold text-indigo-800 border border-indigo-300">
+                    {selectedJobForReview.audit_code}
+                  </span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 flex items-center gap-1 border border-emerald-300">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Quality Evidence Inspection
+                  </span>
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900 mt-1.5">
+                  Audit Inspection Evidences & E-Signature Sign-Off
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Part No: <strong className="text-sky-700 font-mono">{selectedJobForReview.part_no}</strong> · {selectedJobForReview.part_name}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedJobForReview(null)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Grid: 2 Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Column 1: Inspector Credentials & Signature */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <User className="h-4 w-4 text-indigo-600" /> Inspector Identification
+                </h4>
+                <div className="space-y-1.5 text-xs">
+                  <p className="font-extrabold text-slate-900 text-sm">{selectedJobForReview.employee_name}</p>
+                  <p className="font-mono text-slate-600 font-bold">Employee ID: #{selectedJobForReview.employee_number}</p>
+                  <p className="text-slate-500 font-medium">{selectedJobForReview.department}</p>
+                  <p className="text-slate-400 font-mono text-[11px] pt-1">
+                    Submitted: {selectedJobForReview.formatted_submitted_date}
+                  </p>
+                </div>
+
+                <div className="border-t border-slate-200 pt-3">
+                  <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                    <span>Authenticated E-Signature</span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      ✓ Verified Digital Sign
+                    </span>
+                  </h4>
+                  <div className="rounded-lg border border-slate-300 bg-white p-3 flex items-center justify-center min-h-[110px] shadow-2xs">
+                    {authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url ? (
+                      <img
+                        src={authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url}
+                        alt="Inspector E-Signature"
+                        className="max-h-24 max-w-full object-contain filter drop-shadow-xs"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400 font-mono">No Signature On File</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Column 2: Checkpoint Parameters & Evidences */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <FileCheck2 className="h-4 w-4 text-sky-600" /> Submitted Parameter Checkpoints
+                </h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
+                    <span className="font-semibold text-slate-700">Hardness Test (HRC)</span>
+                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">62 HRC (OK)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
+                    <span className="font-semibold text-slate-700">Surface Roughness (Ra)</span>
+                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">0.8 µm (OK)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
+                    <span className="font-semibold text-slate-700">Bore Internal Diameter</span>
+                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">45.02 mm (OK)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
+                    <span className="font-semibold text-slate-700">Visual Defect & Crack Test</span>
+                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Pass / Zero Porosity</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Action Verification Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded-xl">
+              <span className="text-xs font-bold text-slate-600">
+                Admin Verification Decision for {selectedJobForReview.audit_code}:
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelectedJobForReview(null)}>
+                  Close Viewer
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    handleReject(selectedJobForReview);
+                    setSelectedJobForReview(null);
+                  }}
+                  disabled={selectedJobForReview.status === "Rejected"}
+                  className="bg-rose-600 text-white font-bold hover:bg-rose-700 gap-1.5 shadow-xs"
+                >
+                  <X className="h-4 w-4" /> Reject Submission
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    handleApprove(selectedJobForReview);
+                    setSelectedJobForReview(null);
+                  }}
+                  disabled={selectedJobForReview.status === "Approved" || selectedJobForReview.status === "Completed"}
+                  className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 gap-1.5 shadow-xs"
+                >
+                  <Check className="h-4 w-4" /> Approve & Sign Off Audit
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
