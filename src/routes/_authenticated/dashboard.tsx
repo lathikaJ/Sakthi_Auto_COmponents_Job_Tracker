@@ -928,6 +928,7 @@ function DashboardPage() {
                             <th className="p-3 w-32 font-bold">Plant Area</th>
                             <th className="p-3 w-28 font-bold">Assigned Emp</th>
                             <th className="p-3 w-28 font-bold">Status</th>
+                            <th className="p-3 text-center w-32 font-bold">Inspection Link</th>
                             {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                           </tr>
                         </thead>
@@ -939,8 +940,24 @@ function DashboardPage() {
                             : docAuditsTotal
                           ).map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-3 font-mono font-bold text-brand">{item.audit_code}</td>
-                              <td className="p-3 font-bold text-slate-900">{item.title}</td>
+                              <td className="p-3 font-mono font-bold text-brand">
+                                <Link
+                                  to="/audit/$auditId"
+                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
+                                  className="hover:underline hover:text-orange-600 inline-flex items-center gap-1"
+                                >
+                                  {item.audit_code}
+                                </Link>
+                              </td>
+                              <td className="p-3 font-bold text-slate-900">
+                                <Link
+                                  to="/audit/$auditId"
+                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
+                                  className="hover:text-sky-600 hover:underline"
+                                >
+                                  {item.title}
+                                </Link>
+                              </td>
                               <td className="p-3 font-semibold text-slate-700">{item.audit_type}</td>
                               <td className="p-3 font-semibold text-slate-700">{item.area}</td>
                               <td className="p-3 font-mono font-bold text-slate-800">
@@ -948,6 +965,15 @@ function DashboardPage() {
                               </td>
                               <td className="p-3">
                                 <StatusBadge status={item.status} />
+                              </td>
+                              <td className="p-3 text-center">
+                                <Link
+                                  to="/audit/$auditId"
+                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
+                                  className="inline-flex items-center gap-1 rounded bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors shadow-2xs"
+                                >
+                                  Open Audit &gt;
+                                </Link>
                               </td>
                               {isAdmin && (
                                 <td className="p-3 text-center">
@@ -995,19 +1021,45 @@ function DashboardPage() {
                       <th className="p-3 w-32 font-bold">Plant Area</th>
                       <th className="p-3 w-28 font-bold">Assigned Emp</th>
                       <th className="p-3 w-28 font-bold">Status</th>
+                      <th className="p-3 text-center w-32 font-bold">Inspection Link</th>
                       {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-900">
                     {completedTasks.map((task) => (
                       <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono font-bold text-emerald-700">{task.audit_code}</td>
-                        <td className="p-3 font-bold text-slate-900">{task.title}</td>
+                        <td className="p-3 font-mono font-bold text-emerald-700">
+                          <Link
+                            to="/audit/$auditId"
+                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
+                            className="hover:underline hover:text-emerald-900"
+                          >
+                            {task.audit_code}
+                          </Link>
+                        </td>
+                        <td className="p-3 font-bold text-slate-900">
+                          <Link
+                            to="/audit/$auditId"
+                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
+                            className="hover:text-emerald-800 hover:underline"
+                          >
+                            {task.title}
+                          </Link>
+                        </td>
                         <td className="p-3 font-semibold text-slate-700">{task.audit_type}</td>
                         <td className="p-3 font-semibold text-slate-700">{task.area}</td>
                         <td className="p-3 font-mono font-bold text-slate-800">Emp #{task.assigned_to_employee_number}</td>
                         <td className="p-3">
                           <StatusBadge status="Completed" />
+                        </td>
+                        <td className="p-3 text-center">
+                          <Link
+                            to="/audit/$auditId"
+                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
+                            className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs"
+                          >
+                            Open Audit &gt;
+                          </Link>
                         </td>
                         {isAdmin && (
                           <td className="p-3 text-center">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
+import { Link } from "@tanstack/react-router";
 import {
   FileCheck2,
   Search,
@@ -226,7 +227,13 @@ export function SubmittedAuditsRegister() {
 
                     {/* Audit Code */}
                     <td className="p-3 font-mono font-bold text-brand">
-                      {item.audit_code}
+                      <Link
+                        to="/audit/$auditId"
+                        params={{ auditId: item.audit_code.toLowerCase().replace(/[^a-z0-9-]/g, "-") }}
+                        className="hover:underline hover:text-orange-600 flex items-center gap-1"
+                      >
+                        {item.audit_code}
+                      </Link>
                     </td>
 
                     {/* Status */}

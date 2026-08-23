@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   FileCheck2,
   CheckCircle2,
@@ -210,9 +211,13 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     {/* Audit Code */}
                     <td className="p-3 font-mono font-bold text-indigo-700">
-                      <span className="rounded bg-indigo-50 px-2 py-1 border border-indigo-200">
+                      <Link
+                        to="/audit/$auditId"
+                        params={{ auditId: item.audit_code.toLowerCase().replace(/[^a-z0-9-]/g, "-") }}
+                        className="rounded bg-indigo-50 px-2 py-1 border border-indigo-200 hover:bg-indigo-100 hover:underline transition-colors"
+                      >
                         {item.audit_code}
-                      </span>
+                      </Link>
                     </td>
 
                     {/* Part No */}
