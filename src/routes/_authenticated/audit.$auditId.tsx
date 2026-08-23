@@ -16,11 +16,16 @@ import {
   ChevronLeft,
   Camera,
   Check,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+
+import { recordSubmittedAudit } from "@/lib/submittedAudits";
+import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/audit/$auditId")({
   component: AuditFormPage,
@@ -39,6 +44,10 @@ function AuditFormPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
+  // Part & Inspection metadata states
+  const [partNo, setPartNo] = useState("PN-88402-A");
+  const [partName, setPartName] = useState("Front Wheel Hub Assembly");
+
   // Wizard Step State: 1 = Checkpoints, 2 = Notes & Photos, 3 = E-Signature & Submit
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
@@ -53,6 +62,49 @@ function AuditFormPage() {
     },
   ]);
 
+  // Dynamic audit preset initialization based on auditId
+  React.useEffect(() => {
+    if (auditId.includes("STELL") || auditId.includes("DOC")) {
+      setPartNo("9845800980 & 9845801180");
+      setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH (STELLANTIS)");
+      setCheckpoints([
+        { id: "cp-1", parameter: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, profile, milling)", actual_value: "Conforms", status: "Pass" },
+        { id: "cp-2", parameter: "APPEARANCE 10-POINT CHECK", specification: "No blow hole, pin hole, wall thickness variation, sharp edge, dent/damage, flaws, rust, paint peel off", actual_value: "OK (10/10)", status: "Pass" },
+        { id: "cp-3", parameter: "RP OIL CONDITION VERIFICATION", specification: "No excess oil, no dust/burr/scrap, no foreign particles", actual_value: "Verified OK", status: "Pass" },
+        { id: "cp-4", parameter: "PACKING BOX & VCI COVER CONDITION", specification: "Proper center pad/foam, no box damage, VCI cover clean", actual_value: "Good Condition", status: "Pass" },
+        { id: "cp-5", parameter: "PACKING OF PARTS VERIFICATION", specification: "Qty per layer = 24, Qty per box = 144, labeling info verified", actual_value: "144 NOS (24x6)", status: "Pass" },
+        { id: "cp-6", parameter: "PART MIXUP PREVENTION", specification: "Ensure no part mixup", actual_value: "Verified No Mixup", status: "Pass" },
+        { id: "cp-7", parameter: "AVAILABILITY OF COMMITMENT MARK", specification: "Ensure availability of commitment mark if any", actual_value: "Present", status: "Pass" },
+        { id: "cp-8", parameter: "FOREIGN PARTICLES IN BOX", specification: "Ensure no foreign particles in the box", actual_value: "Clean Box", status: "Pass" },
+        { id: "cp-9", parameter: "PACKING LABEL & STATUS", specification: "Packing label pasted on box with correct part name/number (9845800980/1180)", actual_value: "Label Attached", status: "Pass" },
+      ]);
+    } else if (auditId.includes("VOL") || auditId.includes("LAY")) {
+      setPartNo("23407840 / P03");
+      setPartName("FAN BRACKET LOW FAN HUB (VOLVO)");
+      setCheckpoints([
+        { id: "cp-1", parameter: "DISTANCE M", specification: "4 x 47.7±0.2 (CMM / Height Vernier & Scriber)", actual_value: "47.72 mm", status: "Pass" },
+        { id: "cp-2", parameter: "THICKNESS M", specification: "4 x 22.5±0.3 (Micrometer)", actual_value: "22.51 mm", status: "Pass" },
+        { id: "cp-3", parameter: "ROUGHNESS ON DATUM 'A' OPPOSITE SIDE M", specification: "6.3 Ra (Surf Tester)", actual_value: "6.1 Ra", status: "Pass" },
+        { id: "cp-4", parameter: "PARALLELISM ON DATUM 'A' OPPOSITE SIDE - 4 PLACES M", specification: "4 x f/0.2/A (Height Vernier & Dial / CMM)", actual_value: "0.14 mm", status: "Pass" },
+        { id: "cp-5", parameter: "HOLE CHAMFER (As per RTS) M", specification: "0.5 ±0.1 (Height Vernier Scriber)", actual_value: "0.52 mm", status: "Pass" },
+        { id: "cp-6", parameter: "HOLE CHAMFER (As per RTS) M", specification: "45° ±2° (Bevel Protractor)", actual_value: "45.1°", status: "Pass" },
+        { id: "cp-7", parameter: "ROUGHNESS ON THREAD FACE M", specification: "Ra 6.3 (Surf Tester)", actual_value: "6.2 Ra", status: "Pass" },
+      ]);
+    } else if (auditId.includes("MSIL") || auditId.includes("YTA")) {
+      setPartNo("45111 M 55TA0 / 45151 M 55TA0");
+      setPartName("KNUCKLE STEERING R/L - YTA / YTB (MSIL)");
+      setCheckpoints([
+        { id: "cp-1", parameter: "HARDNESS (MSIL QF/08/CQA-09)", specification: "164 ~ 188 BHN / 85 ~ 91HRB", actual_value: "176 BHN", status: "Pass" },
+        { id: "cp-2", parameter: "MICROSTRUCTURE SPHEROIDIZATION & PEARLITE", specification: "Spheroidization >=80%, Pearlite 10-40%, Nodule Count >=70 PCS/mm²", actual_value: "Spheroidization 85%, Pearlite 25%", status: "Pass" },
+        { id: "cp-3", parameter: "TENSILE STRENGTH", specification: "500 MPa MIN", actual_value: "525 MPa", status: "Pass" },
+        { id: "cp-4", parameter: "YIELD STRENGTH @ 0.2% & 0.5%", specification: "@ 0.2%: 320 MPa MIN, @ 0.5%: 340 MPa MIN", actual_value: "338 MPa / 355 MPa", status: "Pass" },
+        { id: "cp-5", parameter: "ELONGATION & IMPACT STRENGTH", specification: "Elongation >=10%, Impact Strength >=8J/cm² MIN", actual_value: "Elongation 12%, Impact 9.5 J/cm²", status: "Pass" },
+        { id: "cp-6", parameter: "OP-010 RECEIVING INSPECTION ROUGH CASTING (APPEARANCE)", specification: "Free of crack/flaw/rust; Legible casting letters; Surface as per CFT-16; Hardness & X-ray marks at OP20", actual_value: "Verified OK", status: "Pass" },
+        { id: "cp-7", parameter: "OP-010 RECEIVING INSPECTION ROUGH CASTING (PAINTING)", specification: "Ensure Black dip painting; No paint peel off / overflow / damages (Part 45111/45151-55T00)", actual_value: "Black Dip Uniform", status: "Pass" },
+      ]);
+    }
+  }, [auditId]);
+
   // Notes & Photos State
   const [inspectorNotes, setInspectorNotes] = useState("");
   const [imageFiles, setImageFiles] = useState<(string | null)[]>([null, null, null]);
@@ -62,11 +114,37 @@ function AuditFormPage() {
     useRef<HTMLInputElement>(null),
   ];
 
-  // E-Signature Image Upload State
+  // E-Signature Image Upload & Employee ID Authentication State
+  const [authEmpId, setAuthEmpId] = useState(profile?.employee_number || "688079");
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [signedAt, setSignedAt] = useState<string | null>(null);
   const [sigDragOver, setSigDragOver] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
+
+  // Authenticate Employee ID and auto-load ONLY their registered e-signature
+  const handleAuthenticateSignature = useCallback((empIdToAuth: string) => {
+    const cleanId = empIdToAuth.trim();
+    if (!cleanId) {
+      toast.error("Please enter your Employee ID to authenticate.");
+      return;
+    }
+    const sigData = authenticateAndGetSignature(cleanId);
+    if (sigData && sigData.signature_url) {
+      setSignatureImage(sigData.signature_url);
+      setSignedAt(format(new Date(), "dd MMM yyyy, hh:mm a"));
+      toast.success(`Authenticated: Loaded signature for ${sigData.employee_name} (Emp #${sigData.employee_number})!`);
+    } else {
+      setSignatureImage(null);
+      setSignedAt(null);
+      toast.error(`Employee ID #${cleanId} not found in registered roster.`);
+    }
+  }, []);
+
+  // Sync authEmpId when logged in profile changes (does NOT auto-load signature until button clicked)
+  React.useEffect(() => {
+    const currentEmp = profile?.employee_number || "688079";
+    setAuthEmpId(currentEmp);
+  }, [profile?.employee_number]);
 
   // Handle Photo File Upload
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,6 +215,18 @@ function AuditFormPage() {
     toast.info("E-Signature cleared.");
   };
 
+  // Auto-attach authenticated E-signature image for logged in employee
+  React.useEffect(() => {
+    if (!signatureImage) {
+      const empNum = profile?.employee_number || "1002";
+      const authMember = authenticateAndGetSignature(empNum);
+      if (authMember && authMember.signature_url) {
+        setSignatureImage(authMember.signature_url);
+        setSignedAt(format(new Date(), "PPpp"));
+      }
+    }
+  }, [profile?.employee_number]);
+
   // Checkpoint handlers
   const handleParamChange = (id: string, parameter: string) => {
     setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, parameter } : cp)));
@@ -194,6 +284,23 @@ function AuditFormPage() {
       return;
     }
 
+    // Record submitted audit metadata for admin view (Part No, Part Name, Employee Name, Submission Date)
+    const now = new Date();
+    const formattedDate = format(now, "dd MMM yyyy, hh:mm a");
+    recordSubmittedAudit({
+      audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
+      part_no: partNo || "PN-88402-A",
+      part_name: partName || "Quality Inspection Part",
+      employee_name: profile?.full_name || "SILAMBARASAN S",
+      employee_number: profile?.employee_number || "688079",
+      department: profile?.department || "Machining Line 1",
+      submitted_date: now.toISOString(),
+      formatted_submitted_date: formattedDate,
+      status: "Submitted",
+      checkpoints_count: checkpoints.length,
+      failing_count: checkpoints.filter((cp) => cp.status === "Fail").length,
+    });
+
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("sakthi_excel_tasks");
       let tasks = stored ? JSON.parse(stored) : [];
@@ -243,7 +350,7 @@ function AuditFormPage() {
       observed_condition: desc,
       location: `Audit ID: ${auditId}`,
       severity: "High" as const,
-      assigned_emp: profile?.employee_number || "1001",
+      assigned_emp: profile?.employee_number || "690867",
     };
 
     if (typeof window !== "undefined") {
@@ -266,7 +373,7 @@ function AuditFormPage() {
         }
       }
     }
-    toast.info("Navigating to Deviations — task moved to Deviation Audit.");
+    toast.info("Navigating to Deviations — task moved to Deviation Observation.");
     navigate({ to: "/deviations" });
   };
 
@@ -377,6 +484,55 @@ function AuditFormPage() {
         {/* ── STEP 1 CONTENT: CHECKPOINTS & MEASUREMENTS ── */}
         {currentStep === 1 && (
           <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Part & Inspector Metadata Card */}
+            <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
+                  <Package className="h-4 w-4 text-sky-600" /> Part & Inspector Metadata (Submitted to Admin)
+                </span>
+                <span className="rounded-full bg-sky-200/80 px-2.5 py-0.5 text-[11px] font-mono font-bold text-sky-900">
+                  {auditId}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                    Part Number (Part No)
+                  </label>
+                  <input
+                    type="text"
+                    value={partNo}
+                    onChange={(e) => setPartNo(e.target.value)}
+                    placeholder="e.g. PN-88402-A"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                    Part Name
+                  </label>
+                  <input
+                    type="text"
+                    value={partName}
+                    onChange={(e) => setPartName(e.target.value)}
+                    placeholder="e.g. Front Wheel Hub Assembly"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                    Employee Name
+                  </label>
+                  <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800">
+                    {profile?.full_name || "SILAMBARASAN S"} (Emp #{profile?.employee_number || "688079"})
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
                 <div>
@@ -566,7 +722,7 @@ function AuditFormPage() {
                         </div>
                       ) : (
                         <div
-                          onClick={() => fileInputRefs[index].current?.click()}
+                          onClick={() => fileInputRefs[index]?.current?.click()}
                           className="flex flex-col items-center justify-center cursor-pointer text-center space-y-2 p-2 w-full h-full"
                         >
                           <div className="rounded-full bg-emerald-100 p-3 text-emerald-600">
@@ -612,6 +768,35 @@ function AuditFormPage() {
                 <PenTool className="h-4 w-4 text-emerald-600" /> Step 3: Inspector E-Signature Upload
               </h3>
 
+              {/* Employee ID Signature Authentication Panel */}
+              <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-sky-900 flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-sky-600" /> Employee ID Signature Authentication
+                  </span>
+                  <span className="text-[11px] font-semibold text-sky-700">
+                    Strict 1-to-1 ID Signature Verification
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={authEmpId}
+                    onChange={(e) => setAuthEmpId(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Enter Employee ID (e.g. 688079)"
+                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold font-mono text-slate-900 focus:border-sky-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAuthenticateSignature(authEmpId)}
+                    className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-700 transition-colors shadow-xs flex items-center gap-1.5"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Authenticate & Load Signature
+                  </button>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                 <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
                 <div className="text-xs font-semibold text-slate-700">
@@ -650,29 +835,25 @@ function AuditFormPage() {
                   </div>
                 </div>
               ) : (
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setSigDragOver(true); }}
-                  onDragLeave={() => setSigDragOver(false)}
-                  onDrop={handleSigDrop}
-                  onClick={() => sigInputRef.current?.click()}
-                  className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-colors ${
-                    sigDragOver
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/50"
-                  }`}
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-                    <Upload className="h-5 w-5 text-emerald-600" />
+                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 p-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    <ShieldCheck className="h-6 w-6" />
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-slate-800">Upload your E-Signature Image</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Drag & drop or click — PNG, JPG, SVG accepted · Max 5MB
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900">
+                      🔒 E-Signature Verification Pending
+                    </h4>
+                    <p className="mt-1 text-xs text-amber-700 max-w-md">
+                      Please verify your Employee ID above and click <strong>'Authenticate & Load Signature'</strong> to load and attach your registered electronic signature.
                     </p>
                   </div>
-                  <span className="rounded-lg border border-emerald-400 bg-white px-4 py-1.5 text-xs font-bold text-emerald-700 shadow-xs hover:bg-emerald-50 transition-colors">
-                    Choose Signature File
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAuthenticateSignature(authEmpId)}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                  >
+                    <ShieldCheck className="h-4 w-4" /> Authenticate & Load Signature
+                  </button>
                 </div>
               )}
 

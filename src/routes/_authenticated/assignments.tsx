@@ -6,6 +6,8 @@ import { ExcelTaskGrid } from "@/components/excel/ExcelTaskGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+import { DEFAULT_OFFICIAL_AUDITS } from "@/lib/audit";
+
 export const Route = createFileRoute("/_authenticated/assignments")({
   component: AssignmentsPage,
 });
@@ -32,7 +34,7 @@ function AssignmentsPage() {
   useEffect(() => {
     const loadStored = () => {
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("sakthi_excel_tasks");
+        const stored = localStorage.getItem("sakthi_excel_tasks_v8");
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
@@ -52,7 +54,9 @@ function AssignmentsPage() {
 
   const initialRows = localExcelTasks.length > 0
     ? localExcelTasks
-    : dbRows;
+    : dbRows.length > 0
+    ? dbRows
+    : DEFAULT_OFFICIAL_AUDITS;
 
   return (
     <AppShell

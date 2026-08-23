@@ -24,7 +24,7 @@ Role-Based Routing:
 
 - Completed Audit: Read-only verified historical records[cite: 1].
 
-- Deviation Audit: Non-conformances and error reporting queue[cite: 1].
+- Deviation Observation: Non-conformances and error reporting queue.[cite: 1].
 
  4. Employee Audit Execution & Excel-Format Form
 

@@ -20,7 +20,9 @@ import {
   Filter,
   Check,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app/AppShell";
 import { StatusBadge } from "@/components/app/StatusBadge";
@@ -28,16 +30,24 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ExcelTaskGrid, ExcelTaskRow } from "@/components/excel/ExcelTaskGrid";
+import { EmployeeActivityLogs } from "@/components/admin/EmployeeActivityLogs";
+import { SubmittedAuditsRegister } from "@/components/admin/SubmittedAuditsRegister";
+import { ElectronicSignatureRegistry } from "@/components/admin/ElectronicSignatureRegistry";
+import { JobReviewTab } from "@/components/admin/JobReviewTab";
+import { AnalyticsPieChartTab } from "@/components/admin/AnalyticsPieChartTab";
+import { EmployeeActivityLogsGrid } from "@/components/admin/EmployeeActivityLogsGrid";
+
+import { DEFAULT_OFFICIAL_AUDITS } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Sakthi Auto Value Added Engineering" },
+      { title: "Machine Shop Audit — Sakthi Auto Value Added Engineering" },
       {
         name: "description",
-        content: "Audit Management Dashboard with conditional two-level drill-down interaction mechanism.",
+        content: "Machine Shop Audit platform with conditional two-level drill-down interaction mechanism.",
       },
-      { property: "og:title", content: "Dashboard — Sakthi Auto Value Added Engineering" },
+      { property: "og:title", content: "Machine Shop Audit — Sakthi Auto Value Added Engineering" },
     ],
   }),
   component: DashboardPage,
@@ -76,6 +86,7 @@ function DashboardPage() {
   const [selectedAuditType, setSelectedAuditType] = useState<string>("Ongoing Audit");
   const [excelSubTab, setExcelSubTab] = useState<"all" | "Product" | "Revalidation" | "Process">("all");
   const [totalSubSelection, setTotalSubSelection] = useState<"options" | "Product" | "Revalidation" | "Process">("options");
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "review_jobs" | "analytics" | "activity_logs">("overview");
 
   const assignments = useQuery({
     queryKey: ["assignments"],
@@ -110,7 +121,7 @@ function DashboardPage() {
   useEffect(() => {
     const loadStored = () => {
       if (typeof window !== "undefined") {
-        const storedTasks = localStorage.getItem("sakthi_excel_tasks");
+        const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
         if (storedTasks) {
           try {
             const parsed = JSON.parse(storedTasks);
@@ -145,7 +156,7 @@ function DashboardPage() {
     };
   }, []);
 
-  const allTaskRows: Assignment[] = localExcelTasks.length > 0 ? localExcelTasks : dbRows;
+  const allTaskRows: Assignment[] = (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[];
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
   // Task categories
@@ -186,13 +197,13 @@ function DashboardPage() {
   const productAuditsTotal = allTaskRows.filter((r) => r.audit_type === "Product");
   const revalidationAuditsTotal = allTaskRows.filter((r) => r.audit_type === "Revalidation");
   const docAuditsTotal = allTaskRows.filter(
-    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit"
+    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
   );
 
   const ongoingProductCount = ongoingTasks.filter((r) => r.audit_type === "Product").length;
   const ongoingRevalidationCount = ongoingTasks.filter((r) => r.audit_type === "Revalidation").length;
   const ongoingDocCount = ongoingTasks.filter(
-    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit"
+    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
   ).length;
 
   // Event Handlers
@@ -223,6 +234,39 @@ function DashboardPage() {
     setCurrentView("dashboard");
   };
 
+  // Delete Audit (Admin only)
+  const handleDeleteAudit = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only Admin can delete audit records.");
+      return;
+    }
+    const updated = allTaskRows.filter((t) => t.id !== id);
+    setLocalExcelTasks(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+    }
+    try {
+      await supabase.from("audit_assignments").delete().eq("id", id);
+    } catch {}
+    toast.info("Audit record removed by Admin.");
+  };
+
+  // Delete Deviation Observation (Admin only)
+  const handleDeleteDeviation = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only Admin can delete deviation observations.");
+      return;
+    }
+    const updated = localDeviations.filter((d) => d.id !== id);
+    setLocalDeviations(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_deviations", JSON.stringify(updated));
+      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+    }
+    toast.info("Deviation observation deleted by Admin.");
+  };
+
   // Filter rows for Excel View
   const getFilteredExcelRows = (): ExcelTaskRow[] => {
     let contextRows: Assignment[] = allTaskRows;
@@ -231,14 +275,14 @@ function DashboardPage() {
       contextRows = ongoingTasks;
     } else if (selectedAuditType === "Completed Audit") {
       contextRows = completedTasks;
-    } else if (selectedAuditType === "Deviation Audit") {
+    } else if (selectedAuditType === "Deviation Observation" || selectedAuditType === "Deviation Audit") {
       contextRows = allTaskRows.filter((r) => r.status === "Deviation");
     }
 
     if (excelSubTab === "all") return contextRows;
     if (excelSubTab === "Process") {
       return contextRows.filter(
-        (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit"
+        (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
       );
     }
     return contextRows.filter((r) => r.audit_type === excelSubTab);
@@ -254,7 +298,7 @@ function DashboardPage() {
 
   return (
     <AppShell
-      title={`Audit Control Dashboard (${isAdmin ? "Admin View" : "Employee View"})`}
+      title={`Machine Shop Audit (${isAdmin ? "Admin View" : "Employee View"})`}
       description="Interactive audit control matrix. Click card body for internal breakdown options or blue links for direct Excel access."
       action={
         isAdmin ? (
@@ -264,11 +308,81 @@ function DashboardPage() {
         ) : undefined
       }
     >
-      <div className="space-y-8">
-        {/* ==================================================================== */}
-        {/* VIEW 1: MAIN DASHBOARD CARDS VIEW ('dashboard')                     */}
-        {/* ==================================================================== */}
-        {currentView === "dashboard" && (
+      <div className="space-y-6">
+        {/* Top-Level Feature Navigation Tabs */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+          <button
+            type="button"
+            onClick={() => setDashboardTab("overview")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+              dashboardTab === "overview"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Layers className="h-4 w-4" /> Overview & Matrix
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDashboardTab("review_jobs")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+              dashboardTab === "review_jobs"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <FileText className="h-4 w-4" /> Review Jobs
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDashboardTab("analytics")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+              dashboardTab === "analytics"
+                ? "bg-teal-700 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Package className="h-4 w-4" /> Analytics Pie Chart
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDashboardTab("activity_logs")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+              dashboardTab === "activity_logs"
+                ? "bg-sky-700 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Calendar className="h-4 w-4" /> All Employee Login & Logout Grid
+          </button>
+        </div>
+
+        {/* Tab 2: Review Jobs */}
+        {dashboardTab === "review_jobs" && (
+          <div className="animate-in fade-in duration-200">
+            <JobReviewTab isAdmin={isAdmin} />
+          </div>
+        )}
+
+        {/* Tab 3: Analytics Pie Chart */}
+        {dashboardTab === "analytics" && (
+          <div className="animate-in fade-in duration-200">
+            <AnalyticsPieChartTab />
+          </div>
+        )}
+
+        {/* Tab 4: All Employee Logins/Logouts Grid */}
+        {dashboardTab === "activity_logs" && (
+          <div className="animate-in fade-in duration-200">
+            <EmployeeActivityLogsGrid />
+          </div>
+        )}
+
+        {/* Tab 1: Main Overview & Matrix */}
+        {dashboardTab === "overview" && (
           <div className="space-y-8 animate-in fade-in duration-200">
             {/* Instruction Banner */}
             <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 flex items-center justify-between flex-wrap gap-3">
@@ -308,7 +422,7 @@ function DashboardPage() {
                       {totalAuditCount}
                     </span>
                     <p className="mt-1 text-xs font-semibold text-slate-600">
-                      Master options: Product, Reval & Doc Audits
+                      Master options: Product, Reval & Dock Audits
                     </p>
                   </div>
                 </div>
@@ -345,7 +459,7 @@ function DashboardPage() {
                       {ongoingAuditCount}
                     </span>
                     <p className="mt-1 text-xs font-semibold text-slate-600">
-                      3 Separate Excel options (Product, Reval, Doc)
+                      3 Separate Excel options (Product, Reval, Dock)
                     </p>
                   </div>
                 </div>
@@ -399,15 +513,15 @@ function DashboardPage() {
                 </div>
               </div>
 
-              {/* CARD 4: DEVIATION AUDIT */}
+              {/* CARD 4: DEVIATION OBSERVATION */}
               <div
-                onClick={() => handleCardBodyClick("Deviation Audit")}
+                onClick={() => handleCardBodyClick("Deviation Observation")}
                 className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-amber-500 hover:shadow-md flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      4. Deviation Audit
+                      4. Deviation Observation
                     </span>
                     <div className="rounded-lg bg-amber-100 p-2 text-amber-700 group-hover:scale-105 transition-transform">
                       <AlertTriangle className="h-5 w-5" />
@@ -428,7 +542,7 @@ function DashboardPage() {
                   <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
                   <button
                     type="button"
-                    onClick={(e) => handleActionLinkClick(e, "Deviation Audit")}
+                    onClick={(e) => handleActionLinkClick(e, "Deviation Observation")}
                     className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
                   >
                     Open Deviation Register &gt;
@@ -436,6 +550,15 @@ function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Admin Feature: Submitted Audits Register (Part No, Part Name, Employee Name, Submitted Date) */}
+            {isAdmin && <SubmittedAuditsRegister />}
+
+            {/* Admin Feature: 10 Member Electronic Signatures Database & Authentication */}
+            {isAdmin && <ElectronicSignatureRegistry />}
+
+            {/* Admin Feature: Employee Login & Logout Access Logs */}
+            {isAdmin && <EmployeeActivityLogs />}
           </div>
         )}
 
@@ -537,7 +660,7 @@ function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* BOX 3: Doc Audit Option Box */}
+                  {/* BOX 3: Dock Audit Option Box */}
                   <div
                     onClick={() => handleOpenSpecificOngoingExcel("Process")}
                     className="group cursor-pointer rounded-xl border-2 border-indigo-300 bg-white p-6 shadow-xs hover:border-indigo-500 hover:shadow-lg transition-all flex flex-col justify-between"
@@ -553,16 +676,16 @@ function DashboardPage() {
                       </div>
 
                       <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                        Doc Audit
+                        Dock Audit
                       </h3>
                       <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                        Open dedicated Doc Audit Excel sheet for process documentation and SOP compliance logs.
+                        Open dedicated Dock Audit Excel sheet for process documentation and SOP compliance logs.
                       </p>
                     </div>
 
                     <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
                       <span className="text-xs font-bold text-indigo-700 group-hover:underline">
-                        Open Doc Audit Excel Sheet
+                        Open Dock Audit Excel Sheet
                       </span>
                       <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
                     </div>
@@ -658,7 +781,7 @@ function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* OPTION BOX 3: Doc Audit */}
+                    {/* OPTION BOX 3: Dock Audit */}
                     <div
                       onClick={() => setTotalSubSelection("Process")}
                       className="group cursor-pointer rounded-xl border-2 border-indigo-300 bg-white p-6 shadow-xs hover:border-indigo-500 hover:shadow-lg transition-all flex flex-col justify-between"
@@ -674,16 +797,16 @@ function DashboardPage() {
                         </div>
 
                         <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                          Doc Audit
+                          Dock Audit
                         </h3>
                         <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                          View master breakdown list for all Process & Doc Audits.
+                          View master breakdown list for all Process & Dock Audits.
                         </p>
                       </div>
 
                       <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
                         <span className="text-xs font-bold text-indigo-700 group-hover:underline">
-                          View Doc Audit Breakdown List
+                          View Dock Audit Breakdown List
                         </span>
                         <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -701,7 +824,7 @@ function DashboardPage() {
                         ) : (
                           <FileText className="h-5 w-5 text-indigo-600" />
                         )}
-                        Total {totalSubSelection === "Process" ? "Doc" : totalSubSelection} Audit Master List
+                        Total {totalSubSelection === "Process" ? "Dock" : totalSubSelection} Audit Master List
                       </h3>
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
                         {totalSubSelection === "Product"
@@ -713,6 +836,88 @@ function DashboardPage() {
                       </span>
                     </div>
 
+                    {/* QF/08/CQA-10 Product Audit Plan Legend Card */}
+                    {totalSubSelection === "Product" && (
+                      <div className="rounded-xl border border-emerald-300 bg-emerald-50/60 p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-2">
+                          <span className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
+                            <FileText className="h-4 w-4 text-emerald-700" />
+                            PRODUCT AUDIT PLAN [MACHINING] — Doc No: QF/08/CQA-10 (Rev.No: 02 dt 12.06.2026)
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded border border-emerald-300">
+                            Ref Checklist: QF/08/CQA-09
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-[11px] font-semibold text-slate-800">
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-400 bg-white" />
+                            <span>PLAN (Scheduled)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                            <span>PLANNED AUDIT DONE (Ref QF/08/CQA-09)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+                            <span>PLANNED AUDIT NOT CHECKED</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                            <span>PLANNED NOT AVAILABLE</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-none rotate-45 bg-amber-500" />
+                            <span>UNPLANNED INCLUDED</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
+                            <span className="h-2.5 w-2.5 rounded-none rotate-45 bg-sky-600" />
+                            <span>UNPLANNED AUDIT DONE</span>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] font-mono text-emerald-900 pt-1">
+                          Approval Track: <strong>PREPARED BY</strong> ➔ <strong>TEAM LEADER AUDIT</strong> ➔ <strong>APPROVED BY QUALITY HEAD</strong>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* QF/08/CQA-31 Revalidation Plan Schedule Card */}
+                    {totalSubSelection === "Revalidation" && (
+                      <div className="rounded-xl border border-sky-300 bg-sky-50/60 p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-200 pb-2">
+                          <span className="text-xs font-extrabold text-sky-900 flex items-center gap-1.5">
+                            <RefreshCcw className="h-4 w-4 text-sky-700" />
+                            REVALIDATION PLAN [MACHINING] — Doc No: QF/08/CQA-31 (Rev.No: 02 dt 01.01.2025/2026)
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-sky-800 bg-sky-100 px-2.5 py-0.5 rounded border border-sky-300">
+                            Customer: MAHINDRA & MAHINDRA LTD
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-[11px] font-semibold text-slate-800">
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">MPV Housing</span>: <span className="font-mono text-brand">Jan & Jul</span>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">Bolero Knuckle</span>: <span className="font-mono text-brand">May & Nov</span>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">IFS (W501/3G ECO)</span>: <span className="font-mono text-brand">May & Nov</span>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">Disc Brake</span>: <span className="font-mono text-brand">Feb & Aug</span>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">Bolero Passenger (NABS)</span>: <span className="font-mono text-brand">Apr & Oct</span>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
+                            <span className="font-bold text-sky-900">Bolero Passenger (ABS)</span>: <span className="font-mono text-brand">Feb & Aug</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="overflow-hidden rounded-lg border border-slate-200">
                       <table className="w-full border-collapse text-left text-xs font-sans">
                         <thead>
@@ -723,6 +928,7 @@ function DashboardPage() {
                             <th className="p-3 w-32 font-bold">Plant Area</th>
                             <th className="p-3 w-28 font-bold">Assigned Emp</th>
                             <th className="p-3 w-28 font-bold">Status</th>
+                            {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -743,6 +949,19 @@ function DashboardPage() {
                               <td className="p-3">
                                 <StatusBadge status={item.status} />
                               </td>
+                              {isAdmin && (
+                                <td className="p-3 text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                                    onClick={() => handleDeleteAudit(item.id)}
+                                    title="Delete Audit (Admin Only)"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </td>
+                              )}
                             </tr>
                           ))}
 
@@ -753,7 +972,7 @@ function DashboardPage() {
                             : docAuditsTotal
                           ).length === 0 && (
                             <tr>
-                              <td colSpan={6} className="p-8 text-center text-xs font-medium text-slate-500">
+                              <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
                                 No records found for this audit type.
                               </td>
                             </tr>
@@ -776,6 +995,7 @@ function DashboardPage() {
                       <th className="p-3 w-32 font-bold">Plant Area</th>
                       <th className="p-3 w-28 font-bold">Assigned Emp</th>
                       <th className="p-3 w-28 font-bold">Status</th>
+                      {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -789,12 +1009,25 @@ function DashboardPage() {
                         <td className="p-3">
                           <StatusBadge status="Completed" />
                         </td>
+                        {isAdmin && (
+                          <td className="p-3 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                              onClick={() => handleDeleteAudit(task.id)}
+                              title="Delete Audit (Admin Only)"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
 
                     {completedTasks.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-xs font-medium text-slate-500">
+                        <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
                           No completed audits.
                         </td>
                       </tr>
@@ -803,7 +1036,7 @@ function DashboardPage() {
                 </table>
               </div>
             ) : (
-              /* ── DEVIATION AUDIT LIST ── */
+              /* ── DEVIATION OBSERVATION LIST ── */
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
                 <table className="w-full border-collapse text-left text-xs font-sans">
                   <thead>
@@ -814,6 +1047,7 @@ function DashboardPage() {
                       <th className="p-3 w-28 font-bold">Severity</th>
                       <th className="p-3 w-28 font-bold">Assigned Emp</th>
                       <th className="p-3 w-28 font-bold">Status</th>
+                      {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -829,12 +1063,25 @@ function DashboardPage() {
                             {dev.status || "open"}
                           </span>
                         </td>
+                        {isAdmin && (
+                          <td className="p-3 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                              onClick={() => handleDeleteDeviation(dev.id)}
+                              title="Delete Deviation Observation (Admin Only)"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
 
                     {mergedDeviations.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-xs font-medium text-slate-500">
+                        <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
                           No deviations reported.
                         </td>
                       </tr>
@@ -874,7 +1121,7 @@ function DashboardPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500">Excel Grid Context:</span>
                 <span className="rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white">
-                  {selectedAuditType} {excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Doc" : excelSubTab})` : ""}
+                  {selectedAuditType} {excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Dock" : excelSubTab})` : ""}
                 </span>
               </div>
 
@@ -910,7 +1157,7 @@ function DashboardPage() {
                     excelSubTab === "Process" ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600"
                   }`}
                 >
-                  Doc
+                  Dock
                 </button>
               </div>
             </div>
@@ -919,8 +1166,8 @@ function DashboardPage() {
             <ExcelTaskGrid
               initialRows={getFilteredExcelRows()}
               isAdmin={isAdmin}
-              currentEmployeeNumber={profile?.employee_number || "1001"}
-              title={`Excel Control Sheet — ${selectedAuditType} ${excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Doc Audit" : excelSubTab + " Audit"})` : ""}`}
+              currentEmployeeNumber={profile?.employee_number || "690867"}
+              title={`Excel Control Sheet — ${selectedAuditType} ${excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Dock Audit" : excelSubTab + " Audit"})` : ""}`}
               description="Live editable spreadsheet layout. Double-click or click cells to update task details, statuses, add rows, or import/export."
               onRefresh={() => assignments.refetch()}
             />

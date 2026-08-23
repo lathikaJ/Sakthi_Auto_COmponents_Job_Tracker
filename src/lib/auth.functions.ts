@@ -12,11 +12,15 @@ const DEMO_ROSTER: Record<
   string,
   { employee_number: string; full_name: string; department: string; designation: string; role: "admin" | "employee" }
 > = {
-  "1001": { employee_number: "1001", full_name: "R. Manikandan", department: "Quality Assurance", designation: "Audit Manager", role: "admin" },
-  "1002": { employee_number: "1002", full_name: "S. Priya", department: "Quality Assurance", designation: "QA Engineer", role: "employee" },
-  "1003": { employee_number: "1003", full_name: "K. Arun Kumar", department: "Machine Shop", designation: "Line Supervisor", role: "employee" },
-  "1004": { employee_number: "1004", full_name: "M. Deepa", department: "Assembly", designation: "Process Inspector", role: "employee" },
-  "1005": { employee_number: "1005", full_name: "V. Saravanan", department: "Heat Treatment", designation: "Shift Engineer", role: "employee" },
+  "690867": { employee_number: "690867", full_name: "KARTHIKEYAN C", department: "Quality Assurance", designation: "Quality Operations Lead", role: "admin" },
+  "688079": { employee_number: "688079", full_name: "SILAMBARASAN S", department: "Machining Line 1", designation: "Senior Quality Engineer", role: "employee" },
+  "663875": { employee_number: "663875", full_name: "VENKADESH D", department: "Machine Shop 2", designation: "Quality Inspector", role: "employee" },
+  "710250": { employee_number: "710250", full_name: "MOUNIKASRI A", department: "Quality Lab", designation: "Metrology Specialist", role: "employee" },
+  "666468": { employee_number: "666468", full_name: "KAVIN KUMAR K", department: "Assembly & Dock", designation: "Process Audit Lead", role: "employee" },
+  "665773": { employee_number: "665773", full_name: "KARTHEEBAN K", department: "Value Added Engg", designation: "Revalidation Specialist", role: "employee" },
+  "665965": { employee_number: "665965", full_name: "DINESHKUMAR A B", department: "Tool Room", designation: "Maintenance Lead", role: "employee" },
+  "708818": { employee_number: "708818", full_name: "SELVAKUMAR J", department: "EHS & Safety", designation: "Compliance Auditor", role: "employee" },
+  "667685": { employee_number: "667685", full_name: "GEETHA S", department: "Plant Management", designation: "Plant Head Quality", role: "employee" },
 };
 
 export const requestLoginCode = createServerFn({ method: "POST" })

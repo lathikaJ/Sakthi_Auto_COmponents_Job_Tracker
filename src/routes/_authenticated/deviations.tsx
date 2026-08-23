@@ -38,10 +38,10 @@ export type DeviationItem = {
 
 // No default/dummy deviations — live data only
 
-const EMPLOYEE_LIST = ["1001", "1002", "1003", "1004", "1005"];
+const EMPLOYEE_LIST = ["690867", "688079", "663875", "710250", "666468", "665773", "665965", "708818", "667685"];
 
 function DeviationsPage() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [deviations, setDeviations] = useState<DeviationItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,7 +98,7 @@ function DeviationsPage() {
             observed_condition: prefill.observed_condition || "",
             location: prefill.location || "Audit Checkpoint",
             severity: prefill.severity || "High",
-            assigned_emp: prefill.assigned_emp || profile?.employee_number || "1001",
+            assigned_emp: prefill.assigned_emp || profile?.employee_number || "690867",
             corrective_action: "",
             recommended_action: "",
           });
@@ -170,11 +170,15 @@ function DeviationsPage() {
     toast.success(`Deviation status updated to '${newStatus.replace("_", " ")}'`);
   };
 
-  // Delete deviation
+  // Delete deviation (Admin only)
   const handleDeleteDeviation = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only Admin can delete deviation records.");
+      return;
+    }
     const updated = deviations.filter((d) => d.id !== id);
     await saveDeviationsList(updated);
-    toast.info("Deviation record removed.");
+    toast.info("Deviation record removed by Admin.");
   };
 
   // Filtered rows
@@ -317,7 +321,7 @@ function DeviationsPage() {
                   <th className="p-3 w-32 font-bold">Assigned Emp</th>
                   <th className="p-3 w-32 font-bold">Status</th>
                   <th className="p-3 min-w-[200px] font-bold">CAPA Corrective Action</th>
-                  <th className="p-3 text-center w-16 font-bold">Action</th>
+                  {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -373,17 +377,19 @@ function DeviationsPage() {
                       <td className="p-3 text-xs font-medium text-slate-700">
                         {dev.corrective_action}
                       </td>
-                      <td className="p-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-rose-600 hover:bg-rose-100"
-                          onClick={() => handleDeleteDeviation(dev.id)}
-                          title="Delete Record"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
+                      {isAdmin && (
+                        <td className="p-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                            onClick={() => handleDeleteDeviation(dev.id)}
+                            title="Delete Record (Admin Only)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -297,6 +297,45 @@ export type Database = {
           },
         ]
       }
+      employee_signatures: {
+        Row: {
+          created_at: string
+          department: string
+          designation: string
+          employee_name: string
+          employee_number: string
+          id: string
+          is_verified: boolean
+          signature_url: string | null
+          unique_member_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          designation: string
+          employee_name: string
+          employee_number: string
+          id?: string
+          is_verified?: boolean
+          signature_url?: string | null
+          unique_member_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          designation?: string
+          employee_name?: string
+          employee_number?: string
+          id?: string
+          is_verified?: boolean
+          signature_url?: string | null
+          unique_member_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           active: boolean

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { recordActivityLog } from "@/lib/activityLogs";
 
 export type Profile = {
   id: string;
@@ -42,11 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     const ROSTER: Record<string, { name: string; role: "admin" | "employee"; department: string; designation: string }> = {
-      "1001": { name: "R. Manikandan", role: "admin",    department: "Quality Assurance", designation: "Audit Manager"      },
-      "1002": { name: "S. Priya",      role: "employee", department: "QA Engineering",    designation: "QA Engineer"         },
-      "1003": { name: "K. Arun Kumar", role: "employee", department: "Production",         designation: "Line Supervisor"     },
-      "1004": { name: "M. Deepa",      role: "employee", department: "Production",         designation: "Process Inspector"   },
-      "1005": { name: "V. Saravanan",  role: "employee", department: "Production",         designation: "Shift Engineer"      },
+      "690867": { name: "KARTHIKEYAN C", role: "admin",    department: "Quality Assurance", designation: "Quality Operations Lead" },
+      "688079": { name: "SILAMBARASAN S", role: "employee", department: "Machining Line 1",  designation: "Senior Quality Engineer" },
+      "663875": { name: "VENKADESH D",    role: "employee", department: "Machine Shop 2",    designation: "Quality Inspector"        },
+      "710250": { name: "MOUNIKASRI A",   role: "employee", department: "Quality Lab",       designation: "Metrology Specialist"     },
+      "666468": { name: "KAVIN KUMAR K",  role: "employee", department: "Assembly & Dock",   designation: "Process Audit Lead"       },
+      "665773": { name: "KARTHEEBAN K",   role: "employee", department: "Value Added Engg",  designation: "Revalidation Specialist"  },
+      "665965": { name: "DINESHKUMAR A B",role: "employee", department: "Tool Room",         designation: "Maintenance Lead"         },
+      "708818": { name: "SELVAKUMAR J",   role: "employee", department: "EHS & Safety",      designation: "Compliance Auditor"       },
+      "667685": { name: "GEETHA S",       role: "employee", department: "Plant Management",  designation: "Plant Head Quality"       },
     };
 
     const load = async () => {
@@ -58,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (demoRaw) {
           try {
             const demo = JSON.parse(demoRaw);
-            const empNum: string = String(demo.employeeNumber || "1001");
+            const empNum: string = String(demo.employeeNumber || "690867");
             const info = ROSTER[empNum] ?? {
               name: demo.fullName || "Employee",
               role: "employee" as const,
@@ -101,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       if (next?.user) {
         setSession(next);
-        const empNum = (next.user.user_metadata?.['employee_number'] as string) || "1001";
+        const empNum = (next.user.user_metadata?.['employee_number'] as string) || "690867";
         const info = ROSTER[empNum] ?? {
           name: (next.user.user_metadata?.['full_name'] as string) || "Employee",
           role: "employee" as const,
@@ -126,10 +131,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // ─── No session at all ────────────────────────────────────────────────
-      setSession(null);
-      setProfile(null);
-      setRole(null);
+      // ─── Fallback default employee session (Silambarasan S) ────────────────
+      const defaultEmp = "688079";
+      const defaultInfo = ROSTER[defaultEmp] || {
+        name: "SILAMBARASAN S",
+        role: "employee" as const,
+        department: "Machining Line 1",
+        designation: "Senior Quality Engineer",
+      };
+      setSession({
+        access_token: "demo_token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "demo_refresh",
+        user: {
+          id: defaultEmp,
+          app_metadata: {},
+          user_metadata: { employee_number: defaultEmp, full_name: defaultInfo.name },
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+          email: `emp${defaultEmp}@sakthispark.local`,
+        },
+      } as Session);
+      setProfile({
+        id: defaultEmp,
+        employee_number: defaultEmp,
+        full_name: defaultInfo.name,
+        department: defaultInfo.department,
+        designation: defaultInfo.designation,
+      });
+      setRole(defaultInfo.role);
       setLoading(false);
     };
 
@@ -149,6 +180,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const signOut = async () => {
+    if (profile) {
+      recordActivityLog({
+        employee_number: profile.employee_number,
+        full_name: profile.full_name,
+        department: profile.department,
+        designation: profile.designation,
+        role: role || "employee",
+        event_type: "LOGOUT",
+      });
+    }
     if (typeof window !== "undefined") {
       localStorage.removeItem("sakthi_demo_session");
     }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { SakthiLogo } from "@/components/brand/SakthiLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { recordActivityLog } from "@/lib/activityLogs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,11 +23,15 @@ export const Route = createFileRoute("/")({
 });
 
 const ROSTER: Record<string, { name: string; role: "admin" | "employee"; department: string; designation: string }> = {
-  "1001": { name: "R. Manikandan", role: "admin",    department: "Quality Assurance", designation: "Audit Manager"    },
-  "1002": { name: "S. Priya",      role: "employee", department: "QA Engineering",    designation: "QA Engineer"       },
-  "1003": { name: "K. Arun Kumar", role: "employee", department: "Production",         designation: "Line Supervisor"   },
-  "1004": { name: "M. Deepa",      role: "employee", department: "Production",         designation: "Process Inspector" },
-  "1005": { name: "V. Saravanan",  role: "employee", department: "Production",         designation: "Shift Engineer"    },
+  "690867": { name: "KARTHIKEYAN C", role: "admin",    department: "Quality Assurance", designation: "Quality Operations Lead" },
+  "688079": { name: "SILAMBARASAN S", role: "employee", department: "Machining Line 1",  designation: "Senior Quality Engineer" },
+  "663875": { name: "VENKADESH D",    role: "employee", department: "Machine Shop 2",    designation: "Quality Inspector"        },
+  "710250": { name: "MOUNIKASRI A",   role: "employee", department: "Quality Lab",       designation: "Metrology Specialist"     },
+  "666468": { name: "KAVIN KUMAR K",  role: "employee", department: "Assembly & Dock",   designation: "Process Audit Lead"       },
+  "665773": { name: "KARTHEEBAN K",   role: "employee", department: "Value Added Engg",  designation: "Revalidation Specialist"  },
+  "665965": { name: "DINESHKUMAR A B",role: "employee", department: "Tool Room",         designation: "Maintenance Lead"         },
+  "708818": { name: "SELVAKUMAR J",   role: "employee", department: "EHS & Safety",      designation: "Compliance Auditor"       },
+  "667685": { name: "GEETHA S",       role: "employee", department: "Plant Management",  designation: "Plant Head Quality"       },
 };
 
 function SignInPage() {
@@ -66,6 +71,16 @@ function SignInPage() {
         );
       }
 
+      // Record login event for admin tracking
+      recordActivityLog({
+        employee_number: empNum,
+        full_name: info.name,
+        department: info.department,
+        designation: info.designation,
+        role: info.role,
+        event_type: "LOGIN",
+      });
+
       toast.success(`Welcome, ${info.name}!`, {
         description: `Logged in as ${info.role === "admin" ? "Admin" : "Employee"} · ${info.department}`,
       });
@@ -104,7 +119,7 @@ function SignInPage() {
             <div className="space-y-1.5">
               <Input
                 id="employeeNumber"
-                placeholder="Employee Number (e.g. 1001)"
+                placeholder="Employee Number (e.g. 690867)"
                 inputMode="numeric"
                 autoComplete="username"
                 autoFocus
@@ -137,7 +152,7 @@ function SignInPage() {
 
         {/* Roster hint */}
         <p className="mt-6 text-center text-xs text-slate-deep-foreground/70">
-          Admin: <strong>1001</strong> · Employees: <strong>1002, 1003, 1004, 1005</strong>
+          Admin: <strong>690867</strong> · Employees: <strong>688079, 663875, 710250, 666468</strong>
         </p>
       </div>
     </div>

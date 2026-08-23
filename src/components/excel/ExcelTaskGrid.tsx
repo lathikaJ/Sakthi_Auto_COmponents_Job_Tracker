@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Filter,
   RefreshCw,
+  Eraser,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -46,7 +47,7 @@ interface ExcelTaskGridProps {
 
 const AUDIT_TYPES = ["Product", "Process", "Revalidation"];
 const STATUSES = ["Assigned", "In Progress", "Submitted", "Completed", "Deviation", "Overdue"];
-const EMPLOYEE_LIST = ["1001", "1002", "1003", "1004", "1005"];
+const EMPLOYEE_LIST = ["690867", "688079", "663875", "710250", "666468", "665773", "665965", "708818", "667685"];
 
 const MONTH_NAMES = [
   "Jan (1)", "Feb (2)", "Mar (3)", "Apr (4)", "May (5)", "Jun (6)",
@@ -113,6 +114,10 @@ export function ExcelTaskGrid({
 
   // Handle cell edit
   const handleCellChange = (id: string, field: keyof ExcelTaskRow, value: any) => {
+    if (!isAdmin) {
+      toast.error("Access Denied: Only Admins can modify task cells.");
+      return;
+    }
     setRows((prev) =>
       prev.map((r) => {
         if (r.id === id) {
@@ -124,10 +129,71 @@ export function ExcelTaskGrid({
     setHasChanges(true);
   };
 
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  // Erase active cell content (Admin)
+  const handleEraseCell = () => {
+    if (!selectedCell || !isAdmin) {
+      toast.error("Select a cell to erase its content.");
+      return;
+    }
+    const rowObj = rows[selectedCell.rowIdx];
+    if (rowObj) {
+      handleCellChange(rowObj.id, selectedCell.colKey, "");
+      toast.info(`Erased value in cell ${activeCellRef}`);
+    }
+  };
+
+  // Clear task row contents (Admin)
+  const handleClearRow = (id: string) => {
+    if (!isAdmin) return;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              title: "",
+              area: "",
+              status: "Assigned",
+            }
+          : r
+      )
+    );
+    setHasChanges(true);
+    toast.info("Task details cleared from row.");
+  };
+
+  // Batch delete selected rows (Admin)
+  const handleDeleteSelected = () => {
+    if (!isAdmin || selectedRowIds.size === 0) return;
+    const count = selectedRowIds.size;
+    setRows((prev) => prev.filter((r) => !selectedRowIds.has(r.id)));
+    setSelectedRowIds(new Set());
+    setHasChanges(true);
+    toast.info(`${count} task row(s) removed by Admin.`);
+  };
+
+  // Toggle selection
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedRowIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedRowIds(next);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRowIds.size === filteredRows.length) {
+      setSelectedRowIds(new Set());
+    } else {
+      setSelectedRowIds(new Set(filteredRows.map((r) => r.id)));
+    }
+  };
+
   // Add new empty row (Admin)
   const handleAddRow = () => {
     const newId = `temp-${Date.now()}`;
     const newCode = `AUD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const today = new Date().toISOString().split("T")[0] || "2026-08-18";
     const newRow: ExcelTaskRow = {
       id: newId,
       audit_code: newCode,
@@ -137,7 +203,7 @@ export function ExcelTaskGrid({
       assigned_to_employee_number: "1002",
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      due_date: new Date().toISOString().split("T")[0],
+      due_date: today,
       status: "Assigned",
     };
     setRows((prev) => [newRow, ...prev]);
@@ -159,7 +225,7 @@ export function ExcelTaskGrid({
 
       // 1. Always persist to localStorage for local/demo synchronization
       if (typeof window !== "undefined") {
-        localStorage.setItem("sakthi_excel_tasks", JSON.stringify(rows));
+        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(rows));
         window.dispatchEvent(new Event("excel_tasks_updated"));
       }
 
@@ -175,7 +241,7 @@ export function ExcelTaskGrid({
                 area: row.area || "General",
                 month: row.month || 1,
                 year: row.year || 2026,
-                due_date: row.due_date || new Date().toISOString().split("T")[0],
+                due_date: row.due_date || "2026-08-18",
                 assigned_to_employee_number: row.assigned_to_employee_number || "1002",
                 assigned_to: "00000000-0000-0000-0000-000000000000",
                 status: (row.status as any) || "Assigned",
@@ -191,7 +257,7 @@ export function ExcelTaskGrid({
                 area: row.area || "General",
                 month: row.month || 1,
                 year: row.year || 2026,
-                due_date: row.due_date || new Date().toISOString().split("T")[0],
+                due_date: row.due_date || "2026-08-18",
                 assigned_to_employee_number: row.assigned_to_employee_number || "1002",
                 status: (row.status as any) || "Assigned",
               })
@@ -261,7 +327,9 @@ export function ExcelTaskGrid({
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
+        if (!wsname) return;
         const ws = wb.Sheets[wsname];
+        if (!ws) return;
         const data = XLSX.utils.sheet_to_json<any>(ws);
 
         if (!data || data.length === 0) {
@@ -385,9 +453,33 @@ export function ExcelTaskGrid({
         {/* Formula Bar */}
         <div className="flex flex-1 items-center gap-2 rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-xs">
           <span className="font-serif italic text-emerald-600 font-bold text-sm">fx</span>
-          <span className="truncate text-slate-900 font-mono font-medium">
+          <span className="truncate text-slate-900 font-mono font-medium flex-1">
             {selectedValue || "Select cell to view/edit value"}
           </span>
+
+          {/* Admin Quick Erase Cell Button */}
+          {isAdmin && selectedCell && (
+            <button
+              type="button"
+              onClick={handleEraseCell}
+              className="flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-200 transition-colors"
+              title="Erase selected cell value"
+            >
+              <Eraser className="h-3 w-3 text-amber-700" /> Erase Cell
+            </button>
+          )}
+
+          {/* Admin Batch Delete Selected Rows */}
+          {isAdmin && selectedRowIds.size > 0 && (
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              className="flex items-center gap-1 rounded bg-rose-100 border border-rose-300 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-200 transition-colors"
+              title="Remove selected task rows"
+            >
+              <Trash2 className="h-3 w-3 text-rose-700" /> Remove Selected ({selectedRowIds.size})
+            </button>
+          )}
         </div>
 
         {/* Search */}
@@ -436,8 +528,18 @@ export function ExcelTaskGrid({
           {/* Excel Header Column Labels (A, B, C, D...) */}
           <thead>
             <tr className="bg-slate-200 text-slate-800 font-mono text-[11px] uppercase border-b border-slate-300">
-              <th className="w-10 border-r border-slate-300 bg-slate-300 p-2 text-center text-slate-700 font-bold">
-                #
+              <th className="w-12 border-r border-slate-300 bg-slate-300 p-2 text-center text-slate-700 font-bold">
+                {isAdmin ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedRowIds.size === filteredRows.length && filteredRows.length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    title="Select/Deselect All Rows"
+                  />
+                ) : (
+                  "#"
+                )}
               </th>
               <th className="border-r border-slate-300 p-2 text-left w-28 font-bold text-slate-800">A: Code</th>
               <th className="border-r border-slate-300 p-2 text-left min-w-[220px] font-bold text-slate-800">B: Task Title</th>
@@ -447,7 +549,7 @@ export function ExcelTaskGrid({
               <th className="border-r border-slate-300 p-2 text-left w-24 font-bold text-slate-800">F: Month</th>
               <th className="border-r border-slate-300 p-2 text-left w-32 font-bold text-slate-800">G: Due Date</th>
               <th className="border-r border-slate-300 p-2 text-left w-32 font-bold text-slate-800">H: Status</th>
-              <th className="p-2 text-center w-24 font-bold text-slate-800">I: Open Form</th>
+              <th className="p-2 text-center w-28 font-bold text-slate-800">I: Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -458,12 +560,20 @@ export function ExcelTaskGrid({
                 <tr
                   key={r.id}
                   className={`border-b border-slate-200 transition-colors hover:bg-emerald-50/50 ${
-                    isEmpMatch ? "bg-emerald-50/70" : "bg-white"
+                    selectedRowIds.has(r.id) ? "bg-amber-50/80" : isEmpMatch ? "bg-emerald-50/70" : "bg-white"
                   }`}
                 >
-                  {/* Excel Line Number */}
-                  <td className="border-r border-slate-200 bg-slate-100 p-2 text-center font-mono font-bold text-slate-600 select-none">
-                    {rowIdx + 1}
+                  {/* Excel Line Number & Selection Checkbox */}
+                  <td className="border-r border-slate-200 bg-slate-100 p-2 text-center font-mono font-bold text-slate-600 select-none flex items-center justify-center gap-1.5">
+                    {isAdmin && (
+                      <input
+                        type="checkbox"
+                        checked={selectedRowIds.has(r.id)}
+                        onChange={() => toggleSelectRow(r.id)}
+                        className="rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    )}
+                    <span>{rowIdx + 1}</span>
                   </td>
 
                   {/* A: Code */}
@@ -624,7 +734,7 @@ export function ExcelTaskGrid({
                     </select>
                   </td>
 
-                  {/* I: Action / Open Form */}
+                  {/* I: Action / Open Form & Admin Row Controls */}
                   <td className="p-1 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button
@@ -640,15 +750,27 @@ export function ExcelTaskGrid({
                       </Button>
 
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-rose-600 hover:bg-rose-100"
-                          onClick={() => handleDeleteRow(r.id)}
-                          title="Delete Row"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-amber-600 hover:bg-amber-100"
+                            onClick={() => handleClearRow(r.id)}
+                            title="Erase Row Content (Clear task details)"
+                          >
+                            <Eraser className="h-3.5 w-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                            onClick={() => handleDeleteRow(r.id)}
+                            title="Remove Task Row completely"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </td>

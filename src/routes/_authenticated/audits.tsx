@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
@@ -5,6 +6,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { DEFAULT_OFFICIAL_AUDITS } from "@/lib/audit";
 
 const FILTERS = [
   { key: "all", label: "Total Audit" },
@@ -52,10 +54,26 @@ function AuditsPage() {
     },
   });
 
-  const rows = data.filter((r) => {
+  const [localTasks, setLocalTasks] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) setLocalTasks(parsed);
+        } catch {}
+      }
+    }
+  }, []);
+
+  const activeDataSet = localTasks.length > 0 ? localTasks : data.length > 0 ? data : DEFAULT_OFFICIAL_AUDITS;
+
+  const rows = activeDataSet.filter((r) => {
     if (filter === "all") return true;
     if (filter === "ongoing") return ["Assigned", "In Progress", "Overdue"].includes(r.status);
-    if (filter === "completed") return r.status === "Completed";
+    if (filter === "completed") return r.status === "Completed" || r.status === "Submitted";
     return r.audit_type === filter;
   });
 
