@@ -1,4 +1,4 @@
-export const AUDIT_TYPES = ["Product", "Process", "Revalidation"] as const;
+export const AUDIT_TYPES = ["Product", "Process", "Revalidation", "Dock Audit"] as const;
 export type AuditType = (typeof AUDIT_TYPES)[number];
 
 export const AUDIT_STATUSES = [
@@ -66,7 +66,87 @@ const TEMPLATES: Record<AuditType, Array<Pick<Checkpoint, "id" | "description" |
       { id: "V5", description: "Steering Knuckle LH/RH – Bolero Passenger (NABS) (0401DEB00010N)", specification: "Revalidation Plan Apr-26 / Oct-26" },
       { id: "V6", description: "Steering Knuckle LH/RH – Bolero Passenger – ABS (0401DAA03600N)", specification: "Revalidation Plan Feb-26 / Aug-26" },
     ],
+    "Dock Audit": [
+      { id: "D1", description: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, casting profile, milling range, etc.) [VISUAL]" },
+      { id: "D2", description: "APPEARANCE 10-POINT CHECK", specification: "No blow hole/cold joint, no pin hole/slag, no wall thickness variation, no sharp edge, no dent/damage, no fettling undercut, no flaws, no rust/thread damage, no paint peel off, completion of all ops [VISUAL]" },
+      { id: "D3", description: "RP OIL CONDITION VERIFICATION", specification: "Ensure RP oil condition verification (No excess oil, no dust/burr/scrap and no foreign particles) [VISUAL]" },
+      { id: "D4", description: "PACKING BOX & VCI COVER CONDITION", specification: "Ensure packing box condition (Proper center pad/foam, no damage) VCI cover condition (No damage, no water) [VISUAL]" },
+      { id: "D5", description: "PACKING OF PARTS VERIFICATION", specification: "Ensure packing of parts (Qty per layer = 24, Qty per box = 144, labeling info) refer reference [VISUAL]" },
+      { id: "D6", description: "PART MIXUP PREVENTION", specification: "Ensure no part mixup [VISUAL]" },
+      { id: "D7", description: "AVAILABILITY OF COMMITMENT MARK", specification: "Ensure availability of commitment mark if any [VISUAL]" },
+      { id: "D8", description: "FOREIGN PARTICLES IN BOX", specification: "Ensure no foreign particles in the box [VISUAL]" },
+      { id: "D9", description: "PACKING LABEL & STATUS", specification: "Ensure packing label pasted on box with correct part name/number (STELLANTIS 9845800980 & 9845801180) [VISUAL]" },
+    ],
   };
+
+export interface LowProductionRecord {
+  id: string;
+  part_number: string;
+  product_name: string;
+  audit_type: "Product" | "Revalidation" | "Dock Audit";
+  planned_production: number;
+  actual_production: number;
+  production_percentage: number;
+  threshold_percentage: number;
+  status: "Critical" | "Warning" | "Normal";
+}
+
+export interface AuditDocument {
+  id: string;
+  audit_id: string;
+  document_name: string;
+  document_type: string;
+  uploaded_by: string;
+  uploaded_at: string;
+  url: string;
+}
+
+export const DEFAULT_LOW_PRODUCTION_DATA: LowProductionRecord[] = [
+  {
+    id: "lp-01",
+    part_number: "0401DAA02010N",
+    product_name: "Steering Knuckle Housing LH/RH – MPV",
+    audit_type: "Product",
+    planned_production: 12000,
+    actual_production: 8400,
+    production_percentage: 70.0,
+    threshold_percentage: 85.0,
+    status: "Critical",
+  },
+  {
+    id: "lp-02",
+    part_number: "9845800980",
+    product_name: "PIVOT SUSPENSION GOA CC21 (D78) LH",
+    audit_type: "Dock Audit",
+    planned_production: 15000,
+    actual_production: 11250,
+    production_percentage: 75.0,
+    threshold_percentage: 80.0,
+    status: "Warning",
+  },
+  {
+    id: "lp-03",
+    part_number: "027505 / 027506",
+    product_name: "Steering Knuckle - Bolero",
+    audit_type: "Revalidation",
+    planned_production: 9500,
+    actual_production: 6460,
+    production_percentage: 68.0,
+    threshold_percentage: 85.0,
+    status: "Critical",
+  },
+  {
+    id: "lp-04",
+    part_number: "0082597",
+    product_name: "Disc Brake - Bolero",
+    audit_type: "Product",
+    planned_production: 18000,
+    actual_production: 14040,
+    production_percentage: 78.0,
+    threshold_percentage: 80.0,
+    status: "Warning",
+  },
+];
 
 export function buildCheckpoints(type: AuditType): Checkpoint[] {
   return TEMPLATES[type].map((c) => ({ ...c, result: "", observed: "", remarks: "" }));

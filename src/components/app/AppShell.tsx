@@ -1,13 +1,12 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Menu, Clock } from "lucide-react";
+import { LogOut, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 import { SakthiLogo } from "@/components/brand/SakthiLogo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { AuditPieChartModal } from "@/components/admin/AuditPieChartModal";
 
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -36,7 +35,6 @@ export function AppShell({
   const { profile, isAdmin, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
-  const [isPieChartOpen, setIsPieChartOpen] = useState(false);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -51,17 +49,6 @@ export function AppShell({
       <header className="surface-shell sticky top-0 z-30 border-b border-sidebar-border">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3">
           <div className="rounded-xl bg-card px-3 py-1.5 flex items-center gap-2">
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setIsPieChartOpen(true)}
-                className="flex items-center justify-center rounded-lg p-1.5 text-slate-700 hover:bg-slate-100 hover:text-brand transition-colors"
-                title="Open Audit Status Pie Chart Analytics"
-                aria-label="Audit Pie Chart Analytics"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            )}
             <SakthiLogo />
           </div>
           <nav className="flex flex-1 flex-wrap items-center gap-1">
@@ -141,14 +128,6 @@ export function AppShell({
         </div>
         {children}
       </main>
-
-      {/* Admin Audit Status Pie Chart Analytics Modal */}
-      {isAdmin && (
-        <AuditPieChartModal
-          isOpen={isPieChartOpen}
-          onClose={() => setIsPieChartOpen(false)}
-        />
-      )}
     </div>
   );
 }

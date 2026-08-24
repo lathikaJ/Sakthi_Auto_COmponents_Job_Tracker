@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,16 +13,21 @@ import {
   Building2,
   UserCheck,
   Calendar,
-  ChevronRight,
-  ChevronLeft,
-  ArrowLeft,
-  FileSpreadsheet,
   Layers,
   Filter,
   Check,
-  ArrowRight,
   Trash2,
-  ShieldCheck,
+  Plus,
+  Upload,
+  Search,
+  File,
+  Edit2,
+  Clock,
+  ExternalLink,
+  ChevronRight,
+  TrendingDown,
+  X,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,25 +36,25 @@ import { StatusBadge } from "@/components/app/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ExcelTaskGrid, ExcelTaskRow } from "@/components/excel/ExcelTaskGrid";
-import { EmployeeActivityLogs } from "@/components/admin/EmployeeActivityLogs";
-import { SubmittedAuditsRegister } from "@/components/admin/SubmittedAuditsRegister";
-import { ElectronicSignatureRegistry } from "@/components/admin/ElectronicSignatureRegistry";
 import { JobReviewTab } from "@/components/admin/JobReviewTab";
-import { AnalyticsPieChartTab } from "@/components/admin/AnalyticsPieChartTab";
 import { EmployeeActivityLogsGrid } from "@/components/admin/EmployeeActivityLogsGrid";
-
-import { DEFAULT_OFFICIAL_AUDITS } from "@/lib/audit";
+import {
+  DEFAULT_OFFICIAL_AUDITS,
+  MONTHS,
+  LowProductionRecord,
+  DEFAULT_LOW_PRODUCTION_DATA,
+  AuditDocument,
+} from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Machine Shop Audit — Sakthi Auto Value Added Engineering" },
+      { title: "Audit Dashboard — Sakthi Auto Value Added Engineering" },
       {
         name: "description",
-        content: "Machine Shop Audit platform with conditional two-level drill-down interaction mechanism.",
+        content: "Product Audit, Revalidation Audit, and Dock Audit management dashboard with live status monitoring.",
       },
-      { property: "og:title", content: "Machine Shop Audit — Sakthi Auto Value Added Engineering" },
+      { property: "og:title", content: "Audit Dashboard — Sakthi Auto Value Added Engineering" },
     ],
   }),
   component: DashboardPage,
@@ -66,11 +71,22 @@ type Assignment = {
   due_date: string;
   status: string;
   assigned_to_employee_number: string;
+  auditor_name?: string;
+  department?: string;
+  part_number?: string;
+  product_name?: string;
+  planned_date?: string;
+  start_date_time?: string;
+  completion_date?: string;
+  progress_pct?: number;
+  final_result?: string;
+  document_url?: string;
 };
 
 type Deviation = {
   id: string;
   dev_code?: string;
+  audit_id?: string;
   status: string;
   description: string;
   observed_condition?: string;
@@ -78,21 +94,49 @@ type Deviation = {
   created_at: string;
   employee_number: string;
   severity?: string;
+  responsible_person?: string;
+  department?: string;
+  corrective_action?: string;
+  due_date?: string;
+  closure_status?: string;
+  product_part_number?: string;
 };
 
-function DashboardPage() {
+export function DashboardPage() {
   const { isAdmin, profile, loading } = useAuth();
 
-  // State Management
-  const [currentView, setCurrentView] = useState<
-    "dashboard" | "inside_audits" | "excel_view" | "submitted_audits_page" | "signatures_page" | "activity_logs_page"
-  >("dashboard");
-  const [selectedAuditType, setSelectedAuditType] = useState<string>("Ongoing Audit");
-  const [excelSubTab, setExcelSubTab] = useState<"all" | "Product" | "Revalidation" | "Process">("all");
-  const [totalSubSelection, setTotalSubSelection] = useState<"options" | "Product" | "Revalidation" | "Process">("options");
-  const [dashboardTab, setDashboardTab] = useState<"overview" | "review_jobs" | "analytics" | "activity_logs">("overview");
+  // Navigation State according to Requirements
+  // Level 1: Audit Category (Product Audit | Revalidation Audit | Dock Audit)
+  const [selectedCategory, setSelectedCategory] = useState<"Product Audit" | "Revalidation Audit" | "Dock Audit">("Product Audit");
 
-  const assignments = useQuery({
+  // Level 2: Audit Status View (Audit Plan | Ongoing | Audit Completed | Deviation | Low Production)
+  const [selectedStatusView, setSelectedStatusView] = useState<"Audit Plan" | "Ongoing" | "Audit Completed" | "Deviation" | "Low Production">("Audit Plan");
+
+  // Level 3: Audit Plan Sub-Views (One Year Plan | As-on-Month Plan | Current Month Plan)
+  const [selectedPlanSubView, setSelectedPlanSubView] = useState<"One Year Plan" | "As-on-Month Plan" | "Current Month Plan">("One Year Plan");
+
+  // Month selector for As-on-Month Plan (1-12)
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Top Admin Tabs ("overview" | "review_jobs" | "activity_logs")
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "review_jobs" | "activity_logs">("overview");
+
+  // Modals for Admin Functions
+  const [isAddPlanModalOpen, setIsAddPlanModalOpen] = useState(false);
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [selectedDocAudit, setSelectedDocAudit] = useState<Assignment | null>(null);
+  const [docFileUrlInput, setDocFileUrlInput] = useState("");
+  const [docNameInput, setDocNameInput] = useState("");
+
+  // Edit / Reschedule Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAudit, setEditingAudit] = useState<Assignment | null>(null);
+
+  // Queries for DB data
+  const assignmentsQuery = useQuery({
     queryKey: ["assignments"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -116,11 +160,13 @@ function DashboardPage() {
     },
   });
 
-  const dbRows = assignments.data ?? [];
+  const dbRows = assignmentsQuery.data ?? [];
   const dbDevs = deviationsQuery.data ?? [];
 
   const [localExcelTasks, setLocalExcelTasks] = useState<Assignment[]>([]);
   const [localDeviations, setLocalDeviations] = useState<Deviation[]>([]);
+  const [localLowProd, setLocalLowProd] = useState<LowProductionRecord[]>(DEFAULT_LOW_PRODUCTION_DATA);
+  const [documentsMap, setDocumentsMap] = useState<Record<string, AuditDocument[]>>({});
 
   useEffect(() => {
     const loadStored = () => {
@@ -148,6 +194,16 @@ function DashboardPage() {
             // Ignore
           }
         }
+
+        const storedDocs = localStorage.getItem("sakthi_audit_docs");
+        if (storedDocs) {
+          try {
+            const parsedDocs = JSON.parse(storedDocs);
+            setDocumentsMap(parsedDocs);
+          } catch {
+            // Ignore
+          }
+        }
       }
     };
 
@@ -168,133 +224,127 @@ function DashboardPage() {
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
-  // Task categories
-  const ongoingTasks = allTaskRows.filter(
-    (r) => r.status !== "Completed" && r.status !== "Deviation"
-  );
+  // Helper matching Audit Type to Category
+  const matchesCategory = (type: string, cat: "Product Audit" | "Revalidation Audit" | "Dock Audit") => {
+    if (cat === "Product Audit") return type === "Product";
+    if (cat === "Revalidation Audit") return type === "Revalidation";
+    if (cat === "Dock Audit") return type === "Process" || type === "Doc" || type === "Doc Audit" || type === "Dock Audit";
+    return false;
+  };
 
-  const completedTasks = allTaskRows.filter(
-    (r) => r.status === "Completed" || r.status === "Submitted"
-  );
+  // Filter tasks by selected audit category
+  const categoryTasks = useMemo(() => {
+    return allTaskRows.filter((r) => matchesCategory(r.audit_type, selectedCategory));
+  }, [allTaskRows, selectedCategory]);
 
-  const deviationTaskRows = allTaskRows.filter((r) => r.status === "Deviation");
+  // Counts for 5 status options under the selected category
+  const planTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "Planned" || r.status === "Assigned" || r.status === "Pending");
+  }, [categoryTasks]);
 
-  const mergedDeviations: Deviation[] = [
-    ...allDeviations,
-    ...deviationTaskRows
-      .filter((t) => !allDeviations.some((d) => d.id === t.id || d.dev_code === t.audit_code))
-      .map((t) => ({
+  const ongoingTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing");
+  }, [categoryTasks]);
+
+  const completedTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "Completed" || r.status === "Submitted");
+  }, [categoryTasks]);
+
+  const deviationTasks = useMemo(() => {
+    const taskDevs = categoryTasks.filter((r) => r.status === "Deviation");
+    const merged: Deviation[] = [
+      ...allDeviations.filter((d) => {
+        const matchingTask = allTaskRows.find((t) => t.id === d.audit_id || t.audit_code === d.dev_code);
+        return matchingTask ? matchesCategory(matchingTask.audit_type, selectedCategory) : true;
+      }),
+      ...taskDevs.map((t) => ({
         id: t.id,
+        audit_id: t.id,
         dev_code: t.audit_code,
         description: t.title,
-        observed_condition: `Non-conformance marked during ${t.audit_type} Audit in ${t.area}`,
+        observed_condition: `Non-conformance identified during ${t.audit_type} Audit`,
         location_operation: t.area,
         employee_number: t.assigned_to_employee_number,
         severity: "High",
-        status: "open",
+        status: "Open",
         created_at: t.due_date,
+        responsible_person: t.assigned_to_employee_number,
+        department: t.area,
+        corrective_action: "Action Assigned to QA Engineer",
+        due_date: t.due_date,
+        closure_status: "Open",
+        product_part_number: t.audit_code,
       })),
-  ];
+    ];
+    return merged;
+  }, [categoryTasks, allDeviations, allTaskRows, selectedCategory]);
 
-  // Audit counts
-  const totalAuditCount = allTaskRows.length;
-  const ongoingAuditCount = ongoingTasks.length;
-  const completedAuditCount = completedTasks.length;
-  const deviationAuditCount = mergedDeviations.length;
+  const categoryLowProd = useMemo(() => {
+    return localLowProd.filter((l) => {
+      if (selectedCategory === "Product Audit") return l.audit_type === "Product";
+      if (selectedCategory === "Revalidation Audit") return l.audit_type === "Revalidation";
+      if (selectedCategory === "Dock Audit") return l.audit_type === "Dock Audit";
+      return true;
+    });
+  }, [localLowProd, selectedCategory]);
 
-  // Breakdown lists for Total Audit
-  const productAuditsTotal = allTaskRows.filter((r) => r.audit_type === "Product");
-  const revalidationAuditsTotal = allTaskRows.filter((r) => r.audit_type === "Revalidation");
-  const docAuditsTotal = allTaskRows.filter(
-    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
-  );
-
-  const ongoingProductCount = ongoingTasks.filter((r) => r.audit_type === "Product").length;
-  const ongoingRevalidationCount = ongoingTasks.filter((r) => r.audit_type === "Revalidation").length;
-  const ongoingDocCount = ongoingTasks.filter(
-    (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
-  ).length;
-
-  // Event Handlers
-  const handleCardBodyClick = (auditType: string) => {
-    setSelectedAuditType(auditType);
-    if (auditType === "Ongoing Audit") {
-      setExcelSubTab("all");
-    } else if (auditType === "Total Audit") {
-      setTotalSubSelection("options");
+  // Admin Actions
+  const handleSaveAuditRecord = (updated: Assignment) => {
+    const list = rawTaskRows.map((t) => (t.id === updated.id ? updated : t));
+    if (!list.some((t) => t.id === updated.id)) {
+      list.push(updated);
     }
-    setCurrentView("inside_audits");
+    setLocalExcelTasks(list);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+    }
+    toast.success("Audit plan record saved successfully.");
+    setIsEditModalOpen(false);
+    setIsAddPlanModalOpen(false);
   };
 
-  const handleActionLinkClick = (e: React.MouseEvent, auditType: string) => {
-    e.stopPropagation();
-    setSelectedAuditType(auditType);
-    setExcelSubTab("all");
-    setCurrentView("excel_view");
-  };
-
-  const handleOpenSpecificOngoingExcel = (subTab: "Product" | "Revalidation" | "Process") => {
-    setSelectedAuditType("Ongoing Audit");
-    setExcelSubTab(subTab);
-    setCurrentView("excel_view");
-  };
-
-  const handleResetToDashboard = () => {
-    setCurrentView("dashboard");
-  };
-
-  // Delete Audit (Admin only)
-  const handleDeleteAudit = async (id: string) => {
+  const handleDeleteAuditRecord = (id: string) => {
     if (!isAdmin) {
-      toast.error("Only Admin can delete audit records.");
+      toast.error("Only authorized Admin can remove audit plans.");
       return;
     }
-    const updated = allTaskRows.filter((t) => t.id !== id);
+    const updated = rawTaskRows.filter((t) => t.id !== id);
     setLocalExcelTasks(updated);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
-    try {
-      await supabase.from("audit_assignments").delete().eq("id", id);
-    } catch {}
-    toast.info("Audit record removed by Admin.");
+    toast.info("Audit plan record removed by Admin.");
   };
 
-  // Delete Deviation Observation (Admin only)
-  const handleDeleteDeviation = async (id: string) => {
-    if (!isAdmin) {
-      toast.error("Only Admin can delete deviation observations.");
+  const handleAddDocument = () => {
+    if (!selectedDocAudit) return;
+    if (!docNameInput || !docFileUrlInput) {
+      toast.error("Please enter both Document Name and File URL / Path.");
       return;
     }
-    const updated = localDeviations.filter((d) => d.id !== id);
-    setLocalDeviations(updated);
+    const dateStr = new Date().toISOString().split("T")[0] ?? "";
+    const newDoc: AuditDocument = {
+      id: `doc-${Date.now()}`,
+      audit_id: selectedDocAudit.id,
+      document_name: docNameInput,
+      document_type: "PDF / Spec Document",
+      uploaded_by: profile?.full_name ?? "Admin",
+      uploaded_at: dateStr,
+      url: docFileUrlInput,
+    };
+    const updatedMap = { ...documentsMap };
+    const docArr = updatedMap[selectedDocAudit.id] ?? [];
+    docArr.push(newDoc);
+    updatedMap[selectedDocAudit.id] = docArr;
+    setDocumentsMap(updatedMap);
     if (typeof window !== "undefined") {
-      localStorage.setItem("sakthi_deviations", JSON.stringify(updated));
-      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+      localStorage.setItem("sakthi_audit_docs", JSON.stringify(updatedMap));
     }
-    toast.info("Deviation observation deleted by Admin.");
-  };
-
-  // Filter rows for Excel View
-  const getFilteredExcelRows = (): ExcelTaskRow[] => {
-    let contextRows: Assignment[] = allTaskRows;
-
-    if (selectedAuditType === "Ongoing Audit") {
-      contextRows = ongoingTasks;
-    } else if (selectedAuditType === "Completed Audit") {
-      contextRows = completedTasks;
-    } else if (selectedAuditType === "Deviation Observation" || selectedAuditType === "Deviation Audit") {
-      contextRows = allTaskRows.filter((r) => r.status === "Deviation");
-    }
-
-    if (excelSubTab === "all") return contextRows;
-    if (excelSubTab === "Process") {
-      return contextRows.filter(
-        (r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Doc Audit" || r.audit_type === "Dock Audit"
-      );
-    }
-    return contextRows.filter((r) => r.audit_type === excelSubTab);
+    setDocNameInput("");
+    setDocFileUrlInput("");
+    toast.success("Audit document attached successfully!");
   };
 
   if (loading) {
@@ -307,36 +357,57 @@ function DashboardPage() {
 
   return (
     <AppShell
-      title={`Machine Shop Audit (${isAdmin ? "Admin View" : "Employee View"})`}
-      description="Interactive audit control matrix. Click card body for internal breakdown options or blue links for direct Excel access."
+      title="Audit Dashboard"
+      description="Touch-friendly dashboard for Product Audit, Revalidation Audit, and Dock Audit with live status monitoring."
       action={
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             type="button"
             variant="outline"
             onClick={() => {
-              assignments.refetch();
+              assignmentsQuery.refetch();
               deviationsQuery.refetch();
               window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
               window.dispatchEvent(new Event("sakthi_signatures_updated"));
-              toast.success("Dashboard data & review queue refreshed successfully!");
+              toast.success("Dashboard data refreshed.");
             }}
             className="bg-white border-slate-300 text-slate-700 font-bold hover:bg-slate-50 gap-1.5 shadow-2xs text-xs"
-            title="Click to refresh live audit matrix, assignments, and submission review queue"
           >
             <RefreshCcw className="h-3.5 w-3.5 text-emerald-600" /> Refresh Data
           </Button>
 
           {isAdmin && (
-            <Button asChild className="bg-brand text-white font-bold hover:bg-brand-hover shadow-sm text-xs">
-              <Link to="/assignments">+ New Monthly Assignment</Link>
+            <Button
+              type="button"
+              onClick={() => {
+                const today = new Date().toISOString().split("T")[0] ?? "";
+                const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                setEditingAudit({
+                  id: `aud-${Date.now()}`,
+                  audit_code: `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+                  title: "New Scheduled Audit Plan",
+                  audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                  area: "Machine Shop Line 1",
+                  month: selectedMonth,
+                  year: new Date().getFullYear(),
+                  due_date: today,
+                  status: "Planned",
+                  assigned_to_employee_number: profile?.employee_number ?? "688079",
+                  auditor_name: profile?.full_name ?? "Lead Auditor",
+                  department: "Quality Assurance",
+                });
+                setIsAddPlanModalOpen(true);
+              }}
+              className="bg-brand text-white font-bold hover:bg-brand-hover shadow-sm text-xs gap-1.5"
+            >
+              <Plus className="h-4 w-4" /> Create Audit Plan
             </Button>
           )}
         </div>
       }
     >
       <div className="space-y-6">
-        {/* Top-Level Feature Navigation Tabs */}
+        {/* Top-Level Admin Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
           <button
             type="button"
@@ -347,10 +418,9 @@ function DashboardPage() {
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            <Layers className="h-4 w-4" /> {isAdmin ? "Overview & Matrix" : "My Assigned Tasks & Reporting Queue"}
+            <Layers className="h-4 w-4" /> Audit Categories & Status Dashboard
           </button>
 
-          {/* Admin Specialized Features */}
           {isAdmin && (
             <>
               <button
@@ -364,21 +434,6 @@ function DashboardPage() {
               >
                 <FileText className="h-4 w-4 text-indigo-600" />
                 <span>Review Jobs Queue</span>
-                <span className="rounded-full bg-indigo-700 px-2 py-0.2 text-[10px] font-extrabold text-white">
-                  Active
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDashboardTab("analytics")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-                  dashboardTab === "analytics"
-                    ? "bg-teal-700 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                <Package className="h-4 w-4" /> Analytics Pie Chart (Admin Only)
               </button>
 
               <button
@@ -390,1063 +445,887 @@ function DashboardPage() {
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                <Calendar className="h-4 w-4" /> All Employee Login & Logout Grid
+                <Calendar className="h-4 w-4" /> Employee Login & Logout Register
               </button>
             </>
           )}
         </div>
 
-        {/* Tab 2: Review Jobs (Admin Only) */}
+        {/* Tab: Review Jobs Queue (Admin Only) */}
         {isAdmin && dashboardTab === "review_jobs" && (
           <div className="animate-in fade-in duration-200">
             <JobReviewTab isAdmin={isAdmin} />
           </div>
         )}
 
-        {/* Tab 3: Analytics Pie Chart (Admin Only) */}
-        {isAdmin && dashboardTab === "analytics" && (
-          <div className="animate-in fade-in duration-200">
-            <AnalyticsPieChartTab />
-          </div>
-        )}
-
-        {/* Tab 4: All Employee Logins/Logouts Grid (Admin Only) */}
+        {/* Tab: Employee Login Register (Admin Only) */}
         {isAdmin && dashboardTab === "activity_logs" && (
           <div className="animate-in fade-in duration-200">
             <EmployeeActivityLogsGrid />
           </div>
         )}
 
-        {/* Tab 1: Main Overview & Matrix */}
+        {/* Tab: Main Audit Categories & Status Dashboard */}
         {dashboardTab === "overview" && (
-          <div>
-            {/* PAGE 1: MAIN DASHBOARD CARDS & SUMMARY VIEW */}
-            {currentView === "dashboard" && (
-              <div className="space-y-8 animate-in fade-in duration-200">
-                {/* Instruction Banner */}
-                <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <p className="text-xs font-bold text-sky-900 flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-sky-600" /> Interactive Page-by-Page Navigation
-                    </p>
-                    <p className="text-xs text-sky-700 mt-0.5 font-medium">
-                      • Click any audit card container ➔ Moves to <strong>Page 2: Option Boxes & Master Lists</strong><br />
-                      • Click blue action links (e.g., <em>Open Excel Grid &gt;</em>) ➔ Moves to <strong>Page 3: Excel Control Sheet Matrix</strong>
-                    </p>
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* ── REQUIREMENT SECTION 1: DASHBOARD MAIN VIEW (3 TOUCH-ENABLED AUDIT CATEGORIES) ── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <Package className="h-4 w-4 text-amber-600" /> 1. Touch Audit Category Selection
+                </h2>
+                <span className="text-xs font-medium text-slate-500">
+                  Touch / Click any category to switch active plan & status views
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* CATEGORY 1: PRODUCT AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Product Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                    selectedCategory === "Product Audit"
+                      ? "border-orange-500 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md ring-2 ring-orange-400"
+                      : "border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-orange-600"}`}>
+                        Audit Category
+                      </p>
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Product Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-slate-500"}`}>
+                        Casting, dimensional & metallurgical audits
+                      </p>
+                    </div>
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
+                      <Package className="h-6 w-6" />
+                    </div>
                   </div>
-                  <span className="rounded-full bg-sky-200/80 px-3 py-1 text-[11px] font-bold text-sky-900">
-                    4 Audits Active
-                  </span>
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Product Audit" ? "bg-white text-orange-700" : "bg-orange-100 text-orange-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Product").length} Audits
+                    </span>
+                  </div>
+                </button>
+
+                {/* CATEGORY 2: REVALIDATION AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Revalidation Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                    selectedCategory === "Revalidation Audit"
+                      ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md ring-2 ring-blue-400"
+                      : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-blue-600"}`}>
+                        Audit Category
+                      </p>
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Revalidation Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-slate-500"}`}>
+                        Bi-annual product layout & safety revalidation
+                      </p>
+                    </div>
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
+                      <RefreshCcw className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Revalidation Audit" ? "bg-white text-blue-700" : "bg-blue-100 text-blue-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Revalidation").length} Audits
+                    </span>
+                  </div>
+                </button>
+
+                {/* CATEGORY 3: DOCK AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Dock Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                    selectedCategory === "Dock Audit"
+                      ? "border-emerald-600 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md ring-2 ring-emerald-400"
+                      : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-emerald-600"}`}>
+                        Audit Category
+                      </p>
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Dock Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-slate-500"}`}>
+                        Dispatch packaging, VCI & dock inspection
+                      </p>
+                    </div>
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
+                      <Building2 className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Dock Audit" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Dock Audit").length} Audits
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* ── REQUIREMENT SECTION 2: AUDIT STATUS VIEW (5 OPTIONS FOR SELECTED CATEGORY) ── */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-brand" /> 2. Status Options for [{selectedCategory.toUpperCase()}]
+                </h2>
+                <div className="text-xs text-slate-500 font-medium">
+                  Flow: AUDIT DASHBOARD → {selectedCategory} → <strong className="text-brand">{selectedStatusView}</strong>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {/* OPTION 1: AUDIT PLAN */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Audit Plan")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Audit Plan"
+                      ? "border-sky-600 bg-sky-600 text-white shadow-sm ring-2 ring-sky-300"
+                      : "border-slate-200 bg-white hover:bg-sky-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <Calendar className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Audit Plan" ? "bg-white text-sky-800" : "bg-sky-100 text-sky-800"}`}>
+                      {planTasks.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Audit Plan</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Audit Plan" ? "text-sky-100" : "text-slate-500"}`}>
+                    Annual & Monthly Plans
+                  </p>
+                </button>
+
+                {/* OPTION 2: ONGOING */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Ongoing")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Ongoing"
+                      ? "border-amber-600 bg-amber-600 text-white shadow-sm ring-2 ring-amber-300"
+                      : "border-slate-200 bg-white hover:bg-amber-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <Timer className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Ongoing" ? "bg-white text-amber-800" : "bg-amber-100 text-amber-800"}`}>
+                      {ongoingTasks.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Ongoing</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Ongoing" ? "text-amber-100" : "text-slate-500"}`}>
+                    Audits In Progress
+                  </p>
+                </button>
+
+                {/* OPTION 3: AUDIT COMPLETED */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Audit Completed")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Audit Completed"
+                      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300"
+                      : "border-slate-200 bg-white hover:bg-emerald-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Audit Completed" ? "bg-white text-emerald-800" : "bg-emerald-100 text-emerald-800"}`}>
+                      {completedTasks.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Audit Completed</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Audit Completed" ? "text-emerald-100" : "text-slate-500"}`}>
+                    Completed & Submitted
+                  </p>
+                </button>
+
+                {/* OPTION 4: DEVIATION */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Deviation")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Deviation"
+                      ? "border-rose-600 bg-rose-600 text-white shadow-sm ring-2 ring-rose-300"
+                      : "border-slate-200 bg-white hover:bg-rose-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Deviation" ? "bg-white text-rose-800" : "bg-rose-100 text-rose-800"}`}>
+                      {deviationTasks.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Deviation</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Deviation" ? "text-rose-100" : "text-slate-500"}`}>
+                    Non-Conformances
+                  </p>
+                </button>
+
+                {/* OPTION 5: LOW PRODUCTION */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Low Production")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Low Production"
+                      ? "border-purple-600 bg-purple-600 text-white shadow-sm ring-2 ring-purple-300"
+                      : "border-slate-200 bg-white hover:bg-purple-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <TrendingDown className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Low Production" ? "bg-white text-purple-800" : "bg-purple-100 text-purple-800"}`}>
+                      {categoryLowProd.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Low Production</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Low Production" ? "text-purple-100" : "text-slate-500"}`}>
+                    Below Target Output
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* ── REQUIREMENT SECTION 4: AUDIT PLAN SUB-VIEWS (WHEN AUDIT PLAN IS ACTIVE) ── */}
+            {selectedStatusView === "Audit Plan" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-sky-600" />
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Audit Plan Sub-Views — [{selectedCategory}]
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanSubView("One Year Plan")}
+                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                        selectedPlanSubView === "One Year Plan"
+                          ? "bg-sky-700 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      One Year Plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanSubView("As-on-Month Plan")}
+                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                        selectedPlanSubView === "As-on-Month Plan"
+                          ? "bg-sky-700 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      As-on-Month Plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanSubView("Current Month Plan")}
+                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                        selectedPlanSubView === "Current Month Plan"
+                          ? "bg-sky-700 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      Current Month Plan
+                    </button>
+                  </div>
                 </div>
 
-                {/* ── Main 4 Audit Cards Grid ── */}
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                  {/* CARD 1: TOTAL AUDIT */}
-                  <div
-                    onClick={() => handleCardBodyClick("Total Audit")}
-                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          1. Total Audit
-                        </span>
-                        <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700 group-hover:scale-105 transition-transform">
-                          <ClipboardList className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                          {totalAuditCount}
-                        </span>
-                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                          Master options: Product, Reval & Dock Audits
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleActionLinkClick(e, "Total Audit")}
-                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
+                {/* Sub-View Descriptions & Controls */}
+                {selectedPlanSubView === "As-on-Month Plan" && (
+                  <div className="flex items-center gap-3 bg-sky-50 p-3 rounded-xl border border-sky-200 flex-wrap justify-between">
+                    <p className="text-xs text-sky-900 font-bold">
+                      Select target month to inspect scheduled audits for that specific timeframe:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700">Selected Month:</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-sky-500"
                       >
-                        View Breakdown List &gt;
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* CARD 2: ONGOING AUDIT */}
-                  <div
-                    onClick={() => handleCardBodyClick("Ongoing Audit")}
-                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-sky-500 hover:shadow-md flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          2. Ongoing Audit
-                        </span>
-                        <div className="rounded-lg bg-sky-100 p-2 text-sky-700 group-hover:scale-105 transition-transform">
-                          <Timer className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                          {ongoingAuditCount}
-                        </span>
-                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                          3 Separate Excel options (Product, Reval, Dock)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400">Card Body: Option Boxes</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleActionLinkClick(e, "Ongoing Audit")}
-                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
-                      >
-                        Open Excel Grid &gt;
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* CARD 3: COMPLETED AUDIT */}
-                  <div
-                    onClick={() => handleCardBodyClick("Completed Audit")}
-                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          3. Completed Audit
-                        </span>
-                        <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700 group-hover:scale-105 transition-transform">
-                          <CheckCircle2 className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                          {completedAuditCount}
-                        </span>
-                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                          Verified audit logs & inspector sign-offs
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleActionLinkClick(e, "Completed Audit")}
-                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
-                      >
-                        View Completed Logs &gt;
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* CARD 4: DEVIATION OBSERVATION */}
-                  <div
-                    onClick={() => handleCardBodyClick("Deviation Observation")}
-                    className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-amber-500 hover:shadow-md flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          4. Deviation Observation
-                        </span>
-                        <div className="rounded-lg bg-amber-100 p-2 text-amber-700 group-hover:scale-105 transition-transform">
-                          <AlertTriangle className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-                          {deviationAuditCount}
-                        </span>
-                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                          Logged non-conformances & CAPA plans
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-slate-400">Card Body: Internal List</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleActionLinkClick(e, "Deviation Observation")}
-                        className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline transition-colors"
-                      >
-                        Open Deviation Register &gt;
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Admin Quality Tools & Verification Hubs Option Boxes ── */}
-                {isAdmin && (
-                  <div className="space-y-4 pt-4 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-emerald-600" /> Admin Quality Tools & Verification Hubs
-                      </h3>
-                      <span className="text-xs text-slate-500 font-medium">Click any box to open dedicated full page</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                      {/* BOX 1: Submitted Audits Register */}
-                      <div
-                        onClick={() => setCurrentView("submitted_audits_page")}
-                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-emerald-500 hover:shadow-md flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <div className="rounded-lg bg-emerald-100 p-2.5 text-emerald-700 group-hover:scale-105 transition-transform">
-                              <FileCheck2 className="h-5 w-5" />
-                            </div>
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
-                              Live Register
-                            </span>
-                          </div>
-                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                            Submitted Audits Register
-                          </h4>
-                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            Track Part No, Part Name, Employee Name & Submitted Date Timestamps.
-                          </p>
-                        </div>
-
-                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:underline">
-                          <span>Open Register Page</span>
-                          <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-
-                      {/* BOX 2: Electronic Signatures Directory */}
-                      <div
-                        onClick={() => setCurrentView("signatures_page")}
-                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-sky-500 hover:shadow-md flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <div className="rounded-lg bg-sky-100 p-2.5 text-sky-700 group-hover:scale-105 transition-transform">
-                              <UserCheck className="h-5 w-5" />
-                            </div>
-                            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 border border-sky-300">
-                              10 Personnel
-                            </span>
-                          </div>
-                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors">
-                            Electronic Signatures Directory
-                          </h4>
-                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            10 Member transparent PNG signature database & authentication.
-                          </p>
-                        </div>
-
-                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-sky-700 group-hover:underline">
-                          <span>Open Signature Page</span>
-                          <ArrowRight className="h-4 w-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-
-                      {/* BOX 3: Employee Job Review & Verification Queue */}
-                      <div
-                        onClick={() => setDashboardTab("review_jobs")}
-                        className="group cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <div className="rounded-lg bg-indigo-600 p-2.5 text-white group-hover:scale-105 transition-transform">
-                              <FileText className="h-5 w-5" />
-                            </div>
-                            <span className="rounded-full bg-indigo-200 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
-                              Admin Review
-                            </span>
-                          </div>
-                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                            Review Jobs Queue
-                          </h4>
-                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            Review employee submitted audits, check evidences & E-Signatures, approve/reject.
-                          </p>
-                        </div>
-
-                        <div className="mt-5 border-t border-indigo-200 pt-3 flex items-center justify-between text-xs font-bold text-indigo-800 group-hover:underline">
-                          <span>Open Review Queue</span>
-                          <ArrowRight className="h-4 w-4 text-indigo-700 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-
-                      {/* BOX 4: Employee Activity Logs */}
-                      <div
-                        onClick={() => setCurrentView("activity_logs_page")}
-                        className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-purple-500 hover:shadow-md flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <div className="rounded-lg bg-purple-100 p-2.5 text-purple-700 group-hover:scale-105 transition-transform">
-                              <Calendar className="h-5 w-5" />
-                            </div>
-                            <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-800 border border-purple-300">
-                              Security Trail
-                            </span>
-                          </div>
-                          <h4 className="mt-4 text-base font-extrabold text-slate-900 group-hover:text-purple-700 transition-colors">
-                            Employee Activity & Login Logs
-                          </h4>
-                          <p className="mt-1 text-xs font-medium text-slate-600 leading-relaxed">
-                            Complete security log history of employee logins, logouts, and system events.
-                          </p>
-                        </div>
-
-                        <div className="mt-5 border-t border-slate-100 pt-3 flex items-center justify-between text-xs font-bold text-purple-700 group-hover:underline">
-                          <span>Open Activity Logs</span>
-                          <ArrowRight className="h-4 w-4 text-purple-600 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
+                        {MONTHS.map((m, idx) => (
+                          <option key={m} value={idx + 1}>
+                            {m} ({idx + 1})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-        {/* ==================================================================== */}
-        {/* VIEW 1.B: DEDICATED PAGE FOR SUBMITTED AUDITS REGISTER               */}
-        {/* ==================================================================== */}
-        {currentView === "submitted_audits_page" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <button
-                type="button"
-                onClick={handleResetToDashboard}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
-              </button>
-              <span className="text-xs font-bold text-slate-500">
-                Admin Feature: Submitted Audits Register Page
-              </span>
-            </div>
-            <SubmittedAuditsRegister />
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* VIEW 1.C: DEDICATED PAGE FOR ELECTRONIC SIGNATURES DIRECTORY        */}
-        {/* ==================================================================== */}
-        {currentView === "signatures_page" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <button
-                type="button"
-                onClick={handleResetToDashboard}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
-              </button>
-              <span className="text-xs font-bold text-slate-500">
-                Admin Feature: Electronic Signatures Directory Page
-              </span>
-            </div>
-            <ElectronicSignatureRegistry />
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* VIEW 1.D: DEDICATED PAGE FOR EMPLOYEE ACTIVITY & LOGIN LOGS         */}
-        {/* ==================================================================== */}
-        {currentView === "activity_logs_page" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <button
-                type="button"
-                onClick={handleResetToDashboard}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
-              </button>
-              <span className="text-xs font-bold text-slate-500">
-                Admin Feature: Employee Activity & Login Logs Page
-              </span>
-            </div>
-            <EmployeeActivityLogs />
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* VIEW 2: INSIDE AUDITS BREAKDOWN / OPTION BOXES VIEW ('inside_audits') */}
-        {/* ==================================================================== */}
-        {currentView === "inside_audits" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Header Navigation Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <button
-                type="button"
-                onClick={handleResetToDashboard}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to Main Dashboard
-              </button>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500">Selected Audit Category:</span>
-                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
-                  {selectedAuditType}
-                </span>
-              </div>
-            </div>
-
-            {/* ── ONGOING AUDIT: 3 SEPARATE OPTION BOXES (PRODUCT, REVALIDATION, DOCS) ── */}
-            {selectedAuditType === "Ongoing Audit" ? (
-              <div className="space-y-6">
-                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-5">
-                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Timer className="h-5 w-5 text-sky-600" /> Ongoing Audit Excel Options
-                  </h2>
-                  <p className="mt-1 text-xs font-medium text-slate-600">
-                    Select an audit option below to open its dedicated interactive Excel Spreadsheet matrix.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                  {/* BOX 1: Product Audit Option Box */}
-                  <div
-                    onClick={() => handleOpenSpecificOngoingExcel("Product")}
-                    className="group cursor-pointer rounded-xl border-2 border-emerald-300 bg-white p-6 shadow-xs hover:border-emerald-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <div className="rounded-xl bg-emerald-100 p-3 text-emerald-700 group-hover:scale-110 transition-transform">
-                          <Package className="h-6 w-6" />
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-bold text-emerald-800">
-                          {ongoingProductCount} Active
-                        </span>
-                      </div>
-
-                      <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                        Product Audit
-                      </h3>
-                      <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                        Open dedicated Product Audit Excel sheet for dimensional, visual, and hardness inspections.
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <span className="text-xs font-bold text-emerald-700 group-hover:underline">
-                        Open Product Excel Sheet
-                      </span>
-                      <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-
-                  {/* BOX 2: Revalidation Audit Option Box */}
-                  <div
-                    onClick={() => handleOpenSpecificOngoingExcel("Revalidation")}
-                    className="group cursor-pointer rounded-xl border-2 border-sky-300 bg-white p-6 shadow-xs hover:border-sky-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <div className="rounded-xl bg-sky-100 p-3 text-sky-700 group-hover:scale-110 transition-transform">
-                          <RefreshCcw className="h-6 w-6" />
-                        </div>
-                        <span className="rounded-full bg-sky-100 px-3 py-1 font-mono text-xs font-bold text-sky-800">
-                          {ongoingRevalidationCount} Active
-                        </span>
-                      </div>
-
-                      <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors">
-                        Revalidation Audit
-                      </h3>
-                      <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                        Open dedicated Revalidation Audit Excel sheet for periodic tooling and gauge recalibrations.
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <span className="text-xs font-bold text-sky-700 group-hover:underline">
-                        Open Revalidation Excel Sheet
-                      </span>
-                      <ArrowRight className="h-4 w-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-
-                  {/* BOX 3: Dock Audit Option Box */}
-                  <div
-                    onClick={() => handleOpenSpecificOngoingExcel("Process")}
-                    className="group cursor-pointer rounded-xl border-2 border-indigo-300 bg-white p-6 shadow-xs hover:border-indigo-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <div className="rounded-xl bg-indigo-100 p-3 text-indigo-700 group-hover:scale-110 transition-transform">
-                          <FileText className="h-6 w-6" />
-                        </div>
-                        <span className="rounded-full bg-indigo-100 px-3 py-1 font-mono text-xs font-bold text-indigo-800">
-                          {ongoingDocCount} Active
-                        </span>
-                      </div>
-
-                      <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                        Dock Audit
-                      </h3>
-                      <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                        Open dedicated Dock Audit Excel sheet for process documentation and SOP compliance logs.
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <span className="text-xs font-bold text-indigo-700 group-hover:underline">
-                        Open Dock Audit Excel Sheet
-                      </span>
-                      <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : selectedAuditType === "Total Audit" ? (
-              /* ── TOTAL AUDIT: 3 SEPARATE OPTION BOXES & SPECIFIC BREAKDOWN LISTS ── */
-              <div className="space-y-6">
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <ClipboardList className="h-5 w-5 text-emerald-600" /> Total Audit Options & Breakdown
-                    </h2>
-                    <p className="mt-1 text-xs font-medium text-slate-600">
-                      Select an option below to view its detailed master audit list breakdown.
-                    </p>
-                  </div>
-
-                  {totalSubSelection !== "options" && (
-                    <button
-                      type="button"
-                      onClick={() => setTotalSubSelection("options")}
-                      className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <ChevronLeft className="h-4 w-4 text-slate-500" /> Back to Total Audit Options
+                {/* Search Bar for Plan Records */}
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                  <Search className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by Audit ID, Part Number, Auditor, Department..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none font-medium"
+                  />
+                  {searchQuery && (
+                    <button type="button" onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600">
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
 
-                {totalSubSelection === "options" ? (
-                  /* ── TOTAL AUDIT 3 OPTION BOXES ── */
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                    {/* OPTION BOX 1: Product Audit */}
-                    <div
-                      onClick={() => setTotalSubSelection("Product")}
-                      className="group cursor-pointer rounded-xl border-2 border-emerald-300 bg-white p-6 shadow-xs hover:border-emerald-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <div className="rounded-xl bg-emerald-100 p-3 text-emerald-700 group-hover:scale-110 transition-transform">
-                            <Package className="h-6 w-6" />
-                          </div>
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-bold text-emerald-800">
-                            {productAuditsTotal.length} Total
-                          </span>
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                          Product Audit
-                        </h3>
-                        <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                          View master breakdown list for all Product Audits across plant lines.
-                        </p>
-                      </div>
-
-                      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                        <span className="text-xs font-bold text-emerald-700 group-hover:underline">
-                          View Product Breakdown List
-                        </span>
-                        <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-
-                    {/* OPTION BOX 2: Revalidation Audit */}
-                    <div
-                      onClick={() => setTotalSubSelection("Revalidation")}
-                      className="group cursor-pointer rounded-xl border-2 border-sky-300 bg-white p-6 shadow-xs hover:border-sky-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <div className="rounded-xl bg-sky-100 p-3 text-sky-700 group-hover:scale-110 transition-transform">
-                            <RefreshCcw className="h-6 w-6" />
-                          </div>
-                          <span className="rounded-full bg-sky-100 px-3 py-1 font-mono text-xs font-bold text-sky-800">
-                            {revalidationAuditsTotal.length} Total
-                          </span>
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors">
-                          Revalidation Audit
-                        </h3>
-                        <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                          View master breakdown list for all periodic Revalidation Audits.
-                        </p>
-                      </div>
-
-                      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                        <span className="text-xs font-bold text-sky-700 group-hover:underline">
-                          View Revalidation Breakdown List
-                        </span>
-                        <ArrowRight className="h-4 w-4 text-sky-600 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-
-                    {/* OPTION BOX 3: Dock Audit */}
-                    <div
-                      onClick={() => setTotalSubSelection("Process")}
-                      className="group cursor-pointer rounded-xl border-2 border-indigo-300 bg-white p-6 shadow-xs hover:border-indigo-500 hover:shadow-lg transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <div className="rounded-xl bg-indigo-100 p-3 text-indigo-700 group-hover:scale-110 transition-transform">
-                            <FileText className="h-6 w-6" />
-                          </div>
-                          <span className="rounded-full bg-indigo-100 px-3 py-1 font-mono text-xs font-bold text-indigo-800">
-                            {docAuditsTotal.length} Total
-                          </span>
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                          Dock Audit
-                        </h3>
-                        <p className="mt-2 text-xs font-semibold text-slate-600 leading-relaxed">
-                          View master breakdown list for all Process & Dock Audits.
-                        </p>
-                      </div>
-
-                      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                        <span className="text-xs font-bold text-indigo-700 group-hover:underline">
-                          View Dock Audit Breakdown List
-                        </span>
-                        <ArrowRight className="h-4 w-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* ── SPECIFIC STATIC BREAKDOWN LIST ── */
-                  <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                      <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                        {totalSubSelection === "Product" ? (
-                          <Package className="h-5 w-5 text-emerald-600" />
-                        ) : totalSubSelection === "Revalidation" ? (
-                          <RefreshCcw className="h-5 w-5 text-sky-600" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-indigo-600" />
-                        )}
-                        Total {totalSubSelection === "Process" ? "Dock" : totalSubSelection} Audit Master List
-                      </h3>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
-                        {totalSubSelection === "Product"
-                          ? productAuditsTotal.length
-                          : totalSubSelection === "Revalidation"
-                          ? revalidationAuditsTotal.length
-                          : docAuditsTotal.length}{" "}
-                        items
-                      </span>
-                    </div>
-
-                    {/* QF/08/CQA-10 Product Audit Plan Legend Card */}
-                    {totalSubSelection === "Product" && (
-                      <div className="rounded-xl border border-emerald-300 bg-emerald-50/60 p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-2">
-                          <span className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
-                            <FileText className="h-4 w-4 text-emerald-700" />
-                            PRODUCT AUDIT PLAN [MACHINING] — Doc No: QF/08/CQA-10 (Rev.No: 02 dt 12.06.2026)
-                          </span>
-                          <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded border border-emerald-300">
-                            Ref Checklist: QF/08/CQA-09
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-[11px] font-semibold text-slate-800">
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-400 bg-white" />
-                            <span>PLAN (Scheduled)</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-                            <span>PLANNED AUDIT DONE (Ref QF/08/CQA-09)</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
-                            <span>PLANNED AUDIT NOT CHECKED</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                            <span>PLANNED NOT AVAILABLE</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-none rotate-45 bg-amber-500" />
-                            <span>UNPLANNED INCLUDED</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-white p-2 rounded border border-emerald-200 shadow-2xs">
-                            <span className="h-2.5 w-2.5 rounded-none rotate-45 bg-sky-600" />
-                            <span>UNPLANNED AUDIT DONE</span>
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] font-mono text-emerald-900 pt-1">
-                          Approval Track: <strong>PREPARED BY</strong> ➔ <strong>TEAM LEADER AUDIT</strong> ➔ <strong>APPROVED BY QUALITY HEAD</strong>
-                        </p>
-                      </div>
-                    )}
-
-                    {/* QF/08/CQA-31 Revalidation Plan Schedule Card */}
-                    {totalSubSelection === "Revalidation" && (
-                      <div className="rounded-xl border border-sky-300 bg-sky-50/60 p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-200 pb-2">
-                          <span className="text-xs font-extrabold text-sky-900 flex items-center gap-1.5">
-                            <RefreshCcw className="h-4 w-4 text-sky-700" />
-                            REVALIDATION PLAN [MACHINING] — Doc No: QF/08/CQA-31 (Rev.No: 02 dt 01.01.2025/2026)
-                          </span>
-                          <span className="text-[11px] font-mono font-bold text-sky-800 bg-sky-100 px-2.5 py-0.5 rounded border border-sky-300">
-                            Customer: MAHINDRA & MAHINDRA LTD
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-[11px] font-semibold text-slate-800">
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">MPV Housing</span>: <span className="font-mono text-brand">Jan & Jul</span>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">Bolero Knuckle</span>: <span className="font-mono text-brand">May & Nov</span>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">IFS (W501/3G ECO)</span>: <span className="font-mono text-brand">May & Nov</span>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">Disc Brake</span>: <span className="font-mono text-brand">Feb & Aug</span>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">Bolero Passenger (NABS)</span>: <span className="font-mono text-brand">Apr & Oct</span>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-sky-200 shadow-2xs">
-                            <span className="font-bold text-sky-900">Bolero Passenger (ABS)</span>: <span className="font-mono text-brand">Feb & Aug</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="overflow-hidden rounded-lg border border-slate-200">
-                      <table className="w-full border-collapse text-left text-xs font-sans">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                            <th className="p-3 w-28 font-bold">Code</th>
-                            <th className="p-3 min-w-[220px] font-bold">Title</th>
-                            <th className="p-3 w-28 font-bold">Type</th>
-                            <th className="p-3 w-32 font-bold">Plant Area</th>
-                            <th className="p-3 w-28 font-bold">Assigned Emp</th>
-                            <th className="p-3 w-28 font-bold">Status</th>
-                            <th className="p-3 text-center w-32 font-bold">Inspection Link</th>
-                            {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 text-slate-900">
-                          {(totalSubSelection === "Product"
-                            ? productAuditsTotal
-                            : totalSubSelection === "Revalidation"
-                            ? revalidationAuditsTotal
-                            : docAuditsTotal
-                          ).map((item) => (
-                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-3 font-mono font-bold text-brand">
-                                <Link
-                                  to="/audit/$auditId"
-                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
-                                  className="hover:underline hover:text-orange-600 inline-flex items-center gap-1"
-                                >
-                                  {item.audit_code}
-                                </Link>
+                {/* ── TABLE VIEW FOR AUDIT PLAN ── */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        {selectedPlanSubView === "As-on-Month Plan" && <th className="p-3">Selected Month</th>}
+                        <th className="p-3">Audit ID</th>
+                        <th className="p-3">Audit Type</th>
+                        <th className="p-3">Product / Part Name</th>
+                        <th className="p-3">Part Number</th>
+                        <th className="p-3">Planned Date</th>
+                        <th className="p-3">Auditor</th>
+                        <th className="p-3">Department</th>
+                        <th className="p-3">Status</th>
+                        {isAdmin && <th className="p-3 text-right">Admin Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {categoryTasks
+                        .filter((r) => {
+                          if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
+                          if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
+                          return true; // One Year Plan
+                        })
+                        .filter((r) => {
+                          if (!searchQuery) return true;
+                          const q = searchQuery.toLowerCase();
+                          return (
+                            r.audit_code.toLowerCase().includes(q) ||
+                            r.title.toLowerCase().includes(q) ||
+                            (r.auditor_name && r.auditor_name.toLowerCase().includes(q)) ||
+                            r.area.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((task) => (
+                          <tr key={task.id} className="hover:bg-slate-50 transition-colors">
+                            {selectedPlanSubView === "As-on-Month Plan" && (
+                              <td className="p-3 font-bold text-sky-700">
+                                {MONTHS[task.month - 1] ?? `Month ${task.month}`}
                               </td>
-                              <td className="p-3 font-bold text-slate-900">
-                                <Link
-                                  to="/audit/$auditId"
-                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
-                                  className="hover:text-sky-600 hover:underline"
-                                >
-                                  {item.title}
-                                </Link>
-                              </td>
-                              <td className="p-3 font-semibold text-slate-700">{item.audit_type}</td>
-                              <td className="p-3 font-semibold text-slate-700">{item.area}</td>
-                              <td className="p-3 font-mono font-bold text-slate-800">
-                                Emp #{item.assigned_to_employee_number}
-                              </td>
-                              <td className="p-3">
-                                <StatusBadge status={item.status} />
-                              </td>
-                              <td className="p-3 text-center">
-                                <Link
-                                  to="/audit/$auditId"
-                                  params={{ auditId: item.id.startsWith("temp-") ? "aud-msil-01" : item.id.toLowerCase() }}
-                                  className="inline-flex items-center gap-1 rounded bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors shadow-2xs"
-                                >
-                                  Open Audit &gt;
-                                </Link>
-                              </td>
-                              {isAdmin && (
-                                <td className="p-3 text-center">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-rose-600 hover:bg-rose-100"
-                                    onClick={() => handleDeleteAudit(item.id)}
-                                    title="Delete Audit (Admin Only)"
+                            )}
+                            <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
+                            <td className="p-3 font-bold text-slate-700">{task.audit_type}</td>
+                            <td className="p-3 font-medium text-slate-800 max-w-xs truncate">{task.title}</td>
+                            <td className="p-3 font-mono text-slate-600">{task.audit_code}</td>
+                            <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
+                            <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
+                            <td className="p-3 font-medium text-slate-600">{task.area}</td>
+                            <td className="p-3">
+                              <StatusBadge status={task.status} />
+                            </td>
+                            {isAdmin && (
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDocAudit(task);
+                                      setIsDocModalOpen(true);
+                                    }}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600"
+                                    title="Document Management (Upload / View docs)"
+                                  >
+                                    <File className="h-3.5 w-3.5" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingAudit(task);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-amber-400 hover:text-amber-600"
+                                    title="Edit / Reschedule Audit Plan"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAuditRecord(task.id)}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600"
+                                    title="Remove Audit Plan"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-
-                          {(totalSubSelection === "Product"
-                            ? productAuditsTotal
-                            : totalSubSelection === "Revalidation"
-                            ? revalidationAuditsTotal
-                            : docAuditsTotal
-                          ).length === 0 && (
-                            <tr>
-                              <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
-                                No records found for this audit type.
+                                  </button>
+                                </div>
                               </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                            )}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── REQUIREMENT SECTION 9: ONGOING VIEW ── */}
+            {selectedStatusView === "Ongoing" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-5 w-5 text-amber-600" />
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Ongoing Audits — [{selectedCategory}]
+                    </h3>
                   </div>
-                )}
-              </div>
-            ) : selectedAuditType === "Completed Audit" ? (
-              /* ── COMPLETED AUDIT LIST ── */
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-                <table className="w-full border-collapse text-left text-xs font-sans">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                      <th className="p-3 w-28 font-bold">Audit Code</th>
-                      <th className="p-3 min-w-[220px] font-bold">Audit Title</th>
-                      <th className="p-3 w-28 font-bold">Type</th>
-                      <th className="p-3 w-32 font-bold">Plant Area</th>
-                      <th className="p-3 w-28 font-bold">Assigned Emp</th>
-                      <th className="p-3 w-28 font-bold">Status</th>
-                      <th className="p-3 text-center w-32 font-bold">Inspection Link</th>
-                      {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-900">
-                    {completedTasks.map((task) => (
-                      <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono font-bold text-emerald-700">
-                          <Link
-                            to="/audit/$auditId"
-                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
-                            className="hover:underline hover:text-emerald-900"
-                          >
-                            {task.audit_code}
-                          </Link>
-                        </td>
-                        <td className="p-3 font-bold text-slate-900">
-                          <Link
-                            to="/audit/$auditId"
-                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
-                            className="hover:text-emerald-800 hover:underline"
-                          >
-                            {task.title}
-                          </Link>
-                        </td>
-                        <td className="p-3 font-semibold text-slate-700">{task.audit_type}</td>
-                        <td className="p-3 font-semibold text-slate-700">{task.area}</td>
-                        <td className="p-3 font-mono font-bold text-slate-800">Emp #{task.assigned_to_employee_number}</td>
-                        <td className="p-3">
-                          <StatusBadge status="Completed" />
-                        </td>
-                        <td className="p-3 text-center">
-                          <Link
-                            to="/audit/$auditId"
-                            params={{ auditId: task.id.startsWith("temp-") ? "aud-msil-01" : task.id.toLowerCase() }}
-                            className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs"
-                          >
-                            Open Audit &gt;
-                          </Link>
-                        </td>
-                        {isAdmin && (
-                          <td className="p-3 text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-rose-600 hover:bg-rose-100"
-                              onClick={() => handleDeleteAudit(task.id)}
-                              title="Delete Audit (Admin Only)"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold text-slate-500">
+                    Audits currently in progress
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Audit ID</th>
+                        <th className="p-3">Product / Part Number</th>
+                        <th className="p-3">Start Date & Time</th>
+                        <th className="p-3">Auditor</th>
+                        <th className="p-3">Progress</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ongoingTasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
+                          <td className="p-3 font-medium text-slate-800">
+                            <div>{task.title}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{task.audit_code}</div>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{task.start_date_time ?? `${task.due_date} 09:00 AM`}</td>
+                          <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-20 rounded-full bg-slate-200 overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${task.progress_pct ?? 60}%` }} />
+                              </div>
+                              <span className="font-bold text-slate-700">{task.progress_pct ?? 60}%</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <StatusBadge status={task.status} />
+                          </td>
+                          <td className="p-3 text-right">
+                            <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                              <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                Open Checklist
+                              </Link>
                             </Button>
                           </td>
-                        )}
-                      </tr>
-                    ))}
-
-                    {completedTasks.length === 0 && (
-                      <tr>
-                        <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
-                          No completed audits.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            ) : (
-              /* ── DEVIATION OBSERVATION LIST ── */
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-                <table className="w-full border-collapse text-left text-xs font-sans">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                      <th className="p-3 w-28 font-bold">Dev Code</th>
-                      <th className="p-3 min-w-[240px] font-bold">Description</th>
-                      <th className="p-3 w-36 font-bold">Area</th>
-                      <th className="p-3 w-28 font-bold">Severity</th>
-                      <th className="p-3 w-28 font-bold">Assigned Emp</th>
-                      <th className="p-3 w-28 font-bold">Status</th>
-                      {isAdmin && <th className="p-3 text-center w-16 font-bold">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-900">
-                    {mergedDeviations.map((dev) => (
-                      <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono font-bold text-amber-700">{dev.dev_code || dev.id}</td>
-                        <td className="p-3 font-bold text-slate-900">{dev.description}</td>
-                        <td className="p-3 font-semibold text-slate-700">{dev.location_operation || "Plant Line"}</td>
-                        <td className="p-3 font-bold text-rose-700">{dev.severity || "High"}</td>
-                        <td className="p-3 font-mono font-bold text-slate-800">Emp #{dev.employee_number}</td>
-                        <td className="p-3">
-                          <span className="rounded border bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border-amber-300">
-                            {dev.status || "open"}
-                          </span>
-                        </td>
-                        {isAdmin && (
-                          <td className="p-3 text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-rose-600 hover:bg-rose-100"
-                              onClick={() => handleDeleteDeviation(dev.id)}
-                              title="Delete Deviation Observation (Admin Only)"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
+            )}
+
+            {/* ── REQUIREMENT SECTION 10: AUDIT COMPLETED VIEW ── */}
+            {selectedStatusView === "Audit Completed" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Completed Audits — [{selectedCategory}]
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    Audits successfully finished & submitted
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Audit ID</th>
+                        <th className="p-3">Product / Part Number</th>
+                        <th className="p-3">Audit Date</th>
+                        <th className="p-3">Auditor</th>
+                        <th className="p-3">Completion Date</th>
+                        <th className="p-3">Final Result</th>
+                        <th className="p-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {completedTasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
+                          <td className="p-3 font-medium text-slate-800">
+                            <div>{task.title}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{task.audit_code}</div>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
+                          <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
+                          <td className="p-3 font-medium text-slate-700">{task.completion_date ?? task.due_date}</td>
+                          <td className="p-3">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-800 text-[11px]">
+                              <Check className="h-3 w-3" /> {task.final_result ?? "PASS / COMPLIANT"}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <Button asChild size="sm" variant="outline" className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50 text-xs">
+                              <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                View Report
+                              </Link>
                             </Button>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-                    {mergedDeviations.length === 0 && (
+            {/* ── REQUIREMENT SECTION 11: DEVIATION VIEW ── */}
+            {selectedStatusView === "Deviation" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-rose-600" />
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Deviation & Non-Conformance Records — [{selectedCategory}]
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    Non-conformances & corrective action tracking
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-xs font-medium text-slate-500">
-                          No deviations reported.
-                        </td>
+                        <th className="p-3">Deviation ID</th>
+                        <th className="p-3">Audit ID</th>
+                        <th className="p-3">Product / Part Number</th>
+                        <th className="p-3">Deviation Description</th>
+                        <th className="p-3">Severity</th>
+                        <th className="p-3">Responsible Person / Dept</th>
+                        <th className="p-3">Corrective Action</th>
+                        <th className="p-3">Due Date</th>
+                        <th className="p-3">Closure Status</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {deviationTasks.map((dev) => (
+                        <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono font-black text-rose-700">{dev.dev_code ?? dev.id.slice(0, 8)}</td>
+                          <td className="p-3 font-mono font-bold text-slate-800">{dev.audit_id ?? "AUD-MSIL-01"}</td>
+                          <td className="p-3 font-mono font-medium text-slate-700">{dev.product_part_number ?? "0401DAA02010N"}</td>
+                          <td className="p-3 font-medium text-slate-800 max-w-xs">{dev.description}</td>
+                          <td className="p-3">
+                            <span className={`rounded-md px-2 py-0.5 font-bold text-[10px] ${dev.severity === "High" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>
+                              {dev.severity ?? "High"}
+                            </span>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{dev.responsible_person ?? dev.employee_number} ({dev.department ?? "QA"})</td>
+                          <td className="p-3 font-medium text-slate-700">{dev.corrective_action ?? "Under Review"}</td>
+                          <td className="p-3 font-medium text-slate-600">{dev.due_date ?? dev.created_at}</td>
+                          <td className="p-3">
+                            <StatusBadge status={dev.closure_status ?? dev.status} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── REQUIREMENT SECTION 12: LOW PRODUCTION VIEW ── */}
+            {selectedStatusView === "Low Production" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5 text-purple-600" />
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Low Production Monitoring — [{selectedCategory}]
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    Products/parts where actual production is below configured production target/threshold
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Part Number</th>
+                        <th className="p-3">Product Name</th>
+                        <th className="p-3 text-right">Planned Production</th>
+                        <th className="p-3 text-right">Actual Production</th>
+                        <th className="p-3 text-center">Production %</th>
+                        <th className="p-3 text-center">Threshold</th>
+                        <th className="p-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {categoryLowProd.map((lp) => (
+                        <tr key={lp.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono font-black text-purple-900">{lp.part_number}</td>
+                          <td className="p-3 font-bold text-slate-800">{lp.product_name}</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-700">{lp.planned_production.toLocaleString()} PCS</td>
+                          <td className="p-3 text-right font-mono font-bold text-purple-700">{lp.actual_production.toLocaleString()} PCS</td>
+                          <td className="p-3 text-center font-black">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full ${lp.production_percentage < lp.threshold_percentage ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}`}>
+                              {lp.production_percentage.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
+                          <td className="p-3">
+                            <span className={`rounded-md px-2.5 py-1 font-bold text-[11px] ${lp.status === "Critical" ? "bg-rose-600 text-white" : "bg-amber-500 text-white"}`}>
+                              {lp.status === "Critical" ? "BELOW THRESHOLD" : "ATTENTION REQUIRED"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
         )}
+      </div>
 
-        {/* ==================================================================== */}
-        {/* VIEW 3: EXCEL GRID VIEW ('excel_view')                                */}
-        {/* ==================================================================== */}
-        {currentView === "excel_view" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Header Navigation Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleResetToDashboard}
-                  className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-                </button>
+      {/* ── MODAL: ADMIN DOCUMENT MANAGEMENT ── */}
+      {isDocModalOpen && selectedDocAudit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <File className="h-4 w-4 text-sky-600" /> Document Management — [{selectedDocAudit.audit_code}]
+              </h3>
+              <button type="button" onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => setCurrentView("inside_audits")}
-                  className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3.5 py-2 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4 text-sky-600" /> Back to Option Boxes
-                </button>
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 font-medium">
+                Attached files and specifications for audit record <strong>{selectedDocAudit.title}</strong>:
+              </p>
+
+              {/* List of existing documents */}
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {(documentsMap[selectedDocAudit.id] ?? []).length === 0 ? (
+                  <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
+                    No documents attached to this audit plan yet.
+                  </p>
+                ) : (
+                  (documentsMap[selectedDocAudit.id] ?? []).map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-200 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-800">{doc.document_name}</p>
+                        <p className="text-[10px] text-slate-400">
+                          Uploaded by {doc.uploaded_by} on {doc.uploaded_at}
+                        </p>
+                      </div>
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-sky-600 hover:underline">
+                        <ExternalLink className="h-3 w-3" /> View
+                      </a>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500">Excel Grid Context:</span>
-                <span className="rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white">
-                  {selectedAuditType} {excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Dock" : excelSubTab})` : ""}
-                </span>
+              {/* Admin Add/Upload Form */}
+              {isAdmin && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <h4 className="text-xs font-bold text-slate-700">Attach New Audit Document / Spec File</h4>
+                  <input
+                    type="text"
+                    placeholder="Document Title (e.g. QF/08/CQA-37 Master Spec)"
+                    value={docNameInput}
+                    onChange={(e) => setDocNameInput(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 p-2 text-xs font-medium"
+                  />
+                  <input
+                    type="text"
+                    placeholder="File URL or absolute storage path (e.g. /docs/spec.pdf)"
+                    value={docFileUrlInput}
+                    onChange={(e) => setDocFileUrlInput(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 p-2 text-xs font-medium"
+                  />
+                  <Button type="button" onClick={handleAddDocument} size="sm" className="w-full bg-sky-700 text-white font-bold hover:bg-sky-800 text-xs gap-1.5">
+                    <Upload className="h-3.5 w-3.5" /> Attach Document
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setIsDocModalOpen(false)} className="text-xs font-bold">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: ADMIN CREATE / EDIT / RESCHEDULE AUDIT PLAN ── */}
+      {(isAddPlanModalOpen || isEditModalOpen) && editingAudit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-brand" /> {isAddPlanModalOpen ? "Create New Audit Plan" : `Edit / Reschedule Audit Plan [${editingAudit.audit_code}]`}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddPlanModalOpen(false);
+                  setIsEditModalOpen(false);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Audit Code / ID</label>
+                <input
+                  type="text"
+                  value={editingAudit.audit_code}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 p-2 font-mono"
+                />
               </div>
 
-              {/* Excel Sub Tab Filter */}
-              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-                <button
-                  onClick={() => setExcelSubTab("all")}
-                  className={`rounded px-2.5 py-1 text-xs font-bold transition-all ${
-                    excelSubTab === "all" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
-                  }`}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Product / Part Name</label>
+                <input
+                  type="text"
+                  value={editingAudit.title}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, title: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 p-2"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Audit Type Category</label>
+                  <select
+                    value={editingAudit.audit_type}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 font-medium"
+                  >
+                    <option value="Product">Product</option>
+                    <option value="Revalidation">Revalidation</option>
+                    <option value="Dock Audit">Dock Audit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Planned Date / Reschedule</label>
+                  <input
+                    type="date"
+                    value={editingAudit.due_date}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, due_date: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Auditor Name / Emp ID</label>
+                  <input
+                    type="text"
+                    value={editingAudit.auditor_name ?? editingAudit.assigned_to_employee_number}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, auditor_name: e.target.value, assigned_to_employee_number: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Department / Area</label>
+                  <input
+                    type="text"
+                    value={editingAudit.area}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, area: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Status Management</label>
+                <select
+                  value={editingAudit.status}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, status: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800"
                 >
-                  All Types
-                </button>
-                <button
-                  onClick={() => setExcelSubTab("Product")}
-                  className={`rounded px-2.5 py-1 text-xs font-bold transition-all ${
-                    excelSubTab === "Product" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600"
-                  }`}
-                >
-                  Product
-                </button>
-                <button
-                  onClick={() => setExcelSubTab("Revalidation")}
-                  className={`rounded px-2.5 py-1 text-xs font-bold transition-all ${
-                    excelSubTab === "Revalidation" ? "bg-sky-600 text-white shadow-xs" : "text-slate-600"
-                  }`}
-                >
-                  Revalidation
-                </button>
-                <button
-                  onClick={() => setExcelSubTab("Process")}
-                  className={`rounded px-2.5 py-1 text-xs font-bold transition-all ${
-                    excelSubTab === "Process" ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600"
-                  }`}
-                >
-                  Dock
-                </button>
+                  <option value="Planned">Planned</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="In Progress">In Progress / Ongoing</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Deviation">Deviation</option>
+                </select>
               </div>
             </div>
 
-            {/* Embedded Excel Grid */}
-            <ExcelTaskGrid
-              initialRows={getFilteredExcelRows()}
-              isAdmin={isAdmin}
-              currentEmployeeNumber={profile?.employee_number || "690867"}
-              title={`Excel Control Sheet — ${selectedAuditType} ${excelSubTab !== "all" ? `(${excelSubTab === "Process" ? "Dock Audit" : excelSubTab + " Audit"})` : ""}`}
-              description="Live editable spreadsheet layout. Double-click or click cells to update task details, statuses, add rows, or import/export."
-              onRefresh={() => assignments.refetch()}
-            />
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddPlanModalOpen(false);
+                  setIsEditModalOpen(false);
+                }}
+                className="text-xs font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleSaveAuditRecord(editingAudit)}
+                className="bg-brand text-white font-bold hover:bg-brand-hover text-xs"
+              >
+                Save Record
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-    )}
-      </div>
+        </div>
+      )}
     </AppShell>
   );
 }
