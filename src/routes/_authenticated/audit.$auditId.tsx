@@ -33,10 +33,13 @@ export const Route = createFileRoute("/_authenticated/audit/$auditId")({
 
 type CheckpointItem = {
   id: string;
+  sl_no?: number | string;
   parameter: string;
   specification: string;
+  check_method?: string;
   actual_value: string;
   status: "Pass" | "Fail" | "Pending";
+  remarks?: string;
 };
 
 function AuditFormPage() {
@@ -44,9 +47,13 @@ function AuditFormPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  // Part & Inspection metadata states
-  const [partNo, setPartNo] = useState("PN-88402-A");
-  const [partName, setPartName] = useState("Front Wheel Hub Assembly");
+  // Part & Inspection metadata states (Matching Industrial PDF Form)
+  const [customer, setCustomer] = useState("MSIL");
+  const [partNo, setPartNo] = useState("45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)");
+  const [partName, setPartName] = useState("KNUCKLE STEERING R/L - YTA / YTB");
+  const [revNo, setRevNo] = useState("A");
+  const [dateCode, setDateCode] = useState("DC-2026-08");
+  const [traceability, setTraceability] = useState("OP-010 / OP-020");
 
   // Wizard Step State: 1 = Checkpoints, 2 = Notes & Photos, 3 = E-Signature & Submit
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -57,50 +64,55 @@ function AuditFormPage() {
       id: `cp-${Date.now()}`,
       parameter: "",
       specification: "",
+      check_method: "Visual",
       actual_value: "",
       status: "Pass",
+      remarks: "",
     },
   ]);
 
   // Dynamic audit preset initialization based on auditId
   React.useEffect(() => {
     if (auditId.includes("STELL") || auditId.includes("DOC")) {
+      setCustomer("STELLANTIS");
       setPartNo("9845800980 & 9845801180");
-      setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH (STELLANTIS)");
+      setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH");
       setCheckpoints([
-        { id: "cp-1", parameter: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, profile, milling)", actual_value: "Conforms", status: "Pass" },
-        { id: "cp-2", parameter: "APPEARANCE 10-POINT CHECK", specification: "No blow hole, pin hole, wall thickness variation, sharp edge, dent/damage, flaws, rust, paint peel off", actual_value: "OK (10/10)", status: "Pass" },
-        { id: "cp-3", parameter: "RP OIL CONDITION VERIFICATION", specification: "No excess oil, no dust/burr/scrap, no foreign particles", actual_value: "Verified OK", status: "Pass" },
-        { id: "cp-4", parameter: "PACKING BOX & VCI COVER CONDITION", specification: "Proper center pad/foam, no box damage, VCI cover clean", actual_value: "Good Condition", status: "Pass" },
-        { id: "cp-5", parameter: "PACKING OF PARTS VERIFICATION", specification: "Qty per layer = 24, Qty per box = 144, labeling info verified", actual_value: "144 NOS (24x6)", status: "Pass" },
-        { id: "cp-6", parameter: "PART MIXUP PREVENTION", specification: "Ensure no part mixup", actual_value: "Verified No Mixup", status: "Pass" },
-        { id: "cp-7", parameter: "AVAILABILITY OF COMMITMENT MARK", specification: "Ensure availability of commitment mark if any", actual_value: "Present", status: "Pass" },
-        { id: "cp-8", parameter: "FOREIGN PARTICLES IN BOX", specification: "Ensure no foreign particles in the box", actual_value: "Clean Box", status: "Pass" },
-        { id: "cp-9", parameter: "PACKING LABEL & STATUS", specification: "Packing label pasted on box with correct part name/number (9845800980/1180)", actual_value: "Label Attached", status: "Pass" },
+        { id: "cp-1", parameter: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, profile, milling)", check_method: "Visual Comparison", actual_value: "Conforms to Master", status: "Pass", remarks: "All profiles OK" },
+        { id: "cp-2", parameter: "APPEARANCE 10-POINT CHECK", specification: "No blow hole, pin hole, wall thickness variation, sharp edge, dent/damage, flaws, rust, paint peel off", check_method: "10-Point Visual Check", actual_value: "OK (10/10)", status: "Pass", remarks: "Clean surface" },
+        { id: "cp-3", parameter: "RP OIL CONDITION VERIFICATION", specification: "No excess oil, no dust/burr/scrap, no foreign particles", check_method: "Visual & Wipe Check", actual_value: "Verified OK", status: "Pass", remarks: "No foreign scrap" },
+        { id: "cp-4", parameter: "PACKING BOX & VCI COVER CONDITION", specification: "Proper center pad/foam, no box damage, VCI cover clean", check_method: "Visual Inspection", actual_value: "Good Condition", status: "Pass", remarks: "VCI Sealed" },
+        { id: "cp-5", parameter: "PACKING OF PARTS VERIFICATION", specification: "Qty per layer = 24, Qty per box = 144, labeling info verified", check_method: "Count & Label Verification", actual_value: "144 NOS (24x6)", status: "Pass", remarks: "Box Tag OK" },
+        { id: "cp-6", parameter: "PART MIXUP PREVENTION", specification: "Ensure no part mixup", check_method: "Visual & Part Stamp", actual_value: "Verified No Mixup", status: "Pass", remarks: "Match Stamp" },
+        { id: "cp-7", parameter: "AVAILABILITY OF COMMITMENT MARK", specification: "Ensure availability of commitment mark if any", check_method: "Visual Inspection", actual_value: "Present", status: "Pass", remarks: "Green Dot Marked" },
+        { id: "cp-8", parameter: "FOREIGN PARTICLES IN BOX", specification: "Ensure no foreign particles in the box", check_method: "Visual Cleanliness", actual_value: "Clean Box", status: "Pass", remarks: "Pass" },
+        { id: "cp-9", parameter: "PACKING LABEL & STATUS", specification: "Packing label pasted on box with correct part name/number (9845800980/1180)", check_method: "Barcode Scanner & Visual", actual_value: "Label Attached", status: "Pass", remarks: "Scanned OK" },
       ]);
     } else if (auditId.includes("VOL") || auditId.includes("LAY")) {
+      setCustomer("VOLVO");
       setPartNo("23407840 / P03");
-      setPartName("FAN BRACKET LOW FAN HUB (VOLVO)");
+      setPartName("FAN BRACKET LOW FAN HUB");
       setCheckpoints([
-        { id: "cp-1", parameter: "DISTANCE M", specification: "4 x 47.7±0.2 (CMM / Height Vernier & Scriber)", actual_value: "47.72 mm", status: "Pass" },
-        { id: "cp-2", parameter: "THICKNESS M", specification: "4 x 22.5±0.3 (Micrometer)", actual_value: "22.51 mm", status: "Pass" },
-        { id: "cp-3", parameter: "ROUGHNESS ON DATUM 'A' OPPOSITE SIDE M", specification: "6.3 Ra (Surf Tester)", actual_value: "6.1 Ra", status: "Pass" },
-        { id: "cp-4", parameter: "PARALLELISM ON DATUM 'A' OPPOSITE SIDE - 4 PLACES M", specification: "4 x f/0.2/A (Height Vernier & Dial / CMM)", actual_value: "0.14 mm", status: "Pass" },
-        { id: "cp-5", parameter: "HOLE CHAMFER (As per RTS) M", specification: "0.5 ±0.1 (Height Vernier Scriber)", actual_value: "0.52 mm", status: "Pass" },
-        { id: "cp-6", parameter: "HOLE CHAMFER (As per RTS) M", specification: "45° ±2° (Bevel Protractor)", actual_value: "45.1°", status: "Pass" },
-        { id: "cp-7", parameter: "ROUGHNESS ON THREAD FACE M", specification: "Ra 6.3 (Surf Tester)", actual_value: "6.2 Ra", status: "Pass" },
+        { id: "cp-1", parameter: "DISTANCE M", specification: "4 x 47.7±0.2 (CMM / Height Vernier & Scriber)", check_method: "CMM / Height Vernier", actual_value: "47.72 mm", status: "Pass", remarks: "Within spec" },
+        { id: "cp-2", parameter: "THICKNESS M", specification: "4 x 22.5±0.3 (Micrometer)", check_method: "Digital Micrometer", actual_value: "22.51 mm", status: "Pass", remarks: "Within spec" },
+        { id: "cp-3", parameter: "ROUGHNESS ON DATUM 'A' OPPOSITE SIDE M", specification: "6.3 Ra (Surf Tester)", check_method: "Surface Roughness Tester", actual_value: "6.1 Ra", status: "Pass", remarks: "Smooth" },
+        { id: "cp-4", parameter: "PARALLELISM ON DATUM 'A' OPPOSITE SIDE - 4 PLACES M", specification: "4 x f/0.2/A (Height Vernier & Dial / CMM)", check_method: "Dial Gauge & CMM", actual_value: "0.14 mm", status: "Pass", remarks: "Parallel" },
+        { id: "cp-5", parameter: "HOLE CHAMFER (As per RTS) M", specification: "0.5 ±0.1 (Height Vernier Scriber)", check_method: "Height Vernier Scriber", actual_value: "0.52 mm", status: "Pass", remarks: "OK" },
+        { id: "cp-6", parameter: "HOLE CHAMFER (As per RTS) M", specification: "45° ±2° (Bevel Protractor)", check_method: "Bevel Protractor", actual_value: "45.1°", status: "Pass", remarks: "Angle verified" },
+        { id: "cp-7", parameter: "ROUGHNESS ON THREAD FACE M", specification: "Ra 6.3 (Surf Tester)", check_method: "Surface Tester", actual_value: "6.2 Ra", status: "Pass", remarks: "OK" },
       ]);
-    } else if (auditId.includes("MSIL") || auditId.includes("YTA")) {
-      setPartNo("45111 M 55TA0 / 45151 M 55TA0");
-      setPartName("KNUCKLE STEERING R/L - YTA / YTB (MSIL)");
+    } else {
+      setCustomer("MSIL");
+      setPartNo("45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)");
+      setPartName("KNUCKLE STEERING R/L - YTA / YTB");
       setCheckpoints([
-        { id: "cp-1", parameter: "HARDNESS (MSIL QF/08/CQA-09)", specification: "164 ~ 188 BHN / 85 ~ 91HRB", actual_value: "176 BHN", status: "Pass" },
-        { id: "cp-2", parameter: "MICROSTRUCTURE SPHEROIDIZATION & PEARLITE", specification: "Spheroidization >=80%, Pearlite 10-40%, Nodule Count >=70 PCS/mm²", actual_value: "Spheroidization 85%, Pearlite 25%", status: "Pass" },
-        { id: "cp-3", parameter: "TENSILE STRENGTH", specification: "500 MPa MIN", actual_value: "525 MPa", status: "Pass" },
-        { id: "cp-4", parameter: "YIELD STRENGTH @ 0.2% & 0.5%", specification: "@ 0.2%: 320 MPa MIN, @ 0.5%: 340 MPa MIN", actual_value: "338 MPa / 355 MPa", status: "Pass" },
-        { id: "cp-5", parameter: "ELONGATION & IMPACT STRENGTH", specification: "Elongation >=10%, Impact Strength >=8J/cm² MIN", actual_value: "Elongation 12%, Impact 9.5 J/cm²", status: "Pass" },
-        { id: "cp-6", parameter: "OP-010 RECEIVING INSPECTION ROUGH CASTING (APPEARANCE)", specification: "Free of crack/flaw/rust; Legible casting letters; Surface as per CFT-16; Hardness & X-ray marks at OP20", actual_value: "Verified OK", status: "Pass" },
-        { id: "cp-7", parameter: "OP-010 RECEIVING INSPECTION ROUGH CASTING (PAINTING)", specification: "Ensure Black dip painting; No paint peel off / overflow / damages (Part 45111/45151-55T00)", actual_value: "Black Dip Uniform", status: "Pass" },
+        { id: "cp-1", parameter: "HARDNESS (MSIL QF/08/CQA-09)", specification: "164 ~ 188 BHN / 85 ~ 91HRB", check_method: "Brinell Hardness Tester", actual_value: "176 BHN", status: "Pass", remarks: "Conforms" },
+        { id: "cp-2", parameter: "MICROSTRUCTURE SPHEROIDIZATION & PEARLITE", specification: "% OF SPHEROIDIZATION 80% MIN | % OF PEARLITE 10-40% MAX | NODULE COUNT >=70 PCS/mm² MIN", check_method: "Metallurgical Microscope", actual_value: "Spheroidization 85%, Pearlite 25%", status: "Pass", remarks: "Nodule 82 PCS/mm²" },
+        { id: "cp-3", parameter: "TENSILE STRENGTH", specification: "500 MPa MIN", check_method: "Universal Testing Machine", actual_value: "525 MPa", status: "Pass", remarks: "Exceeds min" },
+        { id: "cp-4", parameter: "YIELD STRENGTH @ 0.2% & 0.5%", specification: "YIELD STRENGTH @ 0.2%: 320 MPa MIN | YIELD STRENGTH @ 0.5%: 340 MPa MIN", check_method: "UTM Extensometer", actual_value: "@0.2%: 338 MPa | @0.5%: 355 MPa", status: "Pass", remarks: "Pass" },
+        { id: "cp-5", parameter: "ELONGATION & IMPACT STRENGTH", specification: "ELONGATION 10% MIN | IMPACT STRENGTH - 8J/cm² MIN", check_method: "Charpy Impact & Tensile Tester", actual_value: "Elongation 12%, Impact 9.5 J/cm²", status: "Pass", remarks: "Pass" },
+        { id: "cp-6", parameter: "OP-010 : RECEIVING INSPECTION ROUGH CASTING (APPEARANCE)", specification: "1. Free of crack/flaw/harmful blow hole 2. Over grinding & rust free 3. Legible casting letters (mould lot, cavity) 4. Surface per CFT-16 5. Hardness mark at OP20 6. 'X' mark for X-ray completion at OP20", check_method: "Visual & Gauge Inspection", actual_value: "All 6 Points Verified OK", status: "Pass", remarks: "Legible markings" },
+        { id: "cp-7", parameter: "PAINTING (OP-010 RECEIVING INSPECTION)", specification: "1. Ensure Black dip painting 2. No paint peel off, no paint overflow & damages (Applicable Part: 45111/45151-55T00)", check_method: "Visual Dip Inspection", actual_value: "Black Dip Uniform, No Peel Off", status: "Pass", remarks: "Dip finish OK" },
       ]);
     }
   }, [auditId]);
@@ -240,6 +252,14 @@ function AuditFormPage() {
     setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, actual_value } : cp)));
   };
 
+  const handleCheckMethodChange = (id: string, check_method: string) => {
+    setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, check_method } : cp)));
+  };
+
+  const handleRemarksChange = (id: string, remarks: string) => {
+    setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, remarks } : cp)));
+  };
+
   const handleToggleStatus = (id: string, status: "Pass" | "Fail") => {
     setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, status } : cp)));
   };
@@ -247,7 +267,7 @@ function AuditFormPage() {
   const addCheckpointRow = () => {
     setCheckpoints((prev) => [
       ...prev,
-      { id: `cp-${Date.now()}`, parameter: "", specification: "", actual_value: "", status: "Pass" },
+      { id: `cp-${Date.now()}`, parameter: "", specification: "", check_method: "Visual", actual_value: "", status: "Pass", remarks: "" },
     ]);
   };
 
@@ -481,66 +501,143 @@ function AuditFormPage() {
           </div>
         </div>
 
-        {/* ── STEP 1 CONTENT: CHECKPOINTS & MEASUREMENTS ── */}
+        {/* ── STEP 1 CONTENT: CHECKPOINTS & MEASUREMENTS (OFFICIAL REPORT FORMAT) ── */}
         {currentStep === 1 && (
           <div className="space-y-5 animate-in fade-in duration-200">
-            {/* Part & Inspector Metadata Card */}
-            <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
-                  <Package className="h-4 w-4 text-sky-600" /> Part & Inspector Metadata (Submitted to Admin)
-                </span>
-                <span className="rounded-full bg-sky-200/80 px-2.5 py-0.5 text-[11px] font-mono font-bold text-sky-900">
-                  {auditId}
-                </span>
+            {/* Official Sakthi Auto Report Header (Matching PDF Layout) */}
+            <div className="rounded-xl border border-slate-300 bg-white p-5 shadow-xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-600">
+                    <Package className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sakthi Auto Quality Assurance</span>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900">
+                      AUDIT INSPECTION CHECK LIST CUM REPORT (MACHINING)
+                    </h2>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="inline-block rounded-md bg-slate-100 px-3 py-1 font-mono text-xs font-bold text-slate-700 border border-slate-200">
+                    QF/08/CQA-09, Rev.No: 02 dt 12.06.2026
+                  </span>
+                  <p className="text-[10px] text-slate-500 font-medium mt-1">Audit Record ID: <strong className="font-mono text-slate-800">{auditId}</strong></p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* Header Fields Grid (As in PDF Header) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Part Number (Part No)
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    CUSTOMER
                   </label>
                   <input
                     type="text"
-                    value={partNo}
-                    onChange={(e) => setPartNo(e.target.value)}
-                    placeholder="e.g. PN-88402-A"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    value={customer}
+                    onChange={(e) => setCustomer(e.target.value)}
+                    placeholder="e.g. MSIL / STELLANTIS"
+                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Part Name
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    PART NAME
                   </label>
                   <input
                     type="text"
                     value={partName}
                     onChange={(e) => setPartName(e.target.value)}
-                    placeholder="e.g. Front Wheel Hub Assembly"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    placeholder="e.g. KNUCKLE STEERING R/L"
+                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Employee Name
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    PART NO. & REV
                   </label>
-                  <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800">
-                    {profile?.full_name || "SILAMBARASAN S"} (Emp #{profile?.employee_number || "688079"})
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={partNo}
+                      onChange={(e) => setPartNo(e.target.value)}
+                      placeholder="e.g. 45111 M 55TA0"
+                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={revNo}
+                      onChange={(e) => setRevNo(e.target.value)}
+                      title="Revision Mark"
+                      className="w-12 text-center rounded-md border border-slate-300 bg-white px-1 py-1.5 text-xs font-mono font-black text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    INSPECTOR / EMPLOYEE
+                  </label>
+                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 truncate">
+                    {profile?.full_name || "SILAMBARASAN S"} (#{profile?.employee_number || "688079"})
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    DATE CODE
+                  </label>
+                  <input
+                    type="text"
+                    value={dateCode}
+                    onChange={(e) => setDateCode(e.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    MACHINING TRACEABILITY
+                  </label>
+                  <input
+                    type="text"
+                    value={traceability}
+                    onChange={(e) => setTraceability(e.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    INSPECTION DATE
+                  </label>
+                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800">
+                    {format(new Date(), "dd MMM yyyy")}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
+                    REPORT PAGE
+                  </label>
+                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 font-mono">
+                    PAGE 1 OF 1
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            {/* Checkpoints & Specification Table */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
                   <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <FileCheck className="h-5 w-5 text-emerald-600" /> Step 1: Quality Checkpoints & Specifications
+                    <FileCheck className="h-5 w-5 text-emerald-600" /> Quality Characteristics & Specification Checkpoints
                   </h2>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Enter parameters, target specifications, and actual measured values.
+                    Format matching official Sakthi Auto Audit Inspection Report.
                   </p>
                 </div>
                 <button
@@ -553,74 +650,110 @@ function AuditFormPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs font-sans">
+                <table className="w-full border-collapse text-left text-xs font-sans border border-slate-300">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                      <th className="p-3 w-10 font-bold">#</th>
-                      <th className="p-3 min-w-[220px] font-bold">Inspection Parameter</th>
-                      <th className="p-3 w-44 font-bold">Target Specification</th>
-                      <th className="p-3 w-44 font-bold">Actual Value Measured</th>
-                      <th className="p-3 text-center w-36 font-bold">Result</th>
-                      <th className="p-3 w-10"></th>
+                    <tr className="border-b border-slate-300 bg-slate-800 text-white font-mono text-[11px] uppercase tracking-wider">
+                      <th className="p-2.5 w-12 text-center border-r border-slate-700">SL. NO.</th>
+                      <th className="p-2.5 min-w-[220px] border-r border-slate-700">CHARACTERISTICS / PARAMETER</th>
+                      <th className="p-2.5 w-56 border-r border-slate-700">SPECIFICATION</th>
+                      <th className="p-2.5 w-40 border-r border-slate-700">CHECK METHOD</th>
+                      <th className="p-2.5 w-44 border-r border-slate-700">OBSERVATION / VALUE</th>
+                      <th className="p-2.5 text-center w-28 border-r border-slate-700">RESULT (OK / NOT OK)</th>
+                      <th className="p-2.5 w-36 border-r border-slate-700">REMARKS</th>
+                      <th className="p-2.5 w-10 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-900">
+                  <tbody className="divide-y divide-slate-200 text-slate-900 bg-white">
                     {checkpoints.map((cp, idx) => (
-                      <tr key={cp.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
-                        <td className="p-2">
-                          <input
-                            type="text"
+                      <tr key={cp.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-2 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
+                          {idx + 1}
+                        </td>
+
+                        {/* CHARACTERISTICS / PARAMETER */}
+                        <td className="p-2 border-r border-slate-200">
+                          <textarea
+                            rows={2}
                             value={cp.parameter}
                             onChange={(e) => handleParamChange(cp.id, e.target.value)}
-                            placeholder="e.g. Journal Diameter"
-                            className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            placeholder="e.g. HARDNESS / MICROSTRUCTURE / APPEARANCE"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
                           />
                         </td>
-                        <td className="p-2">
-                          <input
-                            type="text"
+
+                        {/* SPECIFICATION */}
+                        <td className="p-2 border-r border-slate-200">
+                          <textarea
+                            rows={2}
                             value={cp.specification}
                             onChange={(e) => handleSpecChange(cp.id, e.target.value)}
-                            placeholder="e.g. 52.000mm ± 0.005"
-                            className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            placeholder="e.g. 164 ~ 188 BHN / 500 MPa MIN"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
                           />
                         </td>
-                        <td className="p-2">
+
+                        {/* CHECK METHOD */}
+                        <td className="p-2 border-r border-slate-200">
+                          <input
+                            type="text"
+                            value={cp.check_method ?? "Visual"}
+                            onChange={(e) => handleCheckMethodChange(cp.id, e.target.value)}
+                            placeholder="e.g. Visual / Gauge / Hardness Tester"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 focus:border-emerald-500 focus:outline-none"
+                          />
+                        </td>
+
+                        {/* OBSERVATION / MEASURED VALUE */}
+                        <td className="p-2 border-r border-slate-200">
                           <input
                             type="text"
                             value={cp.actual_value}
                             onChange={(e) => handleValueChange(cp.id, e.target.value)}
-                            placeholder="Enter measured value"
-                            className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            placeholder="e.g. 176 BHN / Conforms"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
                           />
                         </td>
-                        <td className="p-2 text-center">
+
+                        {/* RESULT (OK / NOT OK) */}
+                        <td className="p-2 text-center border-r border-slate-200">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleToggleStatus(cp.id, "Pass")}
-                              className={`rounded px-3 py-1 text-xs font-bold transition-all ${
+                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all ${
                                 cp.status === "Pass"
-                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  ? "bg-emerald-600 text-white shadow-2xs"
                                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                               }`}
                             >
-                              Pass
+                              OK
                             </button>
                             <button
                               type="button"
                               onClick={() => handleToggleStatus(cp.id, "Fail")}
-                              className={`rounded px-3 py-1 text-xs font-bold transition-all ${
+                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all ${
                                 cp.status === "Fail"
-                                  ? "bg-rose-600 text-white shadow-xs"
+                                  ? "bg-rose-600 text-white shadow-2xs"
                                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                               }`}
                             >
-                              Fail
+                              NOT OK
                             </button>
                           </div>
                         </td>
+
+                        {/* REMARKS */}
+                        <td className="p-2 border-r border-slate-200">
+                          <input
+                            type="text"
+                            value={cp.remarks ?? ""}
+                            onChange={(e) => handleRemarksChange(cp.id, e.target.value)}
+                            placeholder="Remarks"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:outline-none"
+                          />
+                        </td>
+
+                        {/* ACTIONS */}
                         <td className="p-2 text-center">
                           <button
                             type="button"
@@ -636,7 +769,7 @@ function AuditFormPage() {
 
                     {checkpoints.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-6 text-center text-xs font-semibold text-slate-400">
+                        <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400">
                           No checkpoints added yet. Click "+ Add Checkpoint Row" above.
                         </td>
                       </tr>
