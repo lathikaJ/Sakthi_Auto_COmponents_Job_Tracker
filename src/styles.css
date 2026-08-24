@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Sakthi Auto Value Added Engineering — design system.
+ * Sakthi Auto Value Added Engineering & Audits — design system.
  * Brand orange #ff7b00 (hover #e06c00), dark slate #343a40, white surfaces.
  * All colors are oklch tokens; never hardcode colors in components.
  */
