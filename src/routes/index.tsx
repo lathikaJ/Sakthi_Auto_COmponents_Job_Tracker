@@ -101,10 +101,10 @@ function SignInPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center">
-          <div className="rounded-2xl bg-card p-5 shadow-lift">
-            <SakthiLogo />
+          <div className="rounded-2xl bg-white px-7 py-3 shadow-md border border-slate-200 flex items-center justify-center">
+            <SakthiLogo imgClassName="h-12 sm:h-14 w-auto object-contain" />
           </div>
-          <p className="mt-5 text-center text-lg font-medium text-slate-deep-foreground">
+          <p className="mt-4 text-center text-lg font-black uppercase tracking-wider text-white drop-shadow-sm">
             Value Added Engineering
           </p>
         </div>

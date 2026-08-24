@@ -47,8 +47,8 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <header className="surface-shell sticky top-0 z-30 border-b border-sidebar-border">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3">
-          <div className="rounded-xl bg-card px-3 py-1.5 flex items-center gap-2">
-            <SakthiLogo />
+          <div className="rounded-xl bg-white border border-slate-200 px-3 py-1 flex items-center gap-2 shadow-2xs">
+            <SakthiLogo imgClassName="h-8 w-auto object-contain" />
           </div>
           <nav className="flex flex-1 flex-wrap items-center gap-1">
             {nav.map((item) => {
