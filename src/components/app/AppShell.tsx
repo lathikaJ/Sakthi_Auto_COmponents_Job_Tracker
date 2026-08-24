@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/plans", label: "Annual Plan" },
   { to: "/assignments", label: "Assignments" },
   { to: "/review", label: "Review Queue" },
   { to: "/deviations", label: "Deviations" },
