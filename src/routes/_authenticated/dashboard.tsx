@@ -51,12 +51,12 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Audit Dashboard — Sakthi Auto Value Added Engineering" },
+      { title: "Audit Dashboard — Sakthi Auto Value Added Engineering & Audits" },
       {
         name: "description",
         content: "Product Audit, Revalidation Audit, and Dock Audit management dashboard with live status monitoring.",
       },
-      { property: "og:title", content: "Audit Dashboard — Sakthi Auto Value Added Engineering" },
+      { property: "og:title", content: "Audit Dashboard — Sakthi Auto Value Added Engineering & Audits" },
     ],
   }),
   component: DashboardPage,

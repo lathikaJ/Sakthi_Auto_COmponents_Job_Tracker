@@ -10,13 +10,13 @@ import { recordActivityLog } from "@/lib/activityLogs";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign In — Sakthi Auto Value Added Engineering" },
+      { title: "Sign In — Sakthi Auto Value Added Engineering & Audits" },
       {
         name: "description",
         content:
           "Sign in with your Sakthi Auto employee number to access audit plans, assignments and deviation reporting.",
       },
-      { property: "og:title", content: "Sign In — Sakthi Auto Value Added Engineering" },
+      { property: "og:title", content: "Sign In — Sakthi Auto Value Added Engineering & Audits" },
     ],
   }),
   component: SignInPage,
@@ -105,7 +105,7 @@ function SignInPage() {
             <SakthiLogo imgClassName="h-12 sm:h-14 w-auto object-contain" />
           </div>
           <p className="mt-4 text-center text-lg font-black uppercase tracking-wider text-white drop-shadow-sm">
-            Value Added Engineering
+            Value Added Engineering & Audits
           </p>
         </div>
 
