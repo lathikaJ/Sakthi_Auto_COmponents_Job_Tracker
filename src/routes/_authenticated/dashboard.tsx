@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +19,7 @@ import {
   Trash2,
   Plus,
   Upload,
+  Download,
   Search,
   File,
   Edit2,
@@ -30,6 +31,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 import { AppShell } from "@/components/app/AppShell";
 import { StatusBadge } from "@/components/app/StatusBadge";
@@ -104,6 +106,7 @@ type Deviation = {
 
 export function DashboardPage() {
   const { isAdmin, profile, loading } = useAuth();
+  const excelImportInputRef = useRef<HTMLInputElement>(null);
 
   // Navigation State according to Requirements
   // Level 1: Audit Category (Product Audit | Revalidation Audit | Dock Audit)
@@ -288,6 +291,156 @@ export function DashboardPage() {
     });
   }, [localLowProd, selectedCategory]);
 
+  // Excel Export Handler for All Audits / Current View
+  const handleExportCurrentViewExcel = () => {
+    let exportData: any[] = [];
+    const dateTag = new Date().toISOString().split("T")[0] ?? "";
+    const fileName = `Sakthi_Auto_${selectedCategory.replace(/\s+/g, "_")}_${selectedStatusView.replace(/\s+/g, "_")}_${dateTag}.xlsx`;
+
+    if (selectedStatusView === "Audit Plan") {
+      const list = categoryTasks.filter((r) => {
+        if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
+        if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
+        return true;
+      });
+      exportData = list.map((task, idx) => ({
+        "SL. NO.": idx + 1,
+        "Audit ID": task.audit_code,
+        "Audit Category": selectedCategory,
+        "Audit Type": task.audit_type,
+        "Product / Part Name": task.title,
+        "Part Number": task.audit_code,
+        "Planned Date": task.due_date,
+        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
+        "Department": task.area,
+        "Status": task.status,
+      }));
+    } else if (selectedStatusView === "Ongoing") {
+      exportData = ongoingTasks.map((task, idx) => ({
+        "SL. NO.": idx + 1,
+        "Audit ID": task.audit_code,
+        "Audit Category": selectedCategory,
+        "Product / Part Number": task.title,
+        "Start Date & Time": task.start_date_time ?? `${task.due_date} 09:00 AM`,
+        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
+        "Progress %": `${task.progress_pct ?? 60}%`,
+        "Status": task.status,
+      }));
+    } else if (selectedStatusView === "Audit Completed") {
+      exportData = completedTasks.map((task, idx) => ({
+        "SL. NO.": idx + 1,
+        "Audit ID": task.audit_code,
+        "Audit Category": selectedCategory,
+        "Product / Part Number": task.title,
+        "Audit Date": task.due_date,
+        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
+        "Completion Date": task.completion_date ?? task.due_date,
+        "Final Result": task.final_result ?? "PASS / COMPLIANT",
+      }));
+    } else if (selectedStatusView === "Deviation") {
+      exportData = deviationTasks.map((dev, idx) => ({
+        "SL. NO.": idx + 1,
+        "Deviation ID": dev.dev_code ?? dev.id.slice(0, 8),
+        "Audit ID": dev.audit_id ?? "AUD-MSIL-01",
+        "Product / Part Number": dev.product_part_number ?? "0401DAA02010N",
+        "Deviation Description": dev.description,
+        "Severity": dev.severity ?? "High",
+        "Responsible Person": dev.responsible_person ?? dev.employee_number,
+        "Department": dev.department ?? "QA",
+        "Corrective Action": dev.corrective_action ?? "Under Review",
+        "Due Date": dev.due_date ?? dev.created_at,
+        "Closure Status": dev.closure_status ?? dev.status,
+      }));
+    } else if (selectedStatusView === "Low Production") {
+      exportData = categoryLowProd.map((lp, idx) => ({
+        "SL. NO.": idx + 1,
+        "Part Number": lp.part_number,
+        "Product Name": lp.product_name,
+        "Audit Type": lp.audit_type,
+        "Planned Production (PCS)": lp.planned_production,
+        "Actual Production (PCS)": lp.actual_production,
+        "Production %": `${lp.production_percentage.toFixed(1)}%`,
+        "Threshold %": `${lp.threshold_percentage}%`,
+        "Status": lp.status,
+      }));
+    }
+
+    if (exportData.length === 0) {
+      toast.error("No audit records available in this view to export.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, selectedStatusView);
+    XLSX.writeFile(workbook, fileName);
+    toast.success(`Exported ${exportData.length} ${selectedCategory} records to ${fileName}!`);
+  };
+
+  // Excel Import Handler for All Audits
+  const handleTriggerImportExcel = () => {
+    if (excelImportInputRef.current) {
+      excelImportInputRef.current.value = "";
+      excelImportInputRef.current.click();
+    }
+  };
+
+  const handleImportExcelFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        if (!wsname) return;
+        const ws = wb.Sheets[wsname];
+        if (!ws) return;
+        const data = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (!data || data.length === 0) {
+          toast.error("The uploaded Excel file contains no valid rows.");
+          return;
+        }
+
+        const today = new Date().toISOString().split("T")[0] ?? "";
+        const defaultCatType = selectedCategory === "Dock Audit" ? "Dock Audit" : selectedCategory.split(" ")[0] ?? "Product";
+
+        const importedTasks: Assignment[] = data.map((item: any, idx: number) => {
+          const auditCode = String(item["Audit ID"] || item["Audit Code"] || item["Part Number"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`);
+          const title = String(item["Product / Part Name"] || item["Product / Part Number"] || item["Task Title"] || item["Product Name"] || "Imported Audit Record");
+
+          return {
+            id: `imp-${Date.now()}-${idx}`,
+            audit_code: auditCode,
+            title: title,
+            audit_type: String(item["Audit Type"] || defaultCatType),
+            area: String(item["Department"] || item["Area"] || "Machine Shop Line 1"),
+            month: Number(item["Month"]) || selectedMonth,
+            year: new Date().getFullYear(),
+            due_date: String(item["Planned Date"] || item["Due Date"] || today),
+            status: String(item["Status"] || "Planned"),
+            assigned_to_employee_number: String(item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
+            auditor_name: String(item["Auditor"] || profile?.full_name || "Lead Auditor"),
+          };
+        });
+
+        const updated = [...importedTasks, ...rawTaskRows];
+        setLocalExcelTasks(updated);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        }
+        toast.success(`Imported ${importedTasks.length} audit records into ${selectedCategory}!`);
+      } catch (err) {
+        toast.error("Failed to parse Excel file. Please ensure valid file format (.xlsx, .xls, .csv).");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   // Admin Actions
   const handleSaveAuditRecord = (updated: Assignment) => {
     const list = rawTaskRows.map((t) => (t.id === updated.id ? updated : t));
@@ -361,6 +514,15 @@ export function DashboardPage() {
       description="Touch-friendly dashboard for Product Audit, Revalidation Audit, and Dock Audit with live status monitoring."
       action={
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Hidden File Input for Excel Import */}
+          <input
+            type="file"
+            ref={excelImportInputRef}
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportExcelFile}
+            className="hidden"
+          />
+
           <Button
             type="button"
             variant="outline"
@@ -374,6 +536,26 @@ export function DashboardPage() {
             className="bg-white border-slate-300 text-slate-700 font-bold hover:bg-slate-50 gap-1.5 shadow-2xs text-xs"
           >
             <RefreshCcw className="h-3.5 w-3.5 text-emerald-600" /> Refresh Data
+          </Button>
+
+          {/* EXCEL IMPORT BUTTON */}
+          <Button
+            type="button"
+            onClick={handleTriggerImportExcel}
+            className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs text-xs gap-1.5"
+            title="Import audits from Excel spreadsheet (.xlsx, .csv)"
+          >
+            <Upload className="h-3.5 w-3.5" /> Import Excel
+          </Button>
+
+          {/* EXCEL EXPORT BUTTON */}
+          <Button
+            type="button"
+            onClick={handleExportCurrentViewExcel}
+            className="bg-sky-700 text-white font-bold hover:bg-sky-800 shadow-xs text-xs gap-1.5"
+            title="Export currently displayed audit records to Excel (.xlsx)"
+          >
+            <Download className="h-3.5 w-3.5" /> Export Excel
           </Button>
 
           {isAdmin && (
@@ -716,6 +898,23 @@ export function DashboardPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
+                      onClick={handleTriggerImportExcel}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                      title="Import Excel file into Audit Plan"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs mr-2"
+                      title="Export Audit Plan to Excel"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Excel
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setSelectedPlanSubView("One Year Plan")}
                       className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
                         selectedPlanSubView === "One Year Plan"
@@ -890,16 +1089,29 @@ export function DashboardPage() {
             {/* ── REQUIREMENT SECTION 9: ONGOING VIEW ── */}
             {selectedStatusView === "Ongoing" && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <Timer className="h-5 w-5 text-amber-600" />
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                       Ongoing Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">
-                    Audits currently in progress
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerImportExcel}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Excel
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -954,16 +1166,29 @@ export function DashboardPage() {
             {/* ── REQUIREMENT SECTION 10: AUDIT COMPLETED VIEW ── */}
             {selectedStatusView === "Audit Completed" && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                       Completed Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">
-                    Audits successfully finished & submitted
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerImportExcel}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Excel
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1013,16 +1238,29 @@ export function DashboardPage() {
             {/* ── REQUIREMENT SECTION 11: DEVIATION VIEW ── */}
             {selectedStatusView === "Deviation" && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-rose-600" />
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                       Deviation & Non-Conformance Records — [{selectedCategory}]
                     </h3>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">
-                    Non-conformances & corrective action tracking
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerImportExcel}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Excel
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1069,16 +1307,29 @@ export function DashboardPage() {
             {/* ── REQUIREMENT SECTION 12: LOW PRODUCTION VIEW ── */}
             {selectedStatusView === "Low Production" && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <TrendingDown className="h-5 w-5 text-purple-600" />
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                       Low Production Monitoring — [{selectedCategory}]
                     </h3>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">
-                    Products/parts where actual production is below configured production target/threshold
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerImportExcel}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Excel
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
