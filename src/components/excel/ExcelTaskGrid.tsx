@@ -406,30 +406,34 @@ export function ExcelTaskGrid({
             <Plus className="h-4 w-4" /> Add Task Row
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4 text-emerald-600" /> Import Excel
-          </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".xlsx, .xls, .csv"
-            className="hidden"
-          />
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 text-emerald-600" /> Import Excel
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+              />
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
-            onClick={handleExportExcel}
-          >
-            <Download className="h-4 w-4 text-emerald-600" /> Export Excel
-          </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
+                onClick={handleExportExcel}
+              >
+                <Download className="h-4 w-4 text-emerald-600" /> Export Excel
+              </Button>
+            </>
+          )}
 
           {hasChanges && (
             <Button

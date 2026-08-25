@@ -291,8 +291,12 @@ export function DashboardPage() {
     });
   }, [localLowProd, selectedCategory]);
 
-  // Excel Export Handler for All Audits / Current View
+  // Excel Export Handler for All Audits / Current View (Admin Only)
   const handleExportCurrentViewExcel = () => {
+    if (!isAdmin) {
+      toast.error("Excel export is restricted to Admin (KARTHIKEYAN C).");
+      return;
+    }
     let exportData: any[] = [];
     const dateTag = new Date().toISOString().split("T")[0] ?? "";
     const fileName = `Sakthi_Auto_${selectedCategory.replace(/\s+/g, "_")}_${selectedStatusView.replace(/\s+/g, "_")}_${dateTag}.xlsx`;
@@ -377,8 +381,12 @@ export function DashboardPage() {
     toast.success(`Exported ${exportData.length} ${selectedCategory} records to ${fileName}!`);
   };
 
-  // Excel Import Handler for All Audits
+  // Excel Import Handler for All Audits (Admin Only)
   const handleTriggerImportExcel = () => {
+    if (!isAdmin) {
+      toast.error("Excel import is restricted to Admin (KARTHIKEYAN C).");
+      return;
+    }
     if (excelImportInputRef.current) {
       excelImportInputRef.current.value = "";
       excelImportInputRef.current.click();
@@ -538,25 +546,28 @@ export function DashboardPage() {
             <RefreshCcw className="h-3.5 w-3.5 text-emerald-600" /> Refresh Data
           </Button>
 
-          {/* EXCEL IMPORT BUTTON */}
-          <Button
-            type="button"
-            onClick={handleTriggerImportExcel}
-            className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs text-xs gap-1.5"
-            title="Import audits from Excel spreadsheet (.xlsx, .csv)"
-          >
-            <Upload className="h-3.5 w-3.5" /> Import Excel
-          </Button>
+          {/* EXCEL IMPORT & EXPORT BUTTONS (ADMIN ONLY) */}
+          {isAdmin && (
+            <>
+              <Button
+                type="button"
+                onClick={handleTriggerImportExcel}
+                className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs text-xs gap-1.5"
+                title="Import audits from Excel spreadsheet (.xlsx, .csv)"
+              >
+                <Upload className="h-3.5 w-3.5" /> Import Excel
+              </Button>
 
-          {/* EXCEL EXPORT BUTTON */}
-          <Button
-            type="button"
-            onClick={handleExportCurrentViewExcel}
-            className="bg-sky-700 text-white font-bold hover:bg-sky-800 shadow-xs text-xs gap-1.5"
-            title="Export currently displayed audit records to Excel (.xlsx)"
-          >
-            <Download className="h-3.5 w-3.5" /> Export Excel
-          </Button>
+              <Button
+                type="button"
+                onClick={handleExportCurrentViewExcel}
+                className="bg-sky-700 text-white font-bold hover:bg-sky-800 shadow-xs text-xs gap-1.5"
+                title="Export currently displayed audit records to Excel (.xlsx)"
+              >
+                <Download className="h-3.5 w-3.5" /> Export Excel
+              </Button>
+            </>
+          )}
 
           {isAdmin && (
             <Button
@@ -896,22 +907,26 @@ export function DashboardPage() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={handleTriggerImportExcel}
-                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                      title="Import Excel file into Audit Plan"
-                    >
-                      <Upload className="h-3.5 w-3.5" /> Import Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentViewExcel}
-                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs mr-2"
-                      title="Export Audit Plan to Excel"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Export Excel
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleTriggerImportExcel}
+                          className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                          title="Import Excel file into Audit Plan"
+                        >
+                          <Upload className="h-3.5 w-3.5" /> Import Excel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleExportCurrentViewExcel}
+                          className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs mr-2"
+                          title="Export Audit Plan to Excel"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Export Excel
+                        </button>
+                      </>
+                    )}
 
                     <button
                       type="button"
@@ -1096,22 +1111,24 @@ export function DashboardPage() {
                       Ongoing Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleTriggerImportExcel}
-                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                    >
-                      <Upload className="h-3.5 w-3.5" /> Import Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentViewExcel}
-                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Export Excel
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                      >
+                        <Upload className="h-3.5 w-3.5" /> Import Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportCurrentViewExcel}
+                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Export Excel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1173,22 +1190,24 @@ export function DashboardPage() {
                       Completed Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleTriggerImportExcel}
-                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                    >
-                      <Upload className="h-3.5 w-3.5" /> Import Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentViewExcel}
-                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Export Excel
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                      >
+                        <Upload className="h-3.5 w-3.5" /> Import Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportCurrentViewExcel}
+                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Export Excel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1245,22 +1264,24 @@ export function DashboardPage() {
                       Deviation & Non-Conformance Records — [{selectedCategory}]
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleTriggerImportExcel}
-                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                    >
-                      <Upload className="h-3.5 w-3.5" /> Import Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentViewExcel}
-                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Export Excel
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                      >
+                        <Upload className="h-3.5 w-3.5" /> Import Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportCurrentViewExcel}
+                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Export Excel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1314,22 +1335,24 @@ export function DashboardPage() {
                       Low Production Monitoring — [{selectedCategory}]
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleTriggerImportExcel}
-                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                    >
-                      <Upload className="h-3.5 w-3.5" /> Import Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCurrentViewExcel}
-                      className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Export Excel
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                      >
+                        <Upload className="h-3.5 w-3.5" /> Import Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportCurrentViewExcel}
+                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Export Excel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
