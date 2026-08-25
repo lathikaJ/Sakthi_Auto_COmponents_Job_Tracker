@@ -49,8 +49,53 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       toast.error("Access Denied: Only Admins can approve submitted jobs.");
       return;
     }
-    updateSubmittedAuditStatus(item.id, "Approved", "Approved by Admin Lead");
-    toast.success(`Job ${item.audit_code} for ${item.employee_name} approved!`);
+    const adminSig = authenticateAndGetSignature("690867"); // Admin KARTHIKEYAN C
+    updateSubmittedAuditStatus(item.id, "Approved", `Approved & Signed by Admin Lead (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
+
+    // Also update main task status to Completed in sakthi_excel_tasks_v8 so it moves to Completed Audit
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          let tasks = JSON.parse(stored);
+          let updated = false;
+          tasks = tasks.map((t: any) => {
+            if (t.id === item.id || t.audit_code === item.audit_code) {
+              updated = true;
+              return {
+                ...t,
+                status: "Completed",
+                completion_date: new Date().toISOString().split("T")[0],
+                final_result: "PASS / COMPLIANT",
+              };
+            }
+            return t;
+          });
+          if (!updated) {
+            tasks.push({
+              id: item.id,
+              audit_code: item.audit_code,
+              title: item.part_name,
+              audit_type: "Product",
+              area: item.department,
+              assigned_to_employee_number: item.employee_number,
+              month: new Date().getMonth() + 1,
+              year: new Date().getFullYear(),
+              due_date: new Date().toISOString().split("T")[0],
+              status: "Completed",
+              completion_date: new Date().toISOString().split("T")[0],
+              final_result: "PASS / COMPLIANT",
+            });
+          }
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        } catch {
+          // Ignore
+        }
+      }
+    }
+
+    toast.success(`Job ${item.audit_code} for ${item.employee_name} approved with Admin E-Signature & moved to Completed Audit!`);
   };
 
   const handleReject = (item: SubmittedAuditItem) => {

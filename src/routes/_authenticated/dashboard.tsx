@@ -29,6 +29,7 @@ import {
   TrendingDown,
   X,
   FileSpreadsheet,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -64,6 +65,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 type Assignment = {
   id: string;
+  sl_no?: number | string;
   audit_code: string;
   title: string;
   audit_type: string;
@@ -83,6 +85,8 @@ type Assignment = {
   progress_pct?: number;
   final_result?: string;
   document_url?: string;
+  attached_file_name?: string;
+  attached_file_url?: string;
 };
 
 type Deviation = {
@@ -107,6 +111,7 @@ type Deviation = {
 export function DashboardPage() {
   const { isAdmin, profile, loading } = useAuth();
   const excelImportInputRef = useRef<HTMLInputElement>(null);
+  const planFileInputRef = useRef<HTMLInputElement>(null);
 
   // Navigation State according to Requirements
   // Level 1: Audit Category (Product Audit | Revalidation Audit | Dock Audit)
@@ -246,11 +251,11 @@ export function DashboardPage() {
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
-    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing");
+    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned");
   }, [categoryTasks]);
 
   const completedTasks = useMemo(() => {
-    return categoryTasks.filter((r) => r.status === "Completed" || r.status === "Submitted");
+    return categoryTasks.filter((r) => r.status === "Completed" || r.status === "Approved");
   }, [categoryTasks]);
 
   const deviationTasks = useMemo(() => {
@@ -308,31 +313,35 @@ export function DashboardPage() {
         return true;
       });
       exportData = list.map((task, idx) => ({
-        "SL. NO.": idx + 1,
+        "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
         "Audit Type": task.audit_type,
         "Product / Part Name": task.title,
         "Part Number": task.audit_code,
+        "Planned Month": MONTHS[task.month - 1] ?? `Month ${task.month}`,
         "Planned Date": task.due_date,
         "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
         "Department": task.area,
+        "Attachment File": task.attached_file_name || "None",
         "Status": task.status,
       }));
     } else if (selectedStatusView === "Ongoing") {
       exportData = ongoingTasks.map((task, idx) => ({
-        "SL. NO.": idx + 1,
+        "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
         "Product / Part Number": task.title,
+        "Planned Month": MONTHS[task.month - 1] ?? `Month ${task.month}`,
         "Start Date & Time": task.start_date_time ?? `${task.due_date} 09:00 AM`,
         "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
+        "Attachment File": task.attached_file_name || "None",
         "Progress %": `${task.progress_pct ?? 60}%`,
         "Status": task.status,
       }));
     } else if (selectedStatusView === "Audit Completed") {
       exportData = completedTasks.map((task, idx) => ({
-        "SL. NO.": idx + 1,
+        "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
         "Product / Part Number": task.title,
@@ -422,6 +431,7 @@ export function DashboardPage() {
 
           return {
             id: `imp-${Date.now()}-${idx}`,
+            sl_no: item["SL. NO."] || item["Serial Number"] || idx + 1,
             audit_code: auditCode,
             title: title,
             audit_type: String(item["Audit Type"] || defaultCatType),
@@ -432,6 +442,7 @@ export function DashboardPage() {
             status: String(item["Status"] || "Planned"),
             assigned_to_employee_number: String(item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
             auditor_name: String(item["Auditor"] || profile?.full_name || "Lead Auditor"),
+            attached_file_name: file.name,
           };
         });
 
@@ -449,18 +460,34 @@ export function DashboardPage() {
     reader.readAsBinaryString(file);
   };
 
+  // Handle plan modal file attachment upload
+  const handlePlanFileAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingAudit) return;
+    setEditingAudit({
+      ...editingAudit,
+      attached_file_name: file.name,
+      attached_file_url: URL.createObjectURL(file),
+    });
+    toast.success(`Attached Excel sheet: ${file.name}`);
+  };
+
   // Admin Actions
   const handleSaveAuditRecord = (updated: Assignment) => {
+    if (!updated.title.trim() || !updated.audit_code.trim()) {
+      toast.error("Please enter Part Name and Part Number.");
+      return;
+    }
     const list = rawTaskRows.map((t) => (t.id === updated.id ? updated : t));
     if (!list.some((t) => t.id === updated.id)) {
-      list.push(updated);
+      list.unshift(updated);
     }
     setLocalExcelTasks(list);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
-    toast.success("Audit plan record saved successfully.");
+    toast.success(`Audit plan for ${updated.title} added successfully! Visible in Audit Plan & Ongoing Audit.`);
     setIsEditModalOpen(false);
     setIsAddPlanModalOpen(false);
   };
@@ -575,10 +602,12 @@ export function DashboardPage() {
               onClick={() => {
                 const today = new Date().toISOString().split("T")[0] ?? "";
                 const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                const nextSlNo = categoryTasks.length + 1;
                 setEditingAudit({
                   id: `aud-${Date.now()}`,
-                  audit_code: `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
-                  title: "New Scheduled Audit Plan",
+                  sl_no: nextSlNo,
+                  audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                  title: "",
                   audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
                   area: "Machine Shop Line 1",
                   month: selectedMonth,
@@ -588,12 +617,14 @@ export function DashboardPage() {
                   assigned_to_employee_number: profile?.employee_number ?? "688079",
                   auditor_name: profile?.full_name ?? "Lead Auditor",
                   department: "Quality Assurance",
+                  attached_file_name: "",
+                  attached_file_url: "",
                 });
                 setIsAddPlanModalOpen(true);
               }}
               className="bg-brand text-white font-bold hover:bg-brand-hover shadow-sm text-xs gap-1.5"
             >
-              <Plus className="h-4 w-4" /> Create Audit Plan
+              <Plus className="h-4 w-4" /> Add Plan
             </Button>
           )}
         </div>
@@ -626,7 +657,7 @@ export function DashboardPage() {
                 }`}
               >
                 <FileText className="h-4 w-4 text-indigo-600" />
-                <span>Review Jobs Queue</span>
+                <span>Review Queue (Under Review)</span>
               </button>
 
               <button
@@ -821,7 +852,7 @@ export function DashboardPage() {
                       {ongoingTasks.length}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs font-black uppercase">Ongoing</p>
+                  <p className="mt-2 text-xs font-black uppercase">Ongoing Audit</p>
                   <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Ongoing" ? "text-amber-100" : "text-slate-500"}`}>
                     Audits In Progress
                   </p>
@@ -845,7 +876,7 @@ export function DashboardPage() {
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Audit Completed</p>
                   <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Audit Completed" ? "text-emerald-100" : "text-slate-500"}`}>
-                    Completed & Submitted
+                    Approved & Signed
                   </p>
                 </button>
 
@@ -907,25 +938,38 @@ export function DashboardPage() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* ADD PLAN BUTTON (ADMIN ONLY) */}
                     {isAdmin && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleTriggerImportExcel}
-                          className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                          title="Import Excel file into Audit Plan"
-                        >
-                          <Upload className="h-3.5 w-3.5" /> Import Excel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleExportCurrentViewExcel}
-                          className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs mr-2"
-                          title="Export Audit Plan to Excel"
-                        >
-                          <Download className="h-3.5 w-3.5" /> Export Excel
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const today = new Date().toISOString().split("T")[0] ?? "";
+                          const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                          const nextSlNo = categoryTasks.length + 1;
+                          setEditingAudit({
+                            id: `aud-${Date.now()}`,
+                            sl_no: nextSlNo,
+                            audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                            title: "",
+                            audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                            area: "Machining Line 1",
+                            month: selectedMonth,
+                            year: new Date().getFullYear(),
+                            due_date: today,
+                            status: "Planned",
+                            assigned_to_employee_number: profile?.employee_number ?? "688079",
+                            auditor_name: profile?.full_name ?? "Lead Auditor",
+                            department: "Quality Assurance",
+                            attached_file_name: "",
+                            attached_file_url: "",
+                          });
+                          setIsAddPlanModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
+                        title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
+                      >
+                        <Plus className="h-4 w-4" /> Add Plan
+                      </button>
                     )}
 
                     <button
@@ -992,7 +1036,7 @@ export function DashboardPage() {
                   <Search className="h-4 w-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search by Audit ID, Part Number, Auditor, Department..."
+                    placeholder="Search by Audit ID, Part Number, Part Name, Auditor, Department..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none font-medium"
@@ -1009,16 +1053,14 @@ export function DashboardPage() {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        {selectedPlanSubView === "As-on-Month Plan" && <th className="p-3">Selected Month</th>}
-                        <th className="p-3">Audit ID</th>
-                        <th className="p-3">Audit Type</th>
-                        <th className="p-3">Product / Part Name</th>
-                        <th className="p-3">Part Number</th>
-                        <th className="p-3">Planned Date</th>
-                        <th className="p-3">Auditor</th>
-                        <th className="p-3">Department</th>
-                        <th className="p-3">Status</th>
-                        {isAdmin && <th className="p-3 text-right">Admin Actions</th>}
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">PLANNED MONTH</th>
+                        <th className="p-3">EXCEL ATTACHMENT</th>
+                        <th className="p-3">AUDITOR</th>
+                        <th className="p-3">STATUS</th>
+                        <th className="p-3 text-right">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1038,61 +1080,71 @@ export function DashboardPage() {
                             r.area.toLowerCase().includes(q)
                           );
                         })
-                        .map((task) => (
+                        .map((task, idx) => (
                           <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                            {selectedPlanSubView === "As-on-Month Plan" && (
-                              <td className="p-3 font-bold text-sky-700">
-                                {MONTHS[task.month - 1] ?? `Month ${task.month}`}
-                              </td>
-                            )}
-                            <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
-                            <td className="p-3 font-bold text-slate-700">{task.audit_type}</td>
-                            <td className="p-3 font-medium text-slate-800 max-w-xs truncate">{task.title}</td>
-                            <td className="p-3 font-mono text-slate-600">{task.audit_code}</td>
-                            <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
+                            <td className="p-3 text-center font-mono font-bold text-slate-500">
+                              {task.sl_no ?? idx + 1}
+                            </td>
+                            <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                            <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
+                            <td className="p-3 font-bold text-sky-700">
+                              {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                            </td>
+                            <td className="p-3">
+                              {task.attached_file_name ? (
+                                <Link
+                                  to="/audit/$auditId"
+                                  params={{ auditId: task.id }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                                  title="Click to open attached Excel inspection checklist"
+                                >
+                                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                                  <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                </Link>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
+                                  <Paperclip className="h-3 w-3" /> No file attached
+                                </span>
+                              )}
+                            </td>
                             <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
-                            <td className="p-3 font-medium text-slate-600">{task.area}</td>
                             <td className="p-3">
                               <StatusBadge status={task.status} />
                             </td>
-                            {isAdmin && (
-                              <td className="p-3 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDocAudit(task);
-                                      setIsDocModalOpen(true);
-                                    }}
-                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600"
-                                    title="Document Management (Upload / View docs)"
-                                  >
-                                    <File className="h-3.5 w-3.5" />
-                                  </button>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                    Open Inspection
+                                  </Link>
+                                </Button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingAudit(task);
-                                      setIsEditModalOpen(true);
-                                    }}
-                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-amber-400 hover:text-amber-600"
-                                    title="Edit / Reschedule Audit Plan"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </button>
+                                {isAdmin && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingAudit(task);
+                                        setIsEditModalOpen(true);
+                                      }}
+                                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-amber-400 hover:text-amber-600"
+                                      title="Edit / Reschedule Audit Plan"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                    </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteAuditRecord(task.id)}
-                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600"
-                                    title="Remove Audit Plan"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAuditRecord(task.id)}
+                                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600"
+                                      title="Remove Audit Plan"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
                           </tr>
                         ))}
                     </tbody>
@@ -1101,7 +1153,7 @@ export function DashboardPage() {
               </div>
             )}
 
-            {/* ── REQUIREMENT SECTION 9: ONGOING VIEW ── */}
+            {/* ── REQUIREMENT SECTION 9: ONGOING AUDIT VIEW ── */}
             {selectedStatusView === "Ongoing" && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
@@ -1111,52 +1163,49 @@ export function DashboardPage() {
                       Ongoing Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleTriggerImportExcel}
-                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                      >
-                        <Upload className="h-3.5 w-3.5" /> Import Excel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportCurrentViewExcel}
-                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                      >
-                        <Download className="h-3.5 w-3.5" /> Export Excel
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        <th className="p-3">Audit ID</th>
-                        <th className="p-3">Product / Part Number</th>
-                        <th className="p-3">Start Date & Time</th>
-                        <th className="p-3">Auditor</th>
-                        <th className="p-3">Progress</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3 text-right">Action</th>
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">PLANNED MONTH</th>
+                        <th className="p-3">ATTACHED EXCEL</th>
+                        <th className="p-3">AUDITOR</th>
+                        <th className="p-3">PROGRESS</th>
+                        <th className="p-3">STATUS</th>
+                        <th className="p-3 text-right">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {ongoingTasks.map((task) => (
+                      {ongoingTasks.map((task, idx) => (
                         <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
-                          <td className="p-3 font-medium text-slate-800">
-                            <div>{task.title}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{task.audit_code}</div>
+                          <td className="p-3 text-center font-mono font-bold text-slate-500">
+                            {task.sl_no ?? idx + 1}
                           </td>
-                          <td className="p-3 font-medium text-slate-700">{task.start_date_time ?? `${task.due_date} 09:00 AM`}</td>
+                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
+                          <td className="p-3 font-bold text-sky-700">
+                            {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                          </td>
+                          <td className="p-3">
+                            <Link
+                              to="/audit/$auditId"
+                              params={{ auditId: task.id }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                              title="Click to open attached Excel inspection checklist"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="truncate max-w-[140px]">{task.attached_file_name || "Checklist.xlsx"}</span>
+                            </Link>
+                          </td>
                           <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                           <td className="p-3">
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-20 rounded-full bg-slate-200 overflow-hidden">
+                              <div className="h-2 w-16 rounded-full bg-slate-200 overflow-hidden">
                                 <div className="h-full bg-amber-500 rounded-full" style={{ width: `${task.progress_pct ?? 60}%` }} />
                               </div>
                               <span className="font-bold text-slate-700">{task.progress_pct ?? 60}%</span>
@@ -1190,59 +1239,42 @@ export function DashboardPage() {
                       Completed Audits — [{selectedCategory}]
                     </h3>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleTriggerImportExcel}
-                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                      >
-                        <Upload className="h-3.5 w-3.5" /> Import Excel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportCurrentViewExcel}
-                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                      >
-                        <Download className="h-3.5 w-3.5" /> Export Excel
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        <th className="p-3">Audit ID</th>
-                        <th className="p-3">Product / Part Number</th>
-                        <th className="p-3">Audit Date</th>
-                        <th className="p-3">Auditor</th>
-                        <th className="p-3">Completion Date</th>
-                        <th className="p-3">Final Result</th>
-                        <th className="p-3 text-right">Action</th>
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">AUDIT DATE</th>
+                        <th className="p-3">AUDITOR</th>
+                        <th className="p-3">COMPLETION DATE</th>
+                        <th className="p-3">FINAL RESULT & SIGNATURE</th>
+                        <th className="p-3 text-right">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {completedTasks.map((task) => (
+                      {completedTasks.map((task, idx) => (
                         <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-mono font-black text-slate-900">{task.audit_code}</td>
-                          <td className="p-3 font-medium text-slate-800">
-                            <div>{task.title}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{task.audit_code}</div>
+                          <td className="p-3 text-center font-mono font-bold text-slate-500">
+                            {task.sl_no ?? idx + 1}
                           </td>
+                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
                           <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                           <td className="p-3 font-medium text-slate-700">{task.completion_date ?? task.due_date}</td>
                           <td className="p-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-800 text-[11px]">
-                              <Check className="h-3 w-3" /> {task.final_result ?? "PASS / COMPLIANT"}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-800 text-[11px] border border-emerald-300">
+                              <Check className="h-3 w-3" /> {task.final_result ?? "APPROVED & SIGNED"}
                             </span>
                           </td>
                           <td className="p-3 text-right">
                             <Button asChild size="sm" variant="outline" className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50 text-xs">
                               <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                View Report
+                                View Signed Report
                               </Link>
                             </Button>
                           </td>
@@ -1264,24 +1296,6 @@ export function DashboardPage() {
                       Deviation & Non-Conformance Records — [{selectedCategory}]
                     </h3>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleTriggerImportExcel}
-                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                      >
-                        <Upload className="h-3.5 w-3.5" /> Import Excel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportCurrentViewExcel}
-                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                      >
-                        <Download className="h-3.5 w-3.5" /> Export Excel
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1335,24 +1349,6 @@ export function DashboardPage() {
                       Low Production Monitoring — [{selectedCategory}]
                     </h3>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleTriggerImportExcel}
-                        className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                      >
-                        <Upload className="h-3.5 w-3.5" /> Import Excel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportCurrentViewExcel}
-                        className="flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors shadow-2xs"
-                      >
-                        <Download className="h-3.5 w-3.5" /> Export Excel
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -1472,13 +1468,13 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ── MODAL: ADMIN CREATE / EDIT / RESCHEDULE AUDIT PLAN ── */}
+      {/* ── MODAL: ADMIN "+ ADD PLAN" (SERIAL NO, PART NAME, PART NUMBER, PLANNED MONTH & EXCEL ATTACHMENT) ── */}
       {(isAddPlanModalOpen || isEditModalOpen) && editingAudit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 border border-slate-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 border border-slate-200 animate-in fade-in duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Edit2 className="h-4 w-4 text-brand" /> {isAddPlanModalOpen ? "Create New Audit Plan" : `Edit / Reschedule Audit Plan [${editingAudit.audit_code}]`}
+                <Plus className="h-4 w-4 text-emerald-600" /> {isAddPlanModalOpen ? "Add New Audit Plan" : `Edit Audit Plan [${editingAudit.audit_code}]`}
               </h3>
               <button
                 type="button"
@@ -1493,87 +1489,141 @@ export function DashboardPage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Audit Code / ID</label>
-                <input
-                  type="text"
-                  value={editingAudit.audit_code}
-                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 p-2 font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                {/* 1. SERIAL NUMBER */}
+                <div>
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Serial Number (SL. NO.)</label>
+                  <input
+                    type="text"
+                    value={editingAudit.sl_no ?? ""}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, sl_no: e.target.value })}
+                    placeholder="e.g. 1"
+                    className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* 2. PART NUMBER */}
+                <div>
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Part Number</label>
+                  <input
+                    type="text"
+                    value={editingAudit.audit_code}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
+                    placeholder="e.g. REV-007 / 45111 M 55TA0"
+                    className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-indigo-700 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
+              {/* 3. PART NAME */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Product / Part Name</label>
+                <label className="block font-extrabold uppercase text-slate-600 mb-1">Part Name</label>
                 <input
                   type="text"
                   value={editingAudit.title}
                   onChange={(e) => setEditingAudit({ ...editingAudit, title: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 p-2"
+                  placeholder="e.g. Steering Knuckle Housing LH/RH – MPV"
+                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* 4. PLANNED MONTH */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Audit Type Category</label>
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Planned Month</label>
                   <select
-                    value={editingAudit.audit_type}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-medium"
+                    value={editingAudit.month}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, month: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-800 focus:border-emerald-500 focus:outline-none"
                   >
-                    <option value="Product">Product</option>
-                    <option value="Revalidation">Revalidation</option>
-                    <option value="Dock Audit">Dock Audit</option>
+                    {MONTHS.map((m, idx) => (
+                      <option key={m} value={idx + 1}>
+                        {m} ({idx + 1})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
+                {/* AUDIT CATEGORY */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Planned Date / Reschedule</label>
-                  <input
-                    type="date"
-                    value={editingAudit.due_date}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, due_date: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2"
-                  />
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category</label>
+                  <select
+                    value={editingAudit.audit_type}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="Product">Product Audit</option>
+                    <option value="Revalidation">Revalidation Audit</option>
+                    <option value="Dock Audit">Dock Audit</option>
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Auditor Name / Emp ID</label>
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Auditor Name / Emp ID</label>
                   <input
                     type="text"
                     value={editingAudit.auditor_name ?? editingAudit.assigned_to_employee_number}
                     onChange={(e) => setEditingAudit({ ...editingAudit, auditor_name: e.target.value, assigned_to_employee_number: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2"
+                    className="w-full rounded-lg border border-slate-300 p-2 font-medium text-slate-800"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Department / Area</label>
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Department / Line</label>
                   <input
                     type="text"
                     value={editingAudit.area}
                     onChange={(e) => setEditingAudit({ ...editingAudit, area: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2"
+                    className="w-full rounded-lg border border-slate-300 p-2 font-medium text-slate-800"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Status Management</label>
-                <select
-                  value={editingAudit.status}
-                  onChange={(e) => setEditingAudit({ ...editingAudit, status: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800"
-                >
-                  <option value="Planned">Planned</option>
-                  <option value="Assigned">Assigned</option>
-                  <option value="In Progress">In Progress / Ongoing</option>
-                  <option value="Submitted">Submitted</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Deviation">Deviation</option>
-                </select>
+              {/* 5. ATTACHMENT FILE OPTION (UPLOAD EXCEL SHEET / SPEC DOCUMENT) */}
+              <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold uppercase text-[11px] text-emerald-900 flex items-center gap-1.5">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Excel Sheet / Spec File Attachment
+                  </span>
+                  {editingAudit.attached_file_name && (
+                    <span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                      File Attached
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-emerald-700 font-medium">
+                  Attach Excel checklist (.xlsx, .csv) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
+                </p>
+
+                <input
+                  type="file"
+                  ref={planFileInputRef}
+                  onChange={handlePlanFileAttachmentChange}
+                  accept=".xlsx,.xls,.csv,.pdf"
+                  className="hidden"
+                />
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => planFileInputRef.current?.click()}
+                    className="bg-white border-emerald-300 text-emerald-800 font-bold hover:bg-emerald-100 text-xs gap-1.5 shadow-2xs"
+                  >
+                    <Upload className="h-3.5 w-3.5 text-emerald-600" /> Select Excel Sheet / Document
+                  </Button>
+
+                  {editingAudit.attached_file_name ? (
+                    <span className="font-mono text-xs font-bold text-emerald-900 truncate">
+                      {editingAudit.attached_file_name}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No file selected</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1592,9 +1642,9 @@ export function DashboardPage() {
               <Button
                 type="button"
                 onClick={() => handleSaveAuditRecord(editingAudit)}
-                className="bg-brand text-white font-bold hover:bg-brand-hover text-xs"
+                className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs"
               >
-                Save Record
+                <Check className="h-4 w-4" /> Save Audit Plan
               </Button>
             </div>
           </div>

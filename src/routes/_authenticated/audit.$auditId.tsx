@@ -304,7 +304,7 @@ function AuditFormPage() {
       return;
     }
 
-    // Record submitted audit metadata for admin view (Part No, Part Name, Employee Name, Submission Date)
+    // Record submitted audit metadata for admin review (Part No, Part Name, Employee Name, Submission Date)
     const now = new Date();
     const formattedDate = format(now, "dd MMM yyyy, hh:mm a");
     recordSubmittedAudit({
@@ -322,13 +322,13 @@ function AuditFormPage() {
     });
 
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("sakthi_excel_tasks");
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
       let tasks = stored ? JSON.parse(stored) : [];
       let found = false;
       tasks = tasks.map((t: any) => {
         if (t.id === auditId || t.audit_code === auditId) {
           found = true;
-          return { ...t, status: "Completed" };
+          return { ...t, status: "Submitted" };
         }
         return t;
       });
@@ -336,21 +336,21 @@ function AuditFormPage() {
         tasks.push({
           id: auditId,
           audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
-          title: `Completed Inspection (${auditId})`,
+          title: partName || `Submitted Inspection (${auditId})`,
           audit_type: "Product",
-          area: "Quality Inspection",
-          assigned_to_employee_number: profile?.employee_number || "1002",
+          area: profile?.department || "Quality Inspection",
+          assigned_to_employee_number: profile?.employee_number || "688079",
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
           due_date: new Date().toISOString().split("T")[0],
-          status: "Completed",
+          status: "Submitted",
         });
       }
-      localStorage.setItem("sakthi_excel_tasks", JSON.stringify(tasks));
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
 
-    toast.success("Audit completed and moved to Completed Audit!");
+    toast.success("Audit inspection report saved & submitted for Admin Review! Status updated to Under Review.");
     setTimeout(() => {
       navigate({ to: "/dashboard" });
     }, 1200);
