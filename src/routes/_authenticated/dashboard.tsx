@@ -117,8 +117,11 @@ export function DashboardPage() {
   // Level 1: Audit Category (Product Audit | Revalidation Audit | Dock Audit)
   const [selectedCategory, setSelectedCategory] = useState<"Product Audit" | "Revalidation Audit" | "Dock Audit">("Product Audit");
 
-  // Level 2: Audit Status View (Audit Plan | Ongoing | Audit Completed | Deviation | Low Production)
-  const [selectedStatusView, setSelectedStatusView] = useState<"Audit Plan" | "Ongoing" | "Audit Completed" | "Deviation" | "Low Production">("Audit Plan");
+  // Level 2: 6 Audit Status Option Cards
+  // (Audit Plan | Ongoing | Under Review | Audit Completed | Deviation | Low / No Production)
+  const [selectedStatusView, setSelectedStatusView] = useState<
+    "Audit Plan" | "Ongoing" | "Under Review" | "Audit Completed" | "Deviation" | "Low Production"
+  >("Audit Plan");
 
   // Level 3: Audit Plan Sub-Views (One Year Plan | As-on-Month Plan | Current Month Plan)
   const [selectedPlanSubView, setSelectedPlanSubView] = useState<"One Year Plan" | "As-on-Month Plan" | "Current Month Plan">("One Year Plan");
@@ -245,13 +248,24 @@ export function DashboardPage() {
     return allTaskRows.filter((r) => matchesCategory(r.audit_type, selectedCategory));
   }, [allTaskRows, selectedCategory]);
 
-  // Counts for 5 status options under the selected category
+  // Filter helper for Plan Sub-Views (One Year Plan, As-on-Month Plan, Current Month Plan)
+  const filterByPlanSubView = (r: { month?: number }) => {
+    if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
+    if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
+    return true; // One Year Plan
+  };
+
+  // Counts for 6 status option cards under the selected category
   const planTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "Planned" || r.status === "Assigned" || r.status === "Pending");
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned");
+  }, [categoryTasks]);
+
+  const underReviewTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "Submitted" || r.status === "Under Review");
   }, [categoryTasks]);
 
   const completedTasks = useMemo(() => {
@@ -307,11 +321,7 @@ export function DashboardPage() {
     const fileName = `Sakthi_Auto_${selectedCategory.replace(/\s+/g, "_")}_${selectedStatusView.replace(/\s+/g, "_")}_${dateTag}.xlsx`;
 
     if (selectedStatusView === "Audit Plan") {
-      const list = categoryTasks.filter((r) => {
-        if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
-        if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
-        return true;
-      });
+      const list = categoryTasks.filter(filterByPlanSubView);
       exportData = list.map((task, idx) => ({
         "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
@@ -327,7 +337,7 @@ export function DashboardPage() {
         "Status": task.status,
       }));
     } else if (selectedStatusView === "Ongoing") {
-      exportData = ongoingTasks.map((task, idx) => ({
+      exportData = ongoingTasks.filter(filterByPlanSubView).map((task, idx) => ({
         "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
@@ -339,8 +349,18 @@ export function DashboardPage() {
         "Progress %": `${task.progress_pct ?? 60}%`,
         "Status": task.status,
       }));
+    } else if (selectedStatusView === "Under Review") {
+      exportData = underReviewTasks.filter(filterByPlanSubView).map((task, idx) => ({
+        "SL. NO.": task.sl_no ?? (idx + 1),
+        "Audit ID": task.audit_code,
+        "Audit Category": selectedCategory,
+        "Product / Part Name": task.title,
+        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
+        "Submission Date": task.due_date,
+        "Status": "Under Review",
+      }));
     } else if (selectedStatusView === "Audit Completed") {
-      exportData = completedTasks.map((task, idx) => ({
+      exportData = completedTasks.filter(filterByPlanSubView).map((task, idx) => ({
         "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
@@ -802,19 +822,20 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {/* ── REQUIREMENT SECTION 2: AUDIT STATUS VIEW (5 OPTIONS FOR SELECTED CATEGORY) ── */}
+            {/* ── REQUIREMENT SECTION 2: 6 AUDIT STATUS CARDS FOR SELECTED CATEGORY ── */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-brand" /> 2. Status Options for [{selectedCategory.toUpperCase()}]
+                  <Filter className="h-4 w-4 text-brand" /> 2. 6 Status Option Cards for [{selectedCategory.toUpperCase()}]
                 </h2>
                 <div className="text-xs text-slate-500 font-medium">
                   Flow: AUDIT DASHBOARD → {selectedCategory} → <strong className="text-brand">{selectedStatusView}</strong>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                {/* OPTION 1: AUDIT PLAN */}
+              {/* 6 STATUS OPTION CARDS */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {/* CARD 1: AUDIT PLAN */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Audit Plan")}
@@ -836,7 +857,7 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* OPTION 2: ONGOING */}
+                {/* CARD 2: ONGOING AUDIT */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Ongoing")}
@@ -858,7 +879,29 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* OPTION 3: AUDIT COMPLETED */}
+                {/* CARD 3: UNDER REVIEW (6TH AUDIT STATUS CARD WITH ICON) */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatusView("Under Review")}
+                  className={`rounded-xl border p-3.5 text-left transition-all ${
+                    selectedStatusView === "Under Review"
+                      ? "border-indigo-600 bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300"
+                      : "border-slate-200 bg-white hover:bg-indigo-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <FileCheck2 className="h-4 w-4" />
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Under Review" ? "bg-white text-indigo-800" : "bg-indigo-100 text-indigo-800"}`}>
+                      {underReviewTasks.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-black uppercase">Under Review</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Under Review" ? "text-indigo-100" : "text-slate-500"}`}>
+                    Pending Admin Signature
+                  </p>
+                </button>
+
+                {/* CARD 4: AUDIT COMPLETED */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Audit Completed")}
@@ -880,7 +923,7 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* OPTION 4: DEVIATION */}
+                {/* CARD 5: DEVIATION */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Deviation")}
@@ -902,7 +945,7 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* OPTION 5: LOW PRODUCTION */}
+                {/* CARD 6: LOW PRODUCTION - NO PRODUCTION */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Low Production")}
@@ -918,137 +961,137 @@ export function DashboardPage() {
                       {categoryLowProd.length}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs font-black uppercase">Low Production</p>
+                  <p className="mt-2 text-xs font-black uppercase">Low / No Production</p>
                   <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Low Production" ? "text-purple-100" : "text-slate-500"}`}>
-                    Below Target Output
+                    Below Target / No Output
                   </p>
                 </button>
               </div>
             </div>
 
-            {/* ── REQUIREMENT SECTION 4: AUDIT PLAN SUB-VIEWS (WHEN AUDIT PLAN IS ACTIVE) ── */}
-            {selectedStatusView === "Audit Plan" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-sky-600" />
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                      Audit Plan Sub-Views — [{selectedCategory}]
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* ADD PLAN BUTTON (ADMIN ONLY) */}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const today = new Date().toISOString().split("T")[0] ?? "";
-                          const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
-                          const nextSlNo = categoryTasks.length + 1;
-                          setEditingAudit({
-                            id: `aud-${Date.now()}`,
-                            sl_no: nextSlNo,
-                            audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
-                            title: "",
-                            audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
-                            area: "Machining Line 1",
-                            month: selectedMonth,
-                            year: new Date().getFullYear(),
-                            due_date: today,
-                            status: "Planned",
-                            assigned_to_employee_number: profile?.employee_number ?? "688079",
-                            auditor_name: profile?.full_name ?? "Lead Auditor",
-                            department: "Quality Assurance",
-                            attached_file_name: "",
-                            attached_file_url: "",
-                          });
-                          setIsAddPlanModalOpen(true);
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
-                        title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
-                      >
-                        <Plus className="h-4 w-4" /> Add Plan
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanSubView("One Year Plan")}
-                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
-                        selectedPlanSubView === "One Year Plan"
-                          ? "bg-sky-700 text-white shadow-xs"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      One Year Plan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanSubView("As-on-Month Plan")}
-                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
-                        selectedPlanSubView === "As-on-Month Plan"
-                          ? "bg-sky-700 text-white shadow-xs"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      As-on-Month Plan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanSubView("Current Month Plan")}
-                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
-                        selectedPlanSubView === "Current Month Plan"
-                          ? "bg-sky-700 text-white shadow-xs"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      Current Month Plan
-                    </button>
-                  </div>
+            {/* ── PLAN SUB-VIEWS (ONE YEAR PLAN | AS-ON-MONTH PLAN | CURRENT MONTH PLAN) APPLICABLE ACROSS ALL 6 AUDIT VIEWS ── */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-sky-600" />
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    Plan Sub-Views — [{selectedCategory} / {selectedStatusView}]
+                  </h3>
                 </div>
 
-                {/* Sub-View Descriptions & Controls */}
-                {selectedPlanSubView === "As-on-Month Plan" && (
-                  <div className="flex items-center gap-3 bg-sky-50 p-3 rounded-xl border border-sky-200 flex-wrap justify-between">
-                    <p className="text-xs text-sky-900 font-bold">
-                      Select target month to inspect scheduled audits for that specific timeframe:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-700">Selected Month:</span>
-                      <select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-sky-500"
-                      >
-                        {MONTHS.map((m, idx) => (
-                          <option key={m} value={idx + 1}>
-                            {m} ({idx + 1})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {/* Search Bar for Plan Records */}
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-                  <Search className="h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by Audit ID, Part Number, Part Name, Auditor, Department..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none font-medium"
-                  />
-                  {searchQuery && (
-                    <button type="button" onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600">
-                      <X className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* ADD PLAN BUTTON (ADMIN ONLY) */}
+                  {isAdmin && selectedStatusView === "Audit Plan" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = new Date().toISOString().split("T")[0] ?? "";
+                        const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                        const nextSlNo = categoryTasks.length + 1;
+                        setEditingAudit({
+                          id: `aud-${Date.now()}`,
+                          sl_no: nextSlNo,
+                          audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                          title: "",
+                          audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                          area: "Machine Shop Line 1",
+                          month: selectedMonth,
+                          year: new Date().getFullYear(),
+                          due_date: today,
+                          status: "Planned",
+                          assigned_to_employee_number: profile?.employee_number ?? "688079",
+                          auditor_name: profile?.full_name ?? "Lead Auditor",
+                          department: "Quality Assurance",
+                          attached_file_name: "",
+                          attached_file_url: "",
+                        });
+                        setIsAddPlanModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
+                      title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
+                    >
+                      <Plus className="h-4 w-4" /> Add Plan
                     </button>
                   )}
-                </div>
 
-                {/* ── TABLE VIEW FOR AUDIT PLAN ── */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanSubView("One Year Plan")}
+                    className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                      selectedPlanSubView === "One Year Plan"
+                        ? "bg-sky-700 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    One Year Plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanSubView("As-on-Month Plan")}
+                    className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                      selectedPlanSubView === "As-on-Month Plan"
+                        ? "bg-sky-700 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    As-on-Month Plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanSubView("Current Month Plan")}
+                    className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${
+                      selectedPlanSubView === "Current Month Plan"
+                        ? "bg-sky-700 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Current Month Plan
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-View Descriptions & Controls */}
+              {selectedPlanSubView === "As-on-Month Plan" && (
+                <div className="flex items-center gap-3 bg-sky-50 p-3 rounded-xl border border-sky-200 flex-wrap justify-between">
+                  <p className="text-xs text-sky-900 font-bold">
+                    Select target month to inspect scheduled audits for that specific timeframe:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700">Selected Month:</span>
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-sky-500"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>
+                          {m} ({idx + 1})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Bar for Plan Records */}
+              <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by Audit ID, Part Number, Part Name, Auditor, Department..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none font-medium"
+                />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* ── VIEW 1: AUDIT PLAN TABLE ── */}
+              {selectedStatusView === "Audit Plan" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1065,11 +1108,7 @@ export function DashboardPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {categoryTasks
-                        .filter((r) => {
-                          if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
-                          if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
-                          return true; // One Year Plan
-                        })
+                        .filter(filterByPlanSubView)
                         .filter((r) => {
                           if (!searchQuery) return true;
                           const q = searchQuery.toLowerCase();
@@ -1150,21 +1189,10 @@ export function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── REQUIREMENT SECTION 9: ONGOING AUDIT VIEW ── */}
-            {selectedStatusView === "Ongoing" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-5 w-5 text-amber-600" />
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                      Ongoing Audits — [{selectedCategory}]
-                    </h3>
-                  </div>
-                </div>
-
+              {/* ── VIEW 2: ONGOING AUDIT TABLE ── */}
+              {selectedStatusView === "Ongoing" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1181,7 +1209,7 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {ongoingTasks.map((task, idx) => (
+                      {ongoingTasks.filter(filterByPlanSubView).map((task, idx) => (
                         <tr key={task.id} className="hover:bg-slate-50 transition-colors">
                           <td className="p-3 text-center font-mono font-bold text-slate-500">
                             {task.sl_no ?? idx + 1}
@@ -1226,21 +1254,71 @@ export function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── REQUIREMENT SECTION 10: AUDIT COMPLETED VIEW ── */}
-            {selectedStatusView === "Audit Completed" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                      Completed Audits — [{selectedCategory}]
-                    </h3>
-                  </div>
+              {/* ── VIEW 3: UNDER REVIEW AUDIT TABLE (WITH UNDER REVIEW ICON & ADMIN E-SIGN ACTION) ── */}
+              {selectedStatusView === "Under Review" && (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">PLANNED MONTH</th>
+                        <th className="p-3">SUBMITTED BY</th>
+                        <th className="p-3">SUBMISSION DATE</th>
+                        <th className="p-3">STATUS</th>
+                        <th className="p-3 text-right">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {underReviewTasks.filter(filterByPlanSubView).map((task, idx) => (
+                        <tr key={task.id} className="hover:bg-indigo-50/50 transition-colors">
+                          <td className="p-3 text-center font-mono font-bold text-slate-500">
+                            {task.sl_no ?? idx + 1}
+                          </td>
+                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
+                          <td className="p-3 font-bold text-sky-700">
+                            {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                          </td>
+                          <td className="p-3 font-medium text-slate-800">
+                            {task.auditor_name ?? task.assigned_to_employee_number}
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
+                          <td className="p-3">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
+                              <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Under Review
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setDashboardTab("review_jobs")}
+                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-colors shadow-2xs"
+                              >
+                                <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Review & E-Sign Report
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {underReviewTasks.filter(filterByPlanSubView).length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
+                            No reports currently under review for this timeframe.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
+              )}
 
+              {/* ── VIEW 4: AUDIT COMPLETED TABLE ── */}
+              {selectedStatusView === "Audit Completed" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1256,7 +1334,7 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {completedTasks.map((task, idx) => (
+                      {completedTasks.filter(filterByPlanSubView).map((task, idx) => (
                         <tr key={task.id} className="hover:bg-slate-50 transition-colors">
                           <td className="p-3 text-center font-mono font-bold text-slate-500">
                             {task.sl_no ?? idx + 1}
@@ -1283,21 +1361,10 @@ export function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── REQUIREMENT SECTION 11: DEVIATION VIEW ── */}
-            {selectedStatusView === "Deviation" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-rose-600" />
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                      Deviation & Non-Conformance Records — [{selectedCategory}]
-                    </h3>
-                  </div>
-                </div>
-
+              {/* ── VIEW 5: DEVIATION TABLE ── */}
+              {selectedStatusView === "Deviation" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1336,21 +1403,10 @@ export function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── REQUIREMENT SECTION 12: LOW PRODUCTION VIEW ── */}
-            {selectedStatusView === "Low Production" && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <TrendingDown className="h-5 w-5 text-purple-600" />
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                      Low Production Monitoring — [{selectedCategory}]
-                    </h3>
-                  </div>
-                </div>
-
+              {/* ── VIEW 6: LOW / NO PRODUCTION TABLE ── */}
+              {selectedStatusView === "Low Production" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1379,7 +1435,7 @@ export function DashboardPage() {
                           <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
                           <td className="p-3">
                             <span className={`rounded-md px-2.5 py-1 font-bold text-[11px] ${lp.status === "Critical" ? "bg-rose-600 text-white" : "bg-amber-500 text-white"}`}>
-                              {lp.status === "Critical" ? "BELOW THRESHOLD" : "ATTENTION REQUIRED"}
+                              {lp.status === "Critical" ? "BELOW THRESHOLD / NO PRODUCTION" : "LOW PRODUCTION"}
                             </span>
                           </td>
                         </tr>
@@ -1387,8 +1443,8 @@ export function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
