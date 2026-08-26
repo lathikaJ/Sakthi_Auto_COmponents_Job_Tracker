@@ -103,8 +103,50 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       toast.error("Access Denied: Only Admins can reject submitted jobs.");
       return;
     }
-    updateSubmittedAuditStatus(item.id, "Rejected", "Rejected - Quality Verification Needed");
-    toast.error(`Job ${item.audit_code} rejected. Sent back for review.`);
+    updateSubmittedAuditStatus(item.id, "Not Completed", "Not Approved by Admin — Marked as Not Completed");
+
+    // Also update main task status to Not Completed in sakthi_excel_tasks_v8
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          let tasks = JSON.parse(stored);
+          let updated = false;
+          tasks = tasks.map((t: any) => {
+            if (t.id === item.id || t.audit_code === item.audit_code) {
+              updated = true;
+              return {
+                ...t,
+                status: "Not Completed",
+                final_result: "REJECTED / NOT COMPLETED",
+              };
+            }
+            return t;
+          });
+          if (!updated) {
+            tasks.push({
+              id: item.id,
+              audit_code: item.audit_code,
+              title: item.part_name,
+              audit_type: "Product",
+              area: item.department,
+              assigned_to_employee_number: item.employee_number,
+              month: new Date().getMonth() + 1,
+              year: new Date().getFullYear(),
+              due_date: new Date().toISOString().split("T")[0],
+              status: "Not Completed",
+              final_result: "REJECTED / NOT COMPLETED",
+            });
+          }
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        } catch {
+          // Ignore
+        }
+      }
+    }
+
+    toast.error(`Job ${item.audit_code} rejected by Admin. Audit moved to 'Not Completed'.`);
   };
 
   const filtered = submittedList.filter((item) => {
@@ -122,14 +164,14 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       statusFilter === "ALL" ||
       (statusFilter === "Submitted" && item.status === "Submitted") ||
       (statusFilter === "Approved" && (item.status === "Approved" || item.status === "Completed")) ||
-      (statusFilter === "Rejected" && item.status === "Rejected");
+      ((statusFilter === "Not Completed" || statusFilter === "Rejected") && (item.status === "Not Completed" || item.status === "Rejected"));
 
     return matchesSearch && matchesStatus;
   });
 
   const pendingCount = submittedList.filter((s) => s.status === "Submitted").length;
   const approvedCount = submittedList.filter((s) => s.status === "Approved" || s.status === "Completed").length;
-  const rejectedCount = submittedList.filter((s) => s.status === "Rejected").length;
+  const rejectedCount = submittedList.filter((s) => s.status === "Not Completed" || s.status === "Rejected").length;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
@@ -191,7 +233,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
           <div className="flex items-center justify-between text-rose-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
-              Rejected / Sent Back
+              Not Completed / Rejected
             </span>
             <XCircle className="h-4 w-4 text-rose-600" />
           </div>
@@ -217,7 +259,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-500" />
           <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
-            {["ALL", "Submitted", "Approved", "Rejected"].map((st) => (
+            {["ALL", "Submitted", "Approved", "Not Completed"].map((st) => (
               <button
                 key={st}
                 type="button"

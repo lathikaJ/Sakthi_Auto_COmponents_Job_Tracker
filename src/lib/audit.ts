@@ -79,17 +79,29 @@ const TEMPLATES: Record<AuditType, Array<Pick<Checkpoint, "id" | "description" |
     ],
   };
 
-export interface LowProductionRecord {
+export const SIX_AUDIT_CATEGORIES = [
+  "Product Audit",
+  "Revalidation Audit",
+  "Dock Audit",
+  "Process Audit",
+  "Layout Audit",
+  "Supplier Audit",
+] as const;
+export type AuditCategory = (typeof SIX_AUDIT_CATEGORIES)[number];
+
+export interface NoProductionRecord {
   id: string;
   part_number: string;
   product_name: string;
-  audit_type: "Product" | "Revalidation" | "Dock Audit";
+  audit_type: "Product" | "Revalidation" | "Dock Audit" | "Process" | "Layout" | "Supplier";
   planned_production: number;
   actual_production: number;
   production_percentage: number;
   threshold_percentage: number;
-  status: "Critical" | "Warning" | "Normal";
+  status: "Critical" | "Warning" | "Normal" | "No Production";
 }
+
+export type LowProductionRecord = NoProductionRecord;
 
 export interface AuditDocument {
   id: string;
@@ -101,17 +113,17 @@ export interface AuditDocument {
   url: string;
 }
 
-export const DEFAULT_LOW_PRODUCTION_DATA: LowProductionRecord[] = [
+export const DEFAULT_NO_PRODUCTION_DATA: NoProductionRecord[] = [
   {
     id: "lp-01",
     part_number: "0401DAA02010N",
     product_name: "Steering Knuckle Housing LH/RH – MPV",
     audit_type: "Product",
     planned_production: 12000,
-    actual_production: 8400,
-    production_percentage: 70.0,
+    actual_production: 0,
+    production_percentage: 0.0,
     threshold_percentage: 85.0,
-    status: "Critical",
+    status: "No Production",
   },
   {
     id: "lp-02",
@@ -119,10 +131,10 @@ export const DEFAULT_LOW_PRODUCTION_DATA: LowProductionRecord[] = [
     product_name: "PIVOT SUSPENSION GOA CC21 (D78) LH",
     audit_type: "Dock Audit",
     planned_production: 15000,
-    actual_production: 11250,
-    production_percentage: 75.0,
+    actual_production: 0,
+    production_percentage: 0.0,
     threshold_percentage: 80.0,
-    status: "Warning",
+    status: "No Production",
   },
   {
     id: "lp-03",
@@ -130,10 +142,10 @@ export const DEFAULT_LOW_PRODUCTION_DATA: LowProductionRecord[] = [
     product_name: "Steering Knuckle - Bolero",
     audit_type: "Revalidation",
     planned_production: 9500,
-    actual_production: 6460,
-    production_percentage: 68.0,
+    actual_production: 0,
+    production_percentage: 0.0,
     threshold_percentage: 85.0,
-    status: "Critical",
+    status: "No Production",
   },
   {
     id: "lp-04",
@@ -141,12 +153,14 @@ export const DEFAULT_LOW_PRODUCTION_DATA: LowProductionRecord[] = [
     product_name: "Disc Brake - Bolero",
     audit_type: "Product",
     planned_production: 18000,
-    actual_production: 14040,
-    production_percentage: 78.0,
+    actual_production: 0,
+    production_percentage: 0.0,
     threshold_percentage: 80.0,
-    status: "Warning",
+    status: "No Production",
   },
 ];
+
+export const DEFAULT_LOW_PRODUCTION_DATA = DEFAULT_NO_PRODUCTION_DATA;
 
 export function buildCheckpoints(type: AuditType): Checkpoint[] {
   return TEMPLATES[type].map((c) => ({ ...c, result: "", observed: "", remarks: "" }));

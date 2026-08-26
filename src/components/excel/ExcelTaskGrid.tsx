@@ -112,11 +112,10 @@ export function ExcelTaskGrid({
     return true;
   });
 
-  // Handle cell edit
+  // Handle cell edit (Admin Only per Requirement 7)
   const handleCellChange = (id: string, field: keyof ExcelTaskRow, value: any) => {
-    // Employees are explicitly granted access to update the Status column
-    if (!isAdmin && field !== "status") {
-      toast.error("Access Denied: Only Admins can modify master task metadata. Employees can update the Status column.");
+    if (!isAdmin) {
+      toast.error("Access Denied: Only Admin users have permission to edit assigned work configuration.");
       return;
     }
     setRows((prev) =>
@@ -592,8 +591,10 @@ export function ExcelTaskGrid({
                   >
                     <Input
                       value={r.audit_code}
+                      readOnly={!isAdmin}
+                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "audit_code", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 font-mono text-xs text-slate-900 font-bold focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="h-8 border-none bg-transparent p-1 font-mono text-xs text-slate-900 font-bold focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
                     />
                   </td>
 
@@ -608,9 +609,11 @@ export function ExcelTaskGrid({
                   >
                     <Input
                       value={r.title}
+                      readOnly={!isAdmin}
+                      disabled={!isAdmin}
                       placeholder="Enter task title..."
                       onChange={(e) => handleCellChange(r.id, "title", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 font-semibold text-xs text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="h-8 border-none bg-transparent p-1 font-semibold text-xs text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
                     />
                   </td>
 
@@ -625,8 +628,9 @@ export function ExcelTaskGrid({
                   >
                     <select
                       value={r.audit_type}
+                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "audit_type", e.target.value)}
-                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500"
+                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
                     >
                       {AUDIT_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -647,9 +651,11 @@ export function ExcelTaskGrid({
                   >
                     <Input
                       value={r.area}
+                      readOnly={!isAdmin}
+                      disabled={!isAdmin}
                       placeholder="Enter area..."
                       onChange={(e) => handleCellChange(r.id, "area", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
                     />
                   </td>
 
@@ -665,10 +671,11 @@ export function ExcelTaskGrid({
                   >
                     <select
                       value={r.assigned_to_employee_number}
+                      disabled={!isAdmin}
                       onChange={(e) =>
                         handleCellChange(r.id, "assigned_to_employee_number", e.target.value)
                       }
-                      className="h-8 w-full rounded border-none bg-transparent p-1 font-mono text-xs font-bold text-slate-900 focus:ring-1 focus:ring-emerald-500"
+                      className="h-8 w-full rounded border-none bg-transparent p-1 font-mono text-xs font-bold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
                     >
                       {EMPLOYEE_LIST.map((emp) => (
                         <option key={emp} value={emp}>
@@ -689,8 +696,9 @@ export function ExcelTaskGrid({
                   >
                     <select
                       value={r.month}
+                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "month", parseInt(e.target.value))}
-                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500"
+                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
                     >
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                         <option key={m} value={m}>
@@ -712,12 +720,14 @@ export function ExcelTaskGrid({
                     <Input
                       type="date"
                       value={r.due_date}
+                      readOnly={!isAdmin}
+                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "due_date", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
                     />
                   </td>
 
-                  {/* H: Status - FULL ACCESS FOR ALL EMPLOYEES */}
+                  {/* H: Status */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "status" })}
                     className={`border-r border-slate-200 p-1 ${
@@ -728,9 +738,10 @@ export function ExcelTaskGrid({
                   >
                     <select
                       value={r.status}
+                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "status", e.target.value)}
-                      title="Update Audit Task Status (All Employees Access Granted)"
-                      className="h-8 w-full rounded border border-emerald-500 bg-emerald-50/70 px-2 text-xs font-bold text-emerald-900 shadow-xs focus:ring-2 focus:ring-emerald-500 cursor-pointer hover:bg-emerald-100 transition-colors"
+                      title={isAdmin ? "Update Audit Task Status" : "Status is editable by Admin only"}
+                      className="h-8 w-full rounded border border-slate-300 bg-slate-50 px-2 text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-emerald-500 disabled:opacity-90"
                     >
                       {STATUSES.map((st) => (
                         <option key={st} value={st}>

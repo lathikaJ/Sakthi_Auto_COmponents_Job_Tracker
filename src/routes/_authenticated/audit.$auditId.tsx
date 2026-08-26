@@ -376,7 +376,7 @@ function AuditFormPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_deviation_prefill", JSON.stringify(prefill));
 
-      const stored = localStorage.getItem("sakthi_excel_tasks");
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
       if (stored) {
         try {
           let tasks = JSON.parse(stored);
@@ -386,7 +386,7 @@ function AuditFormPage() {
             }
             return t;
           });
-          localStorage.setItem("sakthi_excel_tasks", JSON.stringify(tasks));
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
           window.dispatchEvent(new Event("excel_tasks_updated"));
         } catch {
           // Ignore

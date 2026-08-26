@@ -8,7 +8,7 @@ export type SubmittedAuditItem = {
   department: string;
   submitted_date: string; // ISO format
   formatted_submitted_date: string;
-  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review";
+  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review" | "Not Completed";
   checkpoints_count?: number;
   failing_count?: number;
   admin_notes?: string;

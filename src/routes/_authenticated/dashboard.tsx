@@ -113,14 +113,15 @@ export function DashboardPage() {
   const excelImportInputRef = useRef<HTMLInputElement>(null);
   const planFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Navigation State according to Requirements
-  // Level 1: Audit Category (Product Audit | Revalidation Audit | Dock Audit)
-  const [selectedCategory, setSelectedCategory] = useState<"Product Audit" | "Revalidation Audit" | "Dock Audit">("Product Audit");
+  // Level 1: Audit Category Selection (6 Audit Categories)
+  const [selectedCategory, setSelectedCategory] = useState<
+    "Product Audit" | "Revalidation Audit" | "Dock Audit" | "Process Audit" | "Layout Audit" | "Supplier Audit"
+  >("Product Audit");
 
   // Level 2: 6 Audit Status Option Cards
-  // (Audit Plan | Ongoing | Under Review | Audit Completed | Deviation | Low / No Production)
+  // (Audit Plan | Ongoing | Under Review | Audit Completed | Deviation | No Production)
   const [selectedStatusView, setSelectedStatusView] = useState<
-    "Audit Plan" | "Ongoing" | "Under Review" | "Audit Completed" | "Deviation" | "Low Production"
+    "Audit Plan" | "Ongoing" | "Under Review" | "Audit Completed" | "Deviation" | "No Production"
   >("Audit Plan");
 
   // Level 3: Audit Plan Sub-Views (One Year Plan | As-on-Month Plan | Current Month Plan)
@@ -236,11 +237,14 @@ export function DashboardPage() {
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
   // Helper matching Audit Type to Category
-  const matchesCategory = (type: string, cat: "Product Audit" | "Revalidation Audit" | "Dock Audit") => {
-    if (cat === "Product Audit") return type === "Product";
-    if (cat === "Revalidation Audit") return type === "Revalidation";
-    if (cat === "Dock Audit") return type === "Process" || type === "Doc" || type === "Doc Audit" || type === "Dock Audit";
-    return false;
+  const matchesCategory = (type: string, cat: string) => {
+    if (cat === "Product Audit") return type === "Product" || type === "Product Audit";
+    if (cat === "Revalidation Audit") return type === "Revalidation" || type === "Revalidation Audit";
+    if (cat === "Dock Audit") return type === "Dock Audit" || type === "Doc Audit" || type === "Doc";
+    if (cat === "Process Audit") return type === "Process" || type === "Process Audit";
+    if (cat === "Layout Audit") return type === "Layout" || type === "Layout Audit";
+    if (cat === "Supplier Audit") return type === "Supplier" || type === "Supplier Audit";
+    return true;
   };
 
   // Filter tasks by selected audit category
@@ -384,7 +388,7 @@ export function DashboardPage() {
         "Due Date": dev.due_date ?? dev.created_at,
         "Closure Status": dev.closure_status ?? dev.status,
       }));
-    } else if (selectedStatusView === "Low Production") {
+    } else if (selectedStatusView === "No Production") {
       exportData = categoryLowProd.map((lp, idx) => ({
         "SL. NO.": idx + 1,
         "Part Number": lp.part_number,
@@ -394,7 +398,7 @@ export function DashboardPage() {
         "Actual Production (PCS)": lp.actual_production,
         "Production %": `${lp.production_percentage.toFixed(1)}%`,
         "Threshold %": `${lp.threshold_percentage}%`,
-        "Status": lp.status,
+        "Status": "No Production",
       }));
     }
 
@@ -723,12 +727,12 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
                 {/* CATEGORY 1: PRODUCT AUDIT */}
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Product Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
                     selectedCategory === "Product Audit"
                       ? "border-orange-500 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md ring-2 ring-orange-400"
                       : "border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/50 text-slate-800 shadow-2xs"
@@ -736,22 +740,19 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-orange-600"}`}>
-                        Audit Category
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-orange-600"}`}>
+                        Audit Category 1
                       </p>
-                      <h3 className="text-xl font-black mt-1 tracking-tight">Product Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-slate-500"}`}>
-                        Casting, dimensional & metallurgical audits
-                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Product Audit</h3>
                     </div>
-                    <div className={`rounded-xl p-3 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
-                      <Package className="h-6 w-6" />
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
+                      <Package className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
-                    <span className="text-xs font-extrabold">Active Records</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Product Audit" ? "bg-white text-orange-700" : "bg-orange-100 text-orange-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Product").length} Audits
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Product Audit" ? "bg-white text-orange-700" : "bg-orange-100 text-orange-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Product" || r.audit_type === "Product Audit").length}
                     </span>
                   </div>
                 </button>
@@ -760,7 +761,7 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Revalidation Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
                     selectedCategory === "Revalidation Audit"
                       ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md ring-2 ring-blue-400"
                       : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 text-slate-800 shadow-2xs"
@@ -768,22 +769,19 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-blue-600"}`}>
-                        Audit Category
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-blue-600"}`}>
+                        Audit Category 2
                       </p>
-                      <h3 className="text-xl font-black mt-1 tracking-tight">Revalidation Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-slate-500"}`}>
-                        Bi-annual product layout & safety revalidation
-                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Revalidation Audit</h3>
                     </div>
-                    <div className={`rounded-xl p-3 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
-                      <RefreshCcw className="h-6 w-6" />
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
+                      <RefreshCcw className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
-                    <span className="text-xs font-extrabold">Active Records</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Revalidation Audit" ? "bg-white text-blue-700" : "bg-blue-100 text-blue-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Revalidation").length} Audits
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Revalidation Audit" ? "bg-white text-blue-700" : "bg-blue-100 text-blue-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Revalidation" || r.audit_type === "Revalidation Audit").length}
                     </span>
                   </div>
                 </button>
@@ -792,7 +790,7 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Dock Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
                     selectedCategory === "Dock Audit"
                       ? "border-emerald-600 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md ring-2 ring-emerald-400"
                       : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50 text-slate-800 shadow-2xs"
@@ -800,22 +798,106 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-emerald-600"}`}>
-                        Audit Category
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-emerald-600"}`}>
+                        Audit Category 3
                       </p>
-                      <h3 className="text-xl font-black mt-1 tracking-tight">Dock Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-slate-500"}`}>
-                        Dispatch packaging, VCI & dock inspection
-                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Dock Audit</h3>
                     </div>
-                    <div className={`rounded-xl p-3 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
-                      <Building2 className="h-6 w-6" />
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
+                      <Building2 className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
-                    <span className="text-xs font-extrabold">Active Records</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Dock Audit" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Dock Audit").length} Audits
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Dock Audit" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Dock Audit" || r.audit_type === "Doc").length}
+                    </span>
+                  </div>
+                </button>
+
+                {/* CATEGORY 4: PROCESS AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Process Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                    selectedCategory === "Process Audit"
+                      ? "border-purple-600 bg-gradient-to-br from-purple-600 to-indigo-800 text-white shadow-md ring-2 ring-purple-400"
+                      : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Process Audit" ? "text-purple-100" : "text-purple-600"}`}>
+                        Audit Category 4
+                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Process Audit</h3>
+                    </div>
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Process Audit" ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"}`}>
+                      <Layers className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Process Audit" ? "bg-white text-purple-700" : "bg-purple-100 text-purple-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Process" || r.audit_type === "Process Audit").length}
+                    </span>
+                  </div>
+                </button>
+
+                {/* CATEGORY 5: LAYOUT AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Layout Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                    selectedCategory === "Layout Audit"
+                      ? "border-amber-600 bg-gradient-to-br from-amber-600 to-orange-700 text-white shadow-md ring-2 ring-amber-400"
+                      : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Layout Audit" ? "text-amber-100" : "text-amber-600"}`}>
+                        Audit Category 5
+                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Layout Audit</h3>
+                    </div>
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Layout Audit" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"}`}>
+                      <FileText className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Layout Audit" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Layout" || r.audit_type === "Layout Audit").length}
+                    </span>
+                  </div>
+                </button>
+
+                {/* CATEGORY 6: SUPPLIER AUDIT */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("Supplier Audit")}
+                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                    selectedCategory === "Supplier Audit"
+                      ? "border-sky-600 bg-gradient-to-br from-sky-600 to-blue-800 text-white shadow-md ring-2 ring-sky-400"
+                      : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/50 text-slate-800 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Supplier Audit" ? "text-sky-100" : "text-sky-600"}`}>
+                        Audit Category 6
+                      </p>
+                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Supplier Audit</h3>
+                    </div>
+                    <div className={`rounded-lg p-2 ${selectedCategory === "Supplier Audit" ? "bg-white/20 text-white" : "bg-sky-100 text-sky-700"}`}>
+                      <UserCheck className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
+                    <span className="text-[10px] font-extrabold">Active</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Supplier Audit" ? "bg-white text-sky-700" : "bg-sky-100 text-sky-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Supplier" || r.audit_type === "Supplier Audit").length}
                     </span>
                   </div>
                 </button>
@@ -945,25 +1027,25 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* CARD 6: LOW PRODUCTION - NO PRODUCTION */}
+                {/* CARD 6: NO PRODUCTION */}
                 <button
                   type="button"
-                  onClick={() => setSelectedStatusView("Low Production")}
+                  onClick={() => setSelectedStatusView("No Production")}
                   className={`rounded-xl border p-3.5 text-left transition-all ${
-                    selectedStatusView === "Low Production"
+                    selectedStatusView === "No Production"
                       ? "border-purple-600 bg-purple-600 text-white shadow-sm ring-2 ring-purple-300"
                       : "border-slate-200 bg-white hover:bg-purple-50 text-slate-700"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <TrendingDown className="h-4 w-4" />
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Low Production" ? "bg-white text-purple-800" : "bg-purple-100 text-purple-800"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "No Production" ? "bg-white text-purple-800" : "bg-purple-100 text-purple-800"}`}>
                       {categoryLowProd.length}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs font-black uppercase">Low / No Production</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Low Production" ? "text-purple-100" : "text-slate-500"}`}>
-                    Below Target / No Output
+                  <p className="mt-2 text-xs font-black uppercase">No Production</p>
+                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "No Production" ? "text-purple-100" : "text-slate-500"}`}>
+                    Zero Output / Line Stopped
                   </p>
                 </button>
               </div>
@@ -1127,7 +1209,7 @@ export function DashboardPage() {
                             <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                             <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                             <td className="p-3 font-bold text-sky-700">
-                              {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                              {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                             </td>
                             <td className="p-3">
                               {task.attached_file_name ? (
@@ -1217,18 +1299,24 @@ export function DashboardPage() {
                           <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                           <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-bold text-sky-700">
-                            {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                            {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                           </td>
                           <td className="p-3">
-                            <Link
-                              to="/audit/$auditId"
-                              params={{ auditId: task.id }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                              title="Click to open attached Excel inspection checklist"
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                              <span className="truncate max-w-[140px]">{task.attached_file_name || "Checklist.xlsx"}</span>
-                            </Link>
+                            {task.attached_file_name ? (
+                              <Link
+                                to="/audit/$auditId"
+                                params={{ auditId: task.id }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                                title="Click to open attached Excel inspection checklist"
+                              >
+                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
+                                <Paperclip className="h-3 w-3" /> No file attached
+                              </span>
+                            )}
                           </td>
                           <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                           <td className="p-3">
@@ -1281,7 +1369,7 @@ export function DashboardPage() {
                           <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                           <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-bold text-sky-700">
-                            {MONTHS[task.month - 1] ?? `Month ${task.month}`}
+                            {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                           </td>
                           <td className="p-3 font-medium text-slate-800">
                             {task.auditor_name ?? task.assigned_to_employee_number}
@@ -1405,8 +1493,8 @@ export function DashboardPage() {
                 </div>
               )}
 
-              {/* ── VIEW 6: LOW / NO PRODUCTION TABLE ── */}
-              {selectedStatusView === "Low Production" && (
+              {/* ── VIEW 6: NO PRODUCTION TABLE ── */}
+              {selectedStatusView === "No Production" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
@@ -1428,14 +1516,14 @@ export function DashboardPage() {
                           <td className="p-3 text-right font-mono font-bold text-slate-700">{lp.planned_production.toLocaleString()} PCS</td>
                           <td className="p-3 text-right font-mono font-bold text-purple-700">{lp.actual_production.toLocaleString()} PCS</td>
                           <td className="p-3 text-center font-black">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full ${lp.production_percentage < lp.threshold_percentage ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}`}>
+                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
                               {lp.production_percentage.toFixed(1)}%
                             </span>
                           </td>
                           <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
                           <td className="p-3">
-                            <span className={`rounded-md px-2.5 py-1 font-bold text-[11px] ${lp.status === "Critical" ? "bg-rose-600 text-white" : "bg-amber-500 text-white"}`}>
-                              {lp.status === "Critical" ? "BELOW THRESHOLD / NO PRODUCTION" : "LOW PRODUCTION"}
+                            <span className="rounded-md px-2.5 py-1 font-bold text-[11px] bg-purple-600 text-white">
+                              NO PRODUCTION
                             </span>
                           </td>
                         </tr>
@@ -1583,36 +1671,86 @@ export function DashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {/* 4. PLANNED MONTH */}
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Planned Month</label>
-                  <select
-                    value={editingAudit.month}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, month: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-800 focus:border-emerald-500 focus:outline-none"
-                  >
-                    {MONTHS.map((m, idx) => (
-                      <option key={m} value={idx + 1}>
-                        {m} ({idx + 1})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* PLANNED DATE (MONTH + DATE + YEAR) & 6 AUDIT CATEGORIES */}
+              <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 space-y-2">
+                <span className="font-extrabold uppercase text-[11px] text-sky-900">
+                  Planned Month + Date + Year Selection *
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Month</label>
+                    <select
+                      value={editingAudit.month}
+                      onChange={(e) => {
+                        const m = Number(e.target.value);
+                        const d = editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1;
+                        const y = editingAudit.year || new Date().getFullYear();
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        setEditingAudit({ ...editingAudit, month: m, due_date: dateStr });
+                      }}
+                      className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-800 bg-white"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>
+                          {m} ({idx + 1})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* AUDIT CATEGORY */}
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category</label>
-                  <select
-                    value={editingAudit.audit_type}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="Product">Product Audit</option>
-                    <option value="Revalidation">Revalidation Audit</option>
-                    <option value="Dock Audit">Dock Audit</option>
-                  </select>
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Date</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1}
+                      onChange={(e) => {
+                        const d = Math.max(1, Math.min(31, Number(e.target.value)));
+                        const m = editingAudit.month || 1;
+                        const y = editingAudit.year || new Date().getFullYear();
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        setEditingAudit({ ...editingAudit, due_date: dateStr });
+                      }}
+                      className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Year</label>
+                    <input
+                      type="number"
+                      min={2020}
+                      max={2035}
+                      value={editingAudit.year || new Date().getFullYear()}
+                      onChange={(e) => {
+                        const y = Number(e.target.value);
+                        const m = editingAudit.month || 1;
+                        const d = editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1;
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        setEditingAudit({ ...editingAudit, year: y, due_date: dateStr });
+                      }}
+                      className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* AUDIT CATEGORY (SUPPORTING 6 AUDIT CATEGORIES FOR ADMIN) */}
+              <div>
+                <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category (6 Audit Categories)</label>
+                <select
+                  value={editingAudit.audit_type}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none bg-white"
+                >
+                  <option value="Product">Product Audit</option>
+                  <option value="Revalidation">Revalidation Audit</option>
+                  <option value="Dock Audit">Dock Audit</option>
+                  <option value="Process">Process Audit</option>
+                  <option value="Layout">Layout Audit</option>
+                  <option value="Supplier">Supplier Audit</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
