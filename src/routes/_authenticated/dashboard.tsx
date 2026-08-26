@@ -113,10 +113,8 @@ export function DashboardPage() {
   const excelImportInputRef = useRef<HTMLInputElement>(null);
   const planFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Level 1: Audit Category Selection (6 Audit Categories)
-  const [selectedCategory, setSelectedCategory] = useState<
-    "Product Audit" | "Revalidation Audit" | "Dock Audit" | "Process Audit" | "Layout Audit" | "Supplier Audit"
-  >("Product Audit");
+  // Level 1: Touch Audit Category Selection (Product Audit | Revalidation Audit | Dock Audit)
+  const [selectedCategory, setSelectedCategory] = useState<"Product Audit" | "Revalidation Audit" | "Dock Audit">("Product Audit");
 
   // Level 2: 6 Audit Status Option Cards
   // (Audit Plan | Ongoing | Under Review | Audit Completed | Deviation | No Production)
@@ -237,14 +235,11 @@ export function DashboardPage() {
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
   // Helper matching Audit Type to Category
-  const matchesCategory = (type: string, cat: string) => {
+  const matchesCategory = (type: string, cat: "Product Audit" | "Revalidation Audit" | "Dock Audit") => {
     if (cat === "Product Audit") return type === "Product" || type === "Product Audit";
     if (cat === "Revalidation Audit") return type === "Revalidation" || type === "Revalidation Audit";
-    if (cat === "Dock Audit") return type === "Dock Audit" || type === "Doc Audit" || type === "Doc";
-    if (cat === "Process Audit") return type === "Process" || type === "Process Audit";
-    if (cat === "Layout Audit") return type === "Layout" || type === "Layout Audit";
-    if (cat === "Supplier Audit") return type === "Supplier" || type === "Supplier Audit";
-    return true;
+    if (cat === "Dock Audit") return type === "Process" || type === "Doc" || type === "Doc Audit" || type === "Dock Audit";
+    return false;
   };
 
   // Filter tasks by selected audit category
@@ -727,12 +722,12 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {/* CATEGORY 1: PRODUCT AUDIT */}
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Product Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
                     selectedCategory === "Product Audit"
                       ? "border-orange-500 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md ring-2 ring-orange-400"
                       : "border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/50 text-slate-800 shadow-2xs"
@@ -740,19 +735,22 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-orange-600"}`}>
-                        Audit Category 1
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-orange-600"}`}>
+                        Audit Category
                       </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Product Audit</h3>
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Product Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-slate-500"}`}>
+                        Casting, dimensional & metallurgical audits
+                      </p>
                     </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
-                      <Package className="h-4 w-4" />
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
+                      <Package className="h-6 w-6" />
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Product Audit" ? "bg-white text-orange-700" : "bg-orange-100 text-orange-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Product" || r.audit_type === "Product Audit").length}
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Product Audit" ? "bg-white text-orange-700" : "bg-orange-100 text-orange-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Product" || r.audit_type === "Product Audit").length} Audits
                     </span>
                   </div>
                 </button>
@@ -761,7 +759,7 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Revalidation Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
                     selectedCategory === "Revalidation Audit"
                       ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md ring-2 ring-blue-400"
                       : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 text-slate-800 shadow-2xs"
@@ -769,19 +767,22 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-blue-600"}`}>
-                        Audit Category 2
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-blue-600"}`}>
+                        Audit Category
                       </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Revalidation Audit</h3>
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Revalidation Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-slate-500"}`}>
+                        Bi-annual product layout & safety revalidation
+                      </p>
                     </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
-                      <RefreshCcw className="h-4 w-4" />
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
+                      <RefreshCcw className="h-6 w-6" />
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Revalidation Audit" ? "bg-white text-blue-700" : "bg-blue-100 text-blue-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Revalidation" || r.audit_type === "Revalidation Audit").length}
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Revalidation Audit" ? "bg-white text-blue-700" : "bg-blue-100 text-blue-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Revalidation" || r.audit_type === "Revalidation Audit").length} Audits
                     </span>
                   </div>
                 </button>
@@ -790,7 +791,7 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("Dock Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
                     selectedCategory === "Dock Audit"
                       ? "border-emerald-600 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md ring-2 ring-emerald-400"
                       : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50 text-slate-800 shadow-2xs"
@@ -798,106 +799,22 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-emerald-600"}`}>
-                        Audit Category 3
+                      <p className={`text-xs font-black uppercase tracking-wider ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-emerald-600"}`}>
+                        Audit Category
                       </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Dock Audit</h3>
-                    </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
-                      <Building2 className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Dock Audit" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Dock Audit" || r.audit_type === "Doc").length}
-                    </span>
-                  </div>
-                </button>
-
-                {/* CATEGORY 4: PROCESS AUDIT */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("Process Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
-                    selectedCategory === "Process Audit"
-                      ? "border-purple-600 bg-gradient-to-br from-purple-600 to-indigo-800 text-white shadow-md ring-2 ring-purple-400"
-                      : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 text-slate-800 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Process Audit" ? "text-purple-100" : "text-purple-600"}`}>
-                        Audit Category 4
+                      <h3 className="text-xl font-black mt-1 tracking-tight">Dock Audit</h3>
+                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-slate-500"}`}>
+                        Dispatch packaging, VCI & dock inspection
                       </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Process Audit</h3>
                     </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Process Audit" ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"}`}>
-                      <Layers className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Process Audit" ? "bg-white text-purple-700" : "bg-purple-100 text-purple-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Process" || r.audit_type === "Process Audit").length}
-                    </span>
-                  </div>
-                </button>
-
-                {/* CATEGORY 5: LAYOUT AUDIT */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("Layout Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
-                    selectedCategory === "Layout Audit"
-                      ? "border-amber-600 bg-gradient-to-br from-amber-600 to-orange-700 text-white shadow-md ring-2 ring-amber-400"
-                      : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50 text-slate-800 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Layout Audit" ? "text-amber-100" : "text-amber-600"}`}>
-                        Audit Category 5
-                      </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Layout Audit</h3>
-                    </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Layout Audit" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"}`}>
-                      <FileText className="h-4 w-4" />
+                    <div className={`rounded-xl p-3 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
+                      <Building2 className="h-6 w-6" />
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Layout Audit" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Layout" || r.audit_type === "Layout Audit").length}
-                    </span>
-                  </div>
-                </button>
-
-                {/* CATEGORY 6: SUPPLIER AUDIT */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("Supplier Audit")}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
-                    selectedCategory === "Supplier Audit"
-                      ? "border-sky-600 bg-gradient-to-br from-sky-600 to-blue-800 text-white shadow-md ring-2 ring-sky-400"
-                      : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/50 text-slate-800 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className={`text-[10px] font-black uppercase tracking-wider ${selectedCategory === "Supplier Audit" ? "text-sky-100" : "text-sky-600"}`}>
-                        Audit Category 6
-                      </p>
-                      <h3 className="text-sm font-black mt-0.5 tracking-tight">Supplier Audit</h3>
-                    </div>
-                    <div className={`rounded-lg p-2 ${selectedCategory === "Supplier Audit" ? "bg-white/20 text-white" : "bg-sky-100 text-sky-700"}`}>
-                      <UserCheck className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-2 text-xs">
-                    <span className="text-[10px] font-extrabold">Active</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${selectedCategory === "Supplier Audit" ? "bg-white text-sky-700" : "bg-sky-100 text-sky-800"}`}>
-                      {allTaskRows.filter((r) => r.audit_type === "Supplier" || r.audit_type === "Supplier Audit").length}
+                  <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3">
+                    <span className="text-xs font-extrabold">Active Records</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${selectedCategory === "Dock Audit" ? "bg-white text-emerald-700" : "bg-emerald-100 text-emerald-800"}`}>
+                      {allTaskRows.filter((r) => r.audit_type === "Process" || r.audit_type === "Doc" || r.audit_type === "Dock Audit").length} Audits
                     </span>
                   </div>
                 </button>
@@ -1736,9 +1653,9 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* AUDIT CATEGORY (SUPPORTING 6 AUDIT CATEGORIES FOR ADMIN) */}
+              {/* AUDIT CATEGORY SELECT FOR ADMIN */}
               <div>
-                <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category (6 Audit Categories)</label>
+                <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category</label>
                 <select
                   value={editingAudit.audit_type}
                   onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
@@ -1747,9 +1664,6 @@ export function DashboardPage() {
                   <option value="Product">Product Audit</option>
                   <option value="Revalidation">Revalidation Audit</option>
                   <option value="Dock Audit">Dock Audit</option>
-                  <option value="Process">Process Audit</option>
-                  <option value="Layout">Layout Audit</option>
-                  <option value="Supplier">Supplier Audit</option>
                 </select>
               </div>
 
