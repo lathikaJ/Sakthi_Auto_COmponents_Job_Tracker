@@ -48,6 +48,7 @@ import {
   DEFAULT_LOW_PRODUCTION_DATA,
   AuditDocument,
 } from "@/lib/audit";
+import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -1298,13 +1299,123 @@ export function DashboardPage() {
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => setDashboardTab("review_jobs")}
-                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-colors shadow-2xs"
+                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-colors shadow-2xs"
+                                title="Review Audit Evidences"
                               >
-                                <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Review & E-Sign Report
+                                <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Review
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isAdmin) {
+                                    toast.error("Access Denied: Only Admins can move audits from Under Review to Completed.");
+                                    return;
+                                  }
+                                  if (typeof window !== "undefined") {
+                                    const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+                                    if (stored) {
+                                      try {
+                                        let tasks = JSON.parse(stored);
+                                        tasks = tasks.map((t: any) => {
+                                          if (t.id === task.id || t.audit_code === task.audit_code) {
+                                            return {
+                                              ...t,
+                                              status: "Completed",
+                                              completion_date: new Date().toISOString().split("T")[0],
+                                              final_result: "PASS / COMPLIANT",
+                                            };
+                                          }
+                                          return t;
+                                        });
+                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+                                        window.dispatchEvent(new Event("excel_tasks_updated"));
+                                      } catch {}
+                                    }
+                                  }
+                                  updateSubmittedAuditStatus(task.id, "Completed", "Marked as Completed by Admin Dashboard");
+                                  toast.success(`Audit ${task.audit_code} moved to Audit Completed!`);
+                                }}
+                                disabled={!isAdmin}
+                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
+                                  !isAdmin
+                                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                    : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                }`}
+                                title={!isAdmin ? "Admin access required" : "Move to Audit Completed"}
+                              >
+                                <Check className="h-3.5 w-3.5" /> Completed
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isAdmin) {
+                                    toast.error("Access Denied: Only Admins can move audits from Under Review to Deviations.");
+                                    return;
+                                  }
+                                  if (typeof window !== "undefined") {
+                                    const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+                                    if (stored) {
+                                      try {
+                                        let tasks = JSON.parse(stored);
+                                        tasks = tasks.map((t: any) => {
+                                          if (t.id === task.id || t.audit_code === task.audit_code) {
+                                            return {
+                                              ...t,
+                                              status: "Deviation",
+                                              final_result: "DEVIATION IDENTIFIED",
+                                            };
+                                          }
+                                          return t;
+                                        });
+                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+                                        window.dispatchEvent(new Event("excel_tasks_updated"));
+                                      } catch {}
+                                    }
+
+                                    const storedDevs = localStorage.getItem("sakthi_deviations");
+                                    let devs = storedDevs ? JSON.parse(storedDevs) : [];
+                                    const newDevCode = (task.audit_code || task.id).replace("AUD-", "DEV-").replace("REV-", "DEV-");
+                                    if (!devs.some((d: any) => d.dev_code === newDevCode || d.audit_id === task.id)) {
+                                      devs.unshift({
+                                        id: `dev-${Date.now()}`,
+                                        audit_id: task.id,
+                                        dev_code: newDevCode.startsWith("DEV-") ? newDevCode : `DEV-${newDevCode}`,
+                                        description: `Deviation identified during Admin Audit Review for ${task.title}`,
+                                        observed_condition: `Quality issue identified by Admin during verification of audit ${task.audit_code}`,
+                                        location_operation: task.area,
+                                        employee_number: task.assigned_to_employee_number,
+                                        severity: "High",
+                                        status: "Open",
+                                        created_at: new Date().toISOString().split("T")[0],
+                                        responsible_person: task.assigned_to_employee_number,
+                                        department: task.area,
+                                        corrective_action: "Action Assigned to QA / Line Supervisor",
+                                        due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+                                        closure_status: "Open",
+                                        product_part_number: task.audit_code,
+                                      });
+                                      localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
+                                      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+                                    }
+                                  }
+                                  updateSubmittedAuditStatus(task.id, "Deviation", "Moved to Deviations by Admin Dashboard");
+                                  toast.warning(`Deviation logged for ${task.audit_code}. Audit moved to Deviations!`);
+                                }}
+                                disabled={!isAdmin}
+                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
+                                  !isAdmin
+                                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                    : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
+                                }`}
+                                title={!isAdmin ? "Admin access required" : "Move to Deviations"}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" /> Deviation
                               </button>
                             </div>
                           </td>

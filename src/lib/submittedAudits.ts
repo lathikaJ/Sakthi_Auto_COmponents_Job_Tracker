@@ -8,7 +8,7 @@ export type SubmittedAuditItem = {
   department: string;
   submitted_date: string; // ISO format
   formatted_submitted_date: string;
-  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review" | "Not Completed";
+  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review" | "Not Completed" | "Deviation";
   checkpoints_count?: number;
   failing_count?: number;
   admin_notes?: string;
@@ -41,7 +41,7 @@ export const INITIAL_SUBMITTED_AUDITS: SubmittedAuditItem[] = [
     department: "Machining Line 1",
     submitted_date: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
     formatted_submitted_date: "23 Aug 2026, 09:30 AM",
-    status: "Submitted",
+    status: "Under Review",
     checkpoints_count: 5,
     failing_count: 0,
   },
@@ -55,7 +55,7 @@ export const INITIAL_SUBMITTED_AUDITS: SubmittedAuditItem[] = [
     department: "Machine Shop 2",
     submitted_date: new Date(Date.now() - 1000 * 60 * 380).toISOString(),
     formatted_submitted_date: "22 Aug 2026, 04:45 PM",
-    status: "Submitted",
+    status: "Under Review",
     checkpoints_count: 7,
     failing_count: 0,
   },

@@ -316,7 +316,7 @@ function AuditFormPage() {
       department: profile?.department || "Machining Line 1",
       submitted_date: now.toISOString(),
       formatted_submitted_date: formattedDate,
-      status: "Submitted",
+      status: "Under Review",
       checkpoints_count: checkpoints.length,
       failing_count: checkpoints.filter((cp) => cp.status === "Fail").length,
     });
@@ -328,7 +328,7 @@ function AuditFormPage() {
       tasks = tasks.map((t: any) => {
         if (t.id === auditId || t.audit_code === auditId) {
           found = true;
-          return { ...t, status: "Submitted" };
+          return { ...t, status: "Under Review" };
         }
         return t;
       });
@@ -343,7 +343,7 @@ function AuditFormPage() {
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
           due_date: new Date().toISOString().split("T")[0],
-          status: "Submitted",
+          status: "Under Review",
         });
       }
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));

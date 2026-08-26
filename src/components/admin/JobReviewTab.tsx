@@ -44,15 +44,14 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
     };
   }, []);
 
-  const handleApprove = (item: SubmittedAuditItem) => {
+  const handleMoveToCompleted = (item: SubmittedAuditItem) => {
     if (!isAdmin) {
-      toast.error("Access Denied: Only Admins can approve submitted jobs.");
+      toast.error("Access Denied: Only Admins can move audits from Under Review to Completed.");
       return;
     }
     const adminSig = authenticateAndGetSignature("690867"); // Admin KARTHIKEYAN C
-    updateSubmittedAuditStatus(item.id, "Approved", `Approved & Signed by Admin Lead (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
+    updateSubmittedAuditStatus(item.id, "Completed", `Approved & Signed by Admin Lead (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
 
-    // Also update main task status to Completed in sakthi_excel_tasks_v8 so it moves to Completed Audit
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("sakthi_excel_tasks_v8");
       if (stored) {
@@ -95,17 +94,16 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       }
     }
 
-    toast.success(`Job ${item.audit_code} for ${item.employee_name} approved with Admin E-Signature & moved to Completed Audit!`);
+    toast.success(`Audit ${item.audit_code} verified & moved to Audit Completed!`);
   };
 
-  const handleReject = (item: SubmittedAuditItem) => {
+  const handleMoveToDeviation = (item: SubmittedAuditItem) => {
     if (!isAdmin) {
-      toast.error("Access Denied: Only Admins can reject submitted jobs.");
+      toast.error("Access Denied: Only Admins can move audits from Under Review to Deviations.");
       return;
     }
-    updateSubmittedAuditStatus(item.id, "Not Completed", "Not Approved by Admin — Marked as Not Completed");
+    updateSubmittedAuditStatus(item.id, "Deviation", "Moved to Deviations by Admin Review");
 
-    // Also update main task status to Not Completed in sakthi_excel_tasks_v8
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("sakthi_excel_tasks_v8");
       if (stored) {
@@ -117,8 +115,8 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
               updated = true;
               return {
                 ...t,
-                status: "Not Completed",
-                final_result: "REJECTED / NOT COMPLETED",
+                status: "Deviation",
+                final_result: "DEVIATION IDENTIFIED",
               };
             }
             return t;
@@ -134,8 +132,8 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
               month: new Date().getMonth() + 1,
               year: new Date().getFullYear(),
               due_date: new Date().toISOString().split("T")[0],
-              status: "Not Completed",
-              final_result: "REJECTED / NOT COMPLETED",
+              status: "Deviation",
+              final_result: "DEVIATION IDENTIFIED",
             });
           }
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
@@ -144,9 +142,35 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           // Ignore
         }
       }
+
+      const storedDevs = localStorage.getItem("sakthi_deviations");
+      let devs = storedDevs ? JSON.parse(storedDevs) : [];
+      const newDevCode = item.audit_code.replace("AUD-", "DEV-").replace("REV-", "DEV-");
+      if (!devs.some((d: any) => d.dev_code === newDevCode || d.audit_id === item.id)) {
+        devs.unshift({
+          id: `dev-${Date.now()}`,
+          audit_id: item.id,
+          dev_code: newDevCode.startsWith("DEV-") ? newDevCode : `DEV-${newDevCode}`,
+          description: `Deviation identified during Admin Audit Review for ${item.part_name} (${item.part_no})`,
+          observed_condition: `Quality issue identified by Admin during verification of audit ${item.audit_code}`,
+          location_operation: item.department,
+          employee_number: item.employee_number,
+          severity: "High",
+          status: "Open",
+          created_at: new Date().toISOString().split("T")[0],
+          responsible_person: item.employee_number,
+          department: item.department,
+          corrective_action: "Action Assigned to QA / Maintenance Team",
+          due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+          closure_status: "Open",
+          product_part_number: item.part_no,
+        });
+        localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
+        window.dispatchEvent(new Event("sakthi_deviations_updated"));
+      }
     }
 
-    toast.error(`Job ${item.audit_code} rejected by Admin. Audit moved to 'Not Completed'.`);
+    toast.warning(`Deviation recorded for Audit ${item.audit_code}. Audit moved to Deviations!`);
   };
 
   const filtered = submittedList.filter((item) => {
@@ -162,16 +186,16 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
     const matchesStatus =
       statusFilter === "ALL" ||
-      (statusFilter === "Submitted" && item.status === "Submitted") ||
-      (statusFilter === "Approved" && (item.status === "Approved" || item.status === "Completed")) ||
-      ((statusFilter === "Not Completed" || statusFilter === "Rejected") && (item.status === "Not Completed" || item.status === "Rejected"));
+      ((statusFilter === "Under Review" || statusFilter === "Submitted") && (item.status === "Under Review" || item.status === "Submitted")) ||
+      (statusFilter === "Completed" && (item.status === "Completed" || item.status === "Approved")) ||
+      (statusFilter === "Deviation" && item.status === "Deviation");
 
     return matchesSearch && matchesStatus;
   });
 
-  const pendingCount = submittedList.filter((s) => s.status === "Submitted").length;
-  const approvedCount = submittedList.filter((s) => s.status === "Approved" || s.status === "Completed").length;
-  const rejectedCount = submittedList.filter((s) => s.status === "Not Completed" || s.status === "Rejected").length;
+  const underReviewCount = submittedList.filter((s) => s.status === "Under Review" || s.status === "Submitted").length;
+  const completedCount = submittedList.filter((s) => s.status === "Completed" || s.status === "Approved").length;
+  const deviationCount = submittedList.filter((s) => s.status === "Deviation").length;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
@@ -191,7 +215,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
             </span>
           </div>
           <p className="mt-1 text-xs font-medium text-slate-500">
-            Review employee-submitted quality audits, verify checkpoint parameters, and assign administrative Approve or Reject status.
+            Review employee-submitted quality audits, verify checkpoint parameters, and move to Completed or Deviations.
           </p>
         </div>
 
@@ -206,39 +230,39 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
       {/* KPI Highlight Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-          <div className="flex items-center justify-between text-amber-700">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+          <div className="flex items-center justify-between text-indigo-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
-              Pending Admin Review
+              Under Review
             </span>
-            <Clock className="h-4 w-4 text-amber-600" />
+            <Clock className="h-4 w-4 text-indigo-600" />
           </div>
-          <p className="mt-2 text-2xl font-black text-amber-900 tabular-nums">
-            {pendingCount} Jobs
+          <p className="mt-2 text-2xl font-black text-indigo-900 tabular-nums">
+            {underReviewCount} Jobs
           </p>
         </div>
 
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
           <div className="flex items-center justify-between text-emerald-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
-              Approved Audits
+              Audit Completed
             </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <p className="mt-2 text-2xl font-black text-emerald-900 tabular-nums">
-            {approvedCount} Jobs
+            {completedCount} Jobs
           </p>
         </div>
 
         <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
           <div className="flex items-center justify-between text-rose-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
-              Not Completed / Rejected
+              Deviations
             </span>
             <XCircle className="h-4 w-4 text-rose-600" />
           </div>
           <p className="mt-2 text-2xl font-black text-rose-900 tabular-nums">
-            {rejectedCount} Jobs
+            {deviationCount} Jobs
           </p>
         </div>
       </div>
@@ -259,7 +283,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-500" />
           <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
-            {["ALL", "Submitted", "Approved", "Not Completed"].map((st) => (
+            {["ALL", "Under Review", "Completed", "Deviation"].map((st) => (
               <button
                 key={st}
                 type="button"
@@ -270,7 +294,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                {st === "Submitted" ? "Pending Review" : st}
+                {st}
               </button>
             ))}
           </div>
@@ -288,16 +312,16 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                 <th className="p-3 font-bold min-w-[200px]">Part Name</th>
                 <th className="p-3 font-bold min-w-[180px]">Submitted By Employee</th>
                 <th className="p-3 font-bold w-40">Submission Date</th>
-                <th className="p-3 font-bold w-28 text-center">Status</th>
-                <th className="p-3 font-bold w-44 text-center">Admin Verification Action</th>
+                <th className="p-3 font-bold w-32 text-center">Status</th>
+                <th className="p-3 font-bold w-52 text-center">Admin Verification Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
               {filtered.map((item) => {
                 const subDate = new Date(item.submitted_date);
-                const isPending = item.status === "Submitted";
-                const isApproved = item.status === "Approved" || item.status === "Completed";
-                const isRejected = item.status === "Rejected";
+                const isUnderReview = item.status === "Under Review" || item.status === "Submitted";
+                const isCompleted = item.status === "Completed" || item.status === "Approved";
+                const isDeviation = item.status === "Deviation";
 
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
@@ -345,19 +369,19 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
                     {/* Status Badge */}
                     <td className="p-3 text-center">
-                      {isApproved && (
+                      {isCompleted && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Approved
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Completed
                         </span>
                       )}
-                      {isPending && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-300">
-                          <Clock className="h-3 w-3 text-amber-600" /> Pending Review
+                      {isUnderReview && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
+                          <Clock className="h-3 w-3 text-indigo-600" /> Under Review
                         </span>
                       )}
-                      {isRejected && (
+                      {isDeviation && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800 border border-rose-300">
-                          <XCircle className="h-3 w-3 text-rose-600" /> Rejected
+                          <XCircle className="h-3 w-3 text-rose-600" /> Deviation
                         </span>
                       )}
                     </td>
@@ -368,41 +392,45 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                         <button
                           type="button"
                           onClick={() => setSelectedJobForReview(item)}
-                          className="flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all shadow-2xs"
+                          className="flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all shadow-2xs"
                           title="View submitted evidence photos, parameter checkpoints, and authenticated E-Signature"
                         >
                           <Eye className="h-3.5 w-3.5 text-indigo-700" />
-                          Review Evidence
+                          Review
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => handleApprove(item)}
-                          disabled={!isAdmin || isApproved}
+                          onClick={() => handleMoveToCompleted(item)}
+                          disabled={!isAdmin || isCompleted}
                           className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
-                            isApproved
+                            isCompleted
                               ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default opacity-80"
+                              : !isAdmin
+                              ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                               : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
                           }`}
-                          title="Approve employee audit submission"
+                          title={!isAdmin ? "Admin access required" : "Move to Audit Completed"}
                         >
                           <Check className="h-3.5 w-3.5" />
-                          {isApproved ? "Approved" : "Approve"}
+                          Completed
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => handleReject(item)}
-                          disabled={!isAdmin || isRejected}
+                          onClick={() => handleMoveToDeviation(item)}
+                          disabled={!isAdmin || isDeviation}
                           className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
-                            isRejected
+                            isDeviation
                               ? "bg-rose-50 text-rose-600 border border-rose-200 cursor-default opacity-80"
+                              : !isAdmin
+                              ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                               : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
                           }`}
-                          title="Reject audit submission and return for revision"
+                          title={!isAdmin ? "Admin access required" : "Move to Deviations"}
                         >
                           <X className="h-3.5 w-3.5" />
-                          {isRejected ? "Rejected" : "Reject"}
+                          Deviation
                         </button>
                       </div>
                     </td>
@@ -525,25 +553,25 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                 <Button
                   size="sm"
                   onClick={() => {
-                    handleReject(selectedJobForReview);
+                    handleMoveToDeviation(selectedJobForReview);
                     setSelectedJobForReview(null);
                   }}
-                  disabled={selectedJobForReview.status === "Rejected"}
+                  disabled={!isAdmin || selectedJobForReview.status === "Deviation"}
                   className="bg-rose-600 text-white font-bold hover:bg-rose-700 gap-1.5 shadow-xs"
                 >
-                  <X className="h-4 w-4" /> Reject Submission
+                  <X className="h-4 w-4" /> Move to Deviations
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={() => {
-                    handleApprove(selectedJobForReview);
+                    handleMoveToCompleted(selectedJobForReview);
                     setSelectedJobForReview(null);
                   }}
-                  disabled={selectedJobForReview.status === "Approved" || selectedJobForReview.status === "Completed"}
+                  disabled={!isAdmin || selectedJobForReview.status === "Completed" || selectedJobForReview.status === "Approved"}
                   className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 gap-1.5 shadow-xs"
                 >
-                  <Check className="h-4 w-4" /> Approve & Sign Off Audit
+                  <Check className="h-4 w-4" /> Move to Completed
                 </Button>
               </div>
             </div>
