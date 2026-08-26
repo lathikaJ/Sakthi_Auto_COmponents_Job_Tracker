@@ -8,10 +8,14 @@ export type SubmittedAuditItem = {
   department: string;
   submitted_date: string; // ISO format
   formatted_submitted_date: string;
-  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review" | "Not Completed" | "Deviation";
+  status: "Submitted" | "Approved" | "Rejected" | "Completed" | "Under Review" | "Not Completed" | "Deviation" | "Page 1 Approved" | "Page 2 Submitted";
   checkpoints_count?: number;
   failing_count?: number;
   admin_notes?: string;
+  deviation_id?: string;
+  deviation_code?: string;
+  page1_approved?: boolean;
+  page2_submitted?: boolean;
 };
 
 const STORAGE_KEY = "sakthi_submitted_audits_v2";

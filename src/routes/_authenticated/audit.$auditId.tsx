@@ -356,7 +356,7 @@ function AuditFormPage() {
     }, 1200);
   };
 
-  // Raise Deviation
+  // Raise Deviation (2-Page Deviation Report Workflow)
   const handleRaiseDeviation = () => {
     const failed = checkpoints.filter((cp) => cp.status === "Fail");
     if (failed.length === 0) return;
@@ -366,11 +366,13 @@ function AuditFormPage() {
       .join(" | ");
 
     const prefill = {
-      title: `Audit ${auditId} — Checkpoint Failure: ${failed.map((c) => c.parameter || "Unknown").join(", ")}`,
+      audit_id: auditId,
+      title: `Audit ${auditId} Deviation — ${partName}`,
       observed_condition: desc,
-      location: `Audit ID: ${auditId}`,
+      location: `Audit ${auditId} — ${customer}`,
       severity: "High" as const,
-      assigned_emp: profile?.employee_number || "690867",
+      assigned_emp: profile?.employee_number || "688079",
+      segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
     };
 
     if (typeof window !== "undefined") {
@@ -393,7 +395,7 @@ function AuditFormPage() {
         }
       }
     }
-    toast.info("Navigating to Deviations — task moved to Deviation Observation.");
+    toast.info("Navigating to 2-Page Deviation Report Format — Please complete Page 1 details.");
     navigate({ to: "/deviations" });
   };
 
