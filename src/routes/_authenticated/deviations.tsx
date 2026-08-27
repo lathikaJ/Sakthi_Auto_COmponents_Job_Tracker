@@ -16,8 +16,6 @@ import {
   Printer,
   AlertCircle,
   Download,
-  ArrowRight,
-  FileCheck2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
@@ -25,96 +23,222 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
-import { getSubmittedAudits, updateSubmittedAuditStatus } from "@/lib/submittedAudits";
+import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
 
 export const Route = createFileRoute("/_authenticated/deviations")({
   component: DeviationsPage,
 });
 
+export type DeviationObservationItem = {
+  sl_no: number;
+  specification: string;
+  obs1: string;
+  obs2: string;
+  obs3: string;
+  obs4: string;
+  obs5: string;
+  obs6: string;
+  remarks: string;
+};
+
+export type DeviationCapaItem = {
+  date: string;
+  part_name: string;
+  part_no: string;
+  non_conformance: string;
+  root_cause: string;
+  corrective_action: string;
+};
+
 export type DeviationItem = {
   id: string;
   audit_id?: string;
   dev_code: string;
-  description: string; // Deviation Title
+  description: string; // Deviation Title / Summary
   observed_condition: string;
   location_operation: string; // Location / Plant / Line
   employee_number: string;
-  severity: "Low" | "Medium" | "High" | "Critical"; // Severity
+  severity: "Low" | "Medium" | "High" | "Critical";
   status: "open" | "page1_submitted" | "page1_approved" | "page2_submitted" | "under_review" | "closed";
-  corrective_action: string;
-  recommended_action: string;
   created_at: string;
 
-  // Page 1: Deviation Report Format Fields
-  segregated_qty: string;
-  ok_qty: string;
-  ng_qty: string;
-  root_cause: string;
-  segregated_by: string; // Segregated By: Employee Name
-  employee_signature?: string; // Segregated By: Signature
-  approved_by: string; // Approved By: Approved Name
-  approved_by_signature: string; // Approved By: Signature
-  report_attached: boolean;
+  // Page 1 Specific Fields (Matching Image 1: DEVIATION REPORT QF/08/CQA-55)
+  report_date: string;
+  from_dept: string;
+  to_dept: string;
+  part_name: string;
+  part_number: string;
+  stage: "INPROCESS" | "FINISHED" | "DEVELOPMENT";
+  observations: DeviationObservationItem[];
+  cc: string;
+  doc_code: string; // "QF/08/CQA-55"
+  doc_date: string; // "25.12.2015"
+  inspected_by: string;
+  inspected_by_signature?: string;
+  approved_by: string;
+  approved_by_signature?: string;
 
   // Page 1 Admin Approval
   page1_approved?: boolean;
   page1_approved_by?: string;
   page1_approved_at?: string;
 
-  // Page 2: Root Cause & Corrective Action Report Fields
+  // Page 2 Specific Fields (Matching Image 2: RCA, CAPA & QUARANTINE DETAILS)
   page2_submitted?: boolean;
-  page2_root_cause?: string;
-  page2_corrective_action?: string;
-  page2_preventive_action?: string;
-  page2_responsible?: string;
-  page2_target_date?: string;
+  capa_items: DeviationCapaItem[];
+  quarantine_segregated_qty: string;
+  quarantine_ok_qty: string;
+  quarantine_not_ok_qty: string;
+  quarantine_segregated_by: string;
+  quarantine_segregated_by_signature?: string;
+  quarantine_approved_by: string;
+  quarantine_approved_by_signature?: string;
   page2_attachment_name?: string;
   page2_submitted_at?: string;
+
+  // Legacy fallback compatibility
+  segregated_qty?: string;
+  ok_qty?: string;
+  ng_qty?: string;
+  root_cause?: string;
+  corrective_action?: string;
+  recommended_action?: string;
+  segregated_by?: string;
+  employee_signature?: string;
+  report_attached?: boolean;
 
   // Dual Approval
   both_approved?: boolean;
   final_approved_by?: string;
 };
 
+const getTodayDateStr = (): string => {
+  return new Date().toISOString().split("T")[0] || new Date().toISOString();
+};
+
+const DEFAULT_OBSERVATIONS: DeviationObservationItem[] = [
+  {
+    sl_no: 1,
+    specification: "Knuckle Bore Dia Ø 62.00 +0.02 / +0.05 mm",
+    obs1: "62.05",
+    obs2: "62.06",
+    obs3: "62.06",
+    obs4: "62.05",
+    obs5: "62.07",
+    obs6: "62.06",
+    remarks: "Oversize by 0.01 ~ 0.02 mm",
+  },
+  {
+    sl_no: 2,
+    specification: "Strut Mounting Surface Flatness < 0.05 mm",
+    obs1: "0.03",
+    obs2: "0.04",
+    obs3: "0.05",
+    obs4: "0.04",
+    obs5: "0.06",
+    obs6: "0.05",
+    remarks: "Sample #5 out of tolerance",
+  },
+  {
+    sl_no: 3,
+    specification: "Caliper Mounting Hole Pitch 120.0 ± 0.1 mm",
+    obs1: "120.05",
+    obs2: "120.08",
+    obs3: "120.02",
+    obs4: "120.06",
+    obs5: "120.04",
+    obs6: "120.07",
+    remarks: "Within specified limit",
+  },
+];
+
+const DEFAULT_CAPA_ITEMS: DeviationCapaItem[] = [
+  {
+    date: getTodayDateStr(),
+    part_name: "STEERING KNUCKLE",
+    part_no: "45110-M86R00",
+    non_conformance: "Bore Oversize (+0.01 ~ 0.02mm) observed in sample #5 & #6",
+    root_cause: "Insert tip wear out during long run machining & coolant jet misaligned",
+    corrective_action: "Replaced tool insert, realigned coolant jet nozzle, and 100% re-inspected lot.",
+  },
+];
+
 function DeviationsPage() {
   const { profile, isAdmin } = useAuth();
   const [deviations, setDeviations] = useState<DeviationItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<1 | 2>(1); // Page 1 vs Page 2
   const [editingDevId, setEditingDevId] = useState<string | null>(null);
   const [viewReportDev, setViewReportDev] = useState<DeviationItem | null>(null);
 
-  const empSigInputRef = useRef<HTMLInputElement>(null);
-  const appSigInputRef = useRef<HTMLInputElement>(null);
+  const inspectedSigInputRef = useRef<HTMLInputElement>(null);
+  const approvedSigInputRef = useRef<HTMLInputElement>(null);
+  const segSigInputRef = useRef<HTMLInputElement>(null);
+  const quarantineAppSigInputRef = useRef<HTMLInputElement>(null);
   const page2FileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State (Page 1 & Page 2 combined)
-  const [formData, setFormData] = useState({
+  // Form State (Page 1 & Page 2 matching Image 1 and Image 2)
+  const [formData, setFormData] = useState<{
+    audit_id: string;
+    title: string;
+    location: string;
+    severity: "Low" | "Medium" | "High" | "Critical";
+    report_date: string;
+    from_dept: string;
+    to_dept: string;
+    part_name: string;
+    part_number: string;
+    stage: "INPROCESS" | "FINISHED" | "DEVELOPMENT";
+    observations: DeviationObservationItem[];
+    cc: string;
+    doc_code: string;
+    doc_date: string;
+    inspected_by: string;
+    inspected_by_signature: string;
+    approved_by: string;
+    approved_by_signature: string;
+
+    capa_items: DeviationCapaItem[];
+    quarantine_segregated_qty: string;
+    quarantine_ok_qty: string;
+    quarantine_not_ok_qty: string;
+    quarantine_segregated_by: string;
+    quarantine_segregated_by_signature: string;
+    quarantine_approved_by: string;
+    quarantine_approved_by_signature: string;
+    page2_attachment_name: string;
+  }>({
     audit_id: "",
-    title: "",
-    location: "Machine Shop - Line 1",
-    severity: "High" as "Low" | "Medium" | "High" | "Critical",
-    assigned_emp: profile?.employee_number || "688079",
-    observed_condition: "",
-    segregated_qty: "100",
-    ok_qty: "95",
-    ng_qty: "5",
-    root_cause: "Tool wear out during long run machining causing dimensional variation beyond tolerance limits.",
-    segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-    employee_signature: "",
+    title: "Steering Knuckle Bore Oversize Non-Conformance",
+    location: "Machine Shop Line 1 / Plant 2",
+    severity: "High",
+    report_date: getTodayDateStr(),
+    from_dept: "QUALITY ASSURANCE / LINE 1",
+    to_dept: "PRODUCTION & MANUFACTURING",
+    part_name: "STEERING KNUCKLE",
+    part_number: "45110-M86R00",
+    stage: "INPROCESS",
+    observations: DEFAULT_OBSERVATIONS,
+    cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
+    doc_code: "QF/08/CQA-55",
+    doc_date: "25.12.2015",
+    inspected_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+    inspected_by_signature: "",
     approved_by: "KARTHIKEYAN C (690867)",
     approved_by_signature: "",
 
-    // Page 2 fields
-    page2_root_cause: "5-Why Root Cause Analysis: Insert tip micro-chipping due to coolant flow interruption at spindle unit #3.",
-    page2_corrective_action: "Replaced tool insert, re-calibrated spindle unit, and re-inspected entire 100 pcs lot.",
-    page2_preventive_action: "Installed automated coolant flow monitor with auto-shutoff sensor on Line 1.",
-    page2_responsible: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-    page2_target_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+    capa_items: DEFAULT_CAPA_ITEMS,
+    quarantine_segregated_qty: "100",
+    quarantine_ok_qty: "95",
+    quarantine_not_ok_qty: "5",
+    quarantine_segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+    quarantine_segregated_by_signature: "",
+    quarantine_approved_by: "KARTHIKEYAN C (690867)",
+    quarantine_approved_by_signature: "",
     page2_attachment_name: "",
   });
 
@@ -125,20 +249,107 @@ function DeviationsPage() {
     if (sigObj?.signature_url) {
       setFormData((prev) => ({
         ...prev,
-        employee_signature: sigObj.signature_url,
+        inspected_by_signature: sigObj.signature_url,
         approved_by_signature: sigObj.signature_url,
+        quarantine_segregated_by_signature: sigObj.signature_url,
+        quarantine_approved_by_signature: sigObj.signature_url,
       }));
     }
   }, [profile?.employee_number]);
 
-  // Load stored deviations
+  // Load stored deviations with backward compatibility for old items
   const loadDeviations = () => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("sakthi_deviations");
       if (stored) {
         try {
-          const parsed: DeviationItem[] = JSON.parse(stored);
-          const live = parsed.filter((d) => !d.id.startsWith("demo-dev-"));
+          const parsed: any[] = JSON.parse(stored);
+          const today = getTodayDateStr();
+          const live: DeviationItem[] = parsed
+            .filter((d) => !d.id?.startsWith("demo-dev-"))
+            .map((d): DeviationItem => {
+              const obsList: DeviationObservationItem[] = Array.isArray(d.observations) && d.observations.length > 0
+                ? d.observations.map((obs: any, index: number): DeviationObservationItem => ({
+                    sl_no: typeof obs?.sl_no === "number" ? obs.sl_no : index + 1,
+                    specification: String(obs?.specification || ""),
+                    obs1: String(obs?.obs1 || ""),
+                    obs2: String(obs?.obs2 || ""),
+                    obs3: String(obs?.obs3 || ""),
+                    obs4: String(obs?.obs4 || ""),
+                    obs5: String(obs?.obs5 || ""),
+                    obs6: String(obs?.obs6 || ""),
+                    remarks: String(obs?.remarks || ""),
+                  }))
+                : DEFAULT_OBSERVATIONS;
+
+              const capaList: DeviationCapaItem[] = Array.isArray(d.capa_items) && d.capa_items.length > 0
+                ? d.capa_items.map((item: any): DeviationCapaItem => ({
+                    date: String(item?.date || d.created_at || today),
+                    part_name: String(item?.part_name || d.part_name || "STEERING KNUCKLE"),
+                    part_no: String(item?.part_no || d.part_number || "45110-M86R00"),
+                    non_conformance: String(item?.non_conformance || d.observed_condition || d.description || ""),
+                    root_cause: String(item?.root_cause || d.page2_root_cause || d.root_cause || ""),
+                    corrective_action: String(item?.corrective_action || d.page2_corrective_action || d.corrective_action || ""),
+                  }))
+                : [
+                    {
+                      date: String(d.created_at || today),
+                      part_name: String(d.part_name || "STEERING KNUCKLE"),
+                      part_no: String(d.part_number || d.product_part_number || "45110-M86R00"),
+                      non_conformance: String(d.observed_condition || d.description || "Bore Oversize (+0.01~0.02mm)"),
+                      root_cause: String(d.page2_root_cause || d.root_cause || "Insert tip wear out during long run machining"),
+                      corrective_action: String(d.page2_corrective_action || d.corrective_action || "Replaced tool insert and re-inspected lot."),
+                    },
+                  ];
+
+              return {
+                id: String(d.id || `dev-${Date.now()}`),
+                audit_id: d.audit_id || "",
+                dev_code: String(d.dev_code || `DEV-2026-${Math.floor(100 + Math.random() * 900)}`),
+                description: String(d.description || d.part_name || "Plant Non-Conformance"),
+                observed_condition: String(d.observed_condition || d.root_cause || "Non-conformance identified during process audit."),
+                location_operation: String(d.location_operation || d.department || "Machine Shop - Line 1"),
+                employee_number: String(d.employee_number || "688079"),
+                severity: (d.severity || "High") as "Low" | "Medium" | "High" | "Critical",
+                status: (d.status || "page1_submitted") as any,
+                created_at: String(d.created_at || today),
+
+                report_date: String(d.report_date || d.created_at || today),
+                from_dept: String(d.from_dept || "QUALITY ASSURANCE"),
+                to_dept: String(d.to_dept || "PRODUCTION"),
+                part_name: String(d.part_name || "STEERING KNUCKLE"),
+                part_number: String(d.part_number || d.product_part_number || "45110-M86R00"),
+                stage: (d.stage || "INPROCESS") as "INPROCESS" | "FINISHED" | "DEVELOPMENT",
+                observations: obsList,
+                cc: String(d.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"),
+                doc_code: String(d.doc_code || "QF/08/CQA-55"),
+                doc_date: String(d.doc_date || "25.12.2015"),
+                inspected_by: String(d.inspected_by || d.segregated_by || "SILAMBARASAN S (688079)"),
+                inspected_by_signature: d.inspected_by_signature || d.employee_signature || "",
+                approved_by: String(d.approved_by || "KARTHIKEYAN C (690867)"),
+                approved_by_signature: d.approved_by_signature || "",
+
+                page1_approved: Boolean(d.page1_approved),
+                page1_approved_by: String(d.page1_approved_by || ""),
+                page1_approved_at: String(d.page1_approved_at || ""),
+
+                page2_submitted: Boolean(d.page2_submitted),
+                capa_items: capaList,
+                quarantine_segregated_qty: String(d.quarantine_segregated_qty || d.segregated_qty || "100"),
+                quarantine_ok_qty: String(d.quarantine_ok_qty || d.ok_qty || "95"),
+                quarantine_not_ok_qty: String(d.quarantine_not_ok_qty || d.ng_qty || "5"),
+                quarantine_segregated_by: String(d.quarantine_segregated_by || d.segregated_by || "SILAMBARASAN S (688079)"),
+                quarantine_segregated_by_signature: d.quarantine_segregated_by_signature || d.employee_signature || "",
+                quarantine_approved_by: String(d.quarantine_approved_by || d.approved_by || "KARTHIKEYAN C (690867)"),
+                quarantine_approved_by_signature: d.quarantine_approved_by_signature || d.approved_by_signature || "",
+                page2_attachment_name: String(d.page2_attachment_name || ""),
+                page2_submitted_at: String(d.page2_submitted_at || ""),
+
+                both_approved: Boolean(d.both_approved),
+                final_approved_by: String(d.final_approved_by || ""),
+              };
+            });
+
           setDeviations(live);
           return;
         } catch {
@@ -163,12 +374,12 @@ function DeviationsPage() {
           setFormData((prev) => ({
             ...prev,
             audit_id: prefill.audit_id || "",
-            title: prefill.title || "",
-            observed_condition: prefill.observed_condition || "",
+            title: prefill.title || "Audit Non-Conformance Deviation",
+            part_name: prefill.part_name || prev.part_name,
+            part_number: prefill.part_no || prev.part_number,
             location: prefill.location || "Audit Checkpoint",
             severity: prefill.severity || "High",
-            assigned_emp: prefill.assigned_emp || profile?.employee_number || "688079",
-            segregated_by: prefill.segregated_by || prev.segregated_by,
+            inspected_by: prefill.segregated_by || prev.inspected_by,
           }));
           setEditingDevId(null);
           setActiveTab(1);
@@ -191,60 +402,47 @@ function DeviationsPage() {
     }
   };
 
-  // Quantity Validation Rule: Segregated Quantity = OK Quantity + NG Quantity
-  const numSeg = parseInt(formData.segregated_qty || "0", 10);
-  const numOK = parseInt(formData.ok_qty || "0", 10);
-  const numNG = parseInt(formData.ng_qty || "0", 10);
-  const isQtyValid = !isNaN(numSeg) && !isNaN(numOK) && !isNaN(numNG) && numSeg > 0 && (numOK + numNG === numSeg);
+  // Quantity Validation Rule: Segregated Quantity = OK Quantity + NOT OK Quantity
+  const numSeg = parseInt(formData.quarantine_segregated_qty || "0", 10);
+  const numOK = parseInt(formData.quarantine_ok_qty || "0", 10);
+  const numNotOK = parseInt(formData.quarantine_not_ok_qty || "0", 10);
+  const isQtyValid = !isNaN(numSeg) && !isNaN(numOK) && !isNaN(numNotOK) && numSeg > 0 && (numOK + numNotOK === numSeg);
 
-  // Form Page 1 Validation
+  // Form Page 1 Validation (Image 1)
   const isPage1Valid =
     formData.title.trim() !== "" &&
-    formData.location.trim() !== "" &&
-    formData.segregated_qty.trim() !== "" &&
-    formData.ok_qty.trim() !== "" &&
-    formData.ng_qty.trim() !== "" &&
-    formData.root_cause.trim() !== "" &&
-    formData.segregated_by.trim() !== "" &&
+    formData.part_name.trim() !== "" &&
+    formData.part_number.trim() !== "" &&
+    formData.from_dept.trim() !== "" &&
+    formData.to_dept.trim() !== "" &&
+    formData.inspected_by.trim() !== "" &&
     formData.approved_by.trim() !== "" &&
-    Boolean(formData.approved_by_signature) &&
+    formData.observations.length > 0 &&
+    formData.observations.some((obs) => obs.specification.trim() !== "");
+
+  // Form Page 2 Validation (Image 2)
+  const isPage2Valid =
+    formData.capa_items.length > 0 &&
+    formData.capa_items.some((item) => item.non_conformance.trim() !== "" && item.root_cause.trim() !== "") &&
+    formData.quarantine_segregated_by.trim() !== "" &&
+    formData.quarantine_approved_by.trim() !== "" &&
     isQtyValid;
 
-  // Form Page 2 Validation
-  const isPage2Valid =
-    formData.page2_root_cause.trim() !== "" &&
-    formData.page2_corrective_action.trim() !== "" &&
-    formData.page2_preventive_action.trim() !== "" &&
-    formData.page2_responsible.trim() !== "";
-
-  // Signature & File Handlers
-  const handleEmpSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Signature Upload Handlers
+  const handleSignatureUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fieldKey: "inspected_by_signature" | "approved_by_signature" | "quarantine_segregated_by_signature" | "quarantine_approved_by_signature"
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        toast.error("Please upload an image file for Employee Signature.");
+        toast.error("Please upload an image file for Signature.");
         return;
       }
       const reader = new FileReader();
       reader.onload = (evt) => {
-        setFormData((prev) => ({ ...prev, employee_signature: evt.target?.result as string }));
-        toast.success("Employee Signature uploaded!");
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAppSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please upload an image file for Approved By Signature.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        setFormData((prev) => ({ ...prev, approved_by_signature: evt.target?.result as string }));
-        toast.success("Approved By E-Signature uploaded!");
+        setFormData((prev) => ({ ...prev, [fieldKey]: (evt.target?.result as string) || "" }));
+        toast.success("E-Signature uploaded!");
       };
       reader.readAsDataURL(file);
     }
@@ -258,44 +456,120 @@ function DeviationsPage() {
     }
   };
 
-  // Submit Page 1 (Deviation Report Format)
+  // Dynamic Row Handlers for Page 1 Observations Table
+  const handleAddObservationRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      observations: [
+        ...prev.observations,
+        {
+          sl_no: prev.observations.length + 1,
+          specification: "",
+          obs1: "",
+          obs2: "",
+          obs3: "",
+          obs4: "",
+          obs5: "",
+          obs6: "",
+          remarks: "",
+        },
+      ],
+    }));
+  };
+
+  const handleUpdateObservationRow = (index: number, key: keyof DeviationObservationItem, value: any) => {
+    setFormData((prev) => {
+      const updated: DeviationObservationItem[] = prev.observations.map((item, i) =>
+        i === index ? ({ ...item, [key]: value } as DeviationObservationItem) : item
+      );
+      return { ...prev, observations: updated };
+    });
+  };
+
+  const handleRemoveObservationRow = (index: number) => {
+    setFormData((prev) => {
+      const updated: DeviationObservationItem[] = prev.observations
+        .filter((_, i) => i !== index)
+        .map((obs, i) => ({ ...obs, sl_no: i + 1 }));
+      return { ...prev, observations: updated };
+    });
+  };
+
+  // Dynamic Row Handlers for Page 2 CAPA Table
+  const handleAddCapaRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      capa_items: [
+        ...prev.capa_items,
+        {
+          date: getTodayDateStr(),
+          part_name: prev.part_name || "",
+          part_no: prev.part_number || "",
+          non_conformance: "",
+          root_cause: "",
+          corrective_action: "",
+        },
+      ],
+    }));
+  };
+
+  const handleUpdateCapaRow = (index: number, key: keyof DeviationCapaItem, value: string) => {
+    setFormData((prev) => {
+      const updated: DeviationCapaItem[] = prev.capa_items.map((item, i) =>
+        i === index ? ({ ...item, [key]: value } as DeviationCapaItem) : item
+      );
+      return { ...prev, capa_items: updated };
+    });
+  };
+
+  const handleRemoveCapaRow = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      capa_items: prev.capa_items.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Submit Page 1 (Deviation Report Format QF/08/CQA-55)
   const handleSubmitPage1 = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isPage1Valid) {
-      if (!isQtyValid) {
-        toast.error(`Quantity Validation Failed: Segregated Quantity (${numSeg}) must equal OK Qty (${numOK}) + NG Qty (${numNG}) = ${numOK + numNG}.`);
-      } else {
-        toast.error("Please complete all mandatory fields for Page 1.");
-      }
+      toast.error("Please complete all mandatory fields and specifications for Page 1.");
       return;
     }
 
+    const today = getTodayDateStr();
+
     if (editingDevId) {
       // Update existing deviation record
-      const updated = deviations.map((d) => {
+      const updated: DeviationItem[] = deviations.map((d): DeviationItem => {
         if (d.id === editingDevId) {
           return {
             ...d,
             description: formData.title,
             location_operation: formData.location,
             severity: formData.severity,
-            observed_condition: formData.observed_condition || d.observed_condition,
-            segregated_qty: formData.segregated_qty,
-            ok_qty: formData.ok_qty,
-            ng_qty: formData.ng_qty,
-            root_cause: formData.root_cause,
-            segregated_by: formData.segregated_by,
-            employee_signature: formData.employee_signature || d.employee_signature,
+            report_date: formData.report_date || today,
+            from_dept: formData.from_dept,
+            to_dept: formData.to_dept,
+            part_name: formData.part_name,
+            part_number: formData.part_number,
+            stage: formData.stage,
+            observations: formData.observations,
+            cc: formData.cc,
+            doc_code: formData.doc_code,
+            doc_date: formData.doc_date,
+            inspected_by: formData.inspected_by,
+            inspected_by_signature: formData.inspected_by_signature || d.inspected_by_signature || "",
             approved_by: formData.approved_by,
-            approved_by_signature: formData.approved_by_signature || d.approved_by_signature,
+            approved_by_signature: formData.approved_by_signature || d.approved_by_signature || "",
           };
         }
         return d;
       });
       await saveDeviationsList(updated);
       setIsModalOpen(false);
-      toast.success("Page 1 [Deviation Report Format] updated successfully!");
+      toast.success("Page 1 [Deviation Report Format QF/08/CQA-55] updated successfully!");
     } else {
       // Create new deviation record (Status: page1_submitted)
       const newCode = `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
@@ -304,32 +578,44 @@ function DeviationsPage() {
         audit_id: formData.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
         dev_code: newCode,
         description: formData.title,
+        observed_condition: formData.observations[0]?.specification || "Non-conformance identified during process audit.",
         location_operation: formData.location,
+        employee_number: profile?.employee_number || "688079",
         severity: formData.severity,
-        employee_number: formData.assigned_emp,
-        status: "page1_submitted", // Moves to Deviations Icon / module under review
-        observed_condition: formData.observed_condition || "Non-conformance identified during process audit.",
-        corrective_action: formData.page2_corrective_action,
-        recommended_action: "Preventative tool replacement and process parameter audit.",
-        created_at: new Date().toISOString().split("T")[0] ?? new Date().toISOString(),
+        status: "page1_submitted",
+        created_at: today,
 
-        segregated_qty: formData.segregated_qty,
-        ok_qty: formData.ok_qty,
-        ng_qty: formData.ng_qty,
-        root_cause: formData.root_cause,
-        segregated_by: formData.segregated_by,
-        employee_signature: formData.employee_signature || formData.approved_by_signature,
+        report_date: formData.report_date || today,
+        from_dept: formData.from_dept,
+        to_dept: formData.to_dept,
+        part_name: formData.part_name,
+        part_number: formData.part_number,
+        stage: formData.stage,
+        observations: formData.observations,
+        cc: formData.cc,
+        doc_code: formData.doc_code,
+        doc_date: formData.doc_date,
+        inspected_by: formData.inspected_by,
+        inspected_by_signature: formData.inspected_by_signature || formData.approved_by_signature || "",
         approved_by: formData.approved_by,
-        approved_by_signature: formData.approved_by_signature,
-        report_attached: true,
+        approved_by_signature: formData.approved_by_signature || "",
+
         page1_approved: false,
         page2_submitted: false,
+        capa_items: formData.capa_items,
+        quarantine_segregated_qty: formData.quarantine_segregated_qty,
+        quarantine_ok_qty: formData.quarantine_ok_qty,
+        quarantine_not_ok_qty: formData.quarantine_not_ok_qty,
+        quarantine_segregated_by: formData.quarantine_segregated_by,
+        quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature || "",
+        quarantine_approved_by: formData.quarantine_approved_by,
+        quarantine_approved_by_signature: formData.quarantine_approved_by_signature || "",
       };
 
       const updated = [newDev, ...deviations];
       await saveDeviationsList(updated);
       setIsModalOpen(false);
-      toast.success(`Page 1 [Deviation Report Format] ${newCode} submitted! Moves to Deviations icon for Admin Page 1 approval.`);
+      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Moves to Deviations icon for Admin Page 1 approval.`);
     }
   };
 
@@ -340,7 +626,7 @@ function DeviationsPage() {
       return;
     }
     const adminSig = authenticateAndGetSignature("690867");
-    const updated = deviations.map((d) => {
+    const updated: DeviationItem[] = deviations.map((d): DeviationItem => {
       if (d.id === dev.id) {
         return {
           ...d,
@@ -356,12 +642,16 @@ function DeviationsPage() {
     toast.success(`Page 1 of Deviation ${dev.dev_code} Approved by Admin! User can now download Page 1 and fill Page 2.`);
   };
 
-  // Submit Page 2 (Root Cause & Corrective Action Report) -> Moves both reports to Admin Under Review
+  // Submit Page 2 (RCA, CAPA & Quarantine Details - Image 2)
   const handleSubmitPage2 = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isPage2Valid) {
-      toast.error("Please complete all mandatory fields for Page 2 (Root Cause & CAPA).");
+      if (!isQtyValid) {
+        toast.error(`Quarantine Quantity Error: Segregated Qty (${numSeg}) must equal OK Qty (${numOK}) + NOT OK Qty (${numNotOK}) = ${numOK + numNotOK}.`);
+      } else {
+        toast.error("Please complete all mandatory fields for Page 2 (RCA, CAPA & Quarantine Details).");
+      }
       return;
     }
 
@@ -375,19 +665,22 @@ function DeviationsPage() {
 
     const nowIso = new Date().toISOString();
 
-    const updated = deviations.map((d) => {
+    const updated: DeviationItem[] = deviations.map((d): DeviationItem => {
       if (d.id === editingDevId) {
         return {
           ...d,
           page2_submitted: true,
-          page2_root_cause: formData.page2_root_cause,
-          page2_corrective_action: formData.page2_corrective_action,
-          page2_preventive_action: formData.page2_preventive_action,
-          page2_responsible: formData.page2_responsible,
-          page2_target_date: formData.page2_target_date,
+          capa_items: formData.capa_items,
+          quarantine_segregated_qty: formData.quarantine_segregated_qty,
+          quarantine_ok_qty: formData.quarantine_ok_qty,
+          quarantine_not_ok_qty: formData.quarantine_not_ok_qty,
+          quarantine_segregated_by: formData.quarantine_segregated_by,
+          quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature || "",
+          quarantine_approved_by: formData.quarantine_approved_by,
+          quarantine_approved_by_signature: formData.quarantine_approved_by_signature || "",
           page2_attachment_name: formData.page2_attachment_name || "RCA_CAPA_Report.pdf",
           page2_submitted_at: nowIso,
-          status: "under_review" as const, // Both reports move to Admin Under Review
+          status: "under_review" as const,
         };
       }
       return d;
@@ -395,16 +688,16 @@ function DeviationsPage() {
 
     await saveDeviationsList(updated);
 
-    // Also update linked Inspection Audit in sakthi_submitted_audits_v2 to "Under Review"
+    // Update linked Inspection Audit in sakthi_submitted_audits_v2 to "Under Review"
     if (currentDev.audit_id) {
-      updateSubmittedAuditStatus(currentDev.audit_id, "Under Review", "Page 2 Root Cause & CAPA submitted. Both reports under Admin review.");
+      updateSubmittedAuditStatus(currentDev.audit_id, "Under Review", "Page 2 Root Cause, CAPA & Quarantine details submitted. Under Admin review.");
     }
 
     setIsModalOpen(false);
-    toast.success(`Page 2 (Root Cause & CAPA) submitted! Both Inspection Report and Deviation Report are now Under Review to Admin.`);
+    toast.success(`Page 2 (RCA, CAPA & Quarantine Details) submitted! Both Inspection Report and Deviation Report are now Under Review to Admin.`);
   };
 
-  // Admin Dual Approval (Approves both reports: Inspection moves to Completed, Deviation remains in Deviations Icon, Count +1)
+  // Admin Dual Approval
   const handleAdminApproveBoth = async (dev: DeviationItem) => {
     if (!isAdmin) {
       toast.error("Access Denied: Only Admin can perform final dual approval.");
@@ -412,8 +705,7 @@ function DeviationsPage() {
     }
     const adminSig = authenticateAndGetSignature("690867");
 
-    // 1. Update Deviation Report in sakthi_deviations -> status = "closed", both_approved = true
-    const updatedDevs = deviations.map((d) => {
+    const updatedDevs: DeviationItem[] = deviations.map((d): DeviationItem => {
       if (d.id === dev.id) {
         return {
           ...d,
@@ -426,7 +718,6 @@ function DeviationsPage() {
     });
     await saveDeviationsList(updatedDevs);
 
-    // 2. Update linked Inspection Report in sakthi_submitted_audits_v2 & sakthi_excel_tasks_v8 -> status = "Completed"
     if (dev.audit_id) {
       updateSubmittedAuditStatus(dev.audit_id, "Completed", `Approved & Signed by Admin (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
     }
@@ -441,7 +732,7 @@ function DeviationsPage() {
               return {
                 ...t,
                 status: "Completed",
-                completion_date: new Date().toISOString().split("T")[0],
+                completion_date: getTodayDateStr(),
                 final_result: "PASS / COMPLIANT (DEVIATION RESOLVED)",
               };
             }
@@ -455,32 +746,41 @@ function DeviationsPage() {
       }
     }
 
-    toast.success(`Both Reports Approved by Admin! Inspection report moved to 'Completed Audit'. Deviation report ${dev.dev_code} remains in Deviations icon with count incremented.`);
+    toast.success(`Both Reports Approved by Admin! Inspection report moved to 'Completed Audit'. Deviation report ${dev.dev_code} closed.`);
   };
 
   const openModalForNew = () => {
     setEditingDevId(null);
     setActiveTab(1);
+    const today = getTodayDateStr();
     setFormData({
       audit_id: `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
-      title: "",
-      location: "Machine Shop - Line 1",
+      title: "Steering Knuckle Bore Oversize Non-Conformance",
+      location: "Machine Shop Line 1 / Plant 2",
       severity: "High",
-      assigned_emp: profile?.employee_number || "688079",
-      observed_condition: "",
-      segregated_qty: "100",
-      ok_qty: "95",
-      ng_qty: "5",
-      root_cause: "Tool wear out during long run machining causing dimensional variation beyond tolerance limits.",
-      segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-      employee_signature: "",
+      report_date: today,
+      from_dept: "QUALITY ASSURANCE / LINE 1",
+      to_dept: "PRODUCTION & MANUFACTURING",
+      part_name: "STEERING KNUCKLE",
+      part_number: "45110-M86R00",
+      stage: "INPROCESS",
+      observations: DEFAULT_OBSERVATIONS,
+      cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
+      doc_code: "QF/08/CQA-55",
+      doc_date: "25.12.2015",
+      inspected_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+      inspected_by_signature: "",
       approved_by: "KARTHIKEYAN C (690867)",
       approved_by_signature: "",
-      page2_root_cause: "5-Why Root Cause Analysis: Insert tip micro-chipping due to coolant flow interruption at spindle unit #3.",
-      page2_corrective_action: "Replaced tool insert, re-calibrated spindle unit, and re-inspected entire 100 pcs lot.",
-      page2_preventive_action: "Installed automated coolant flow monitor with auto-shutoff sensor on Line 1.",
-      page2_responsible: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-      page2_target_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+
+      capa_items: DEFAULT_CAPA_ITEMS,
+      quarantine_segregated_qty: "100",
+      quarantine_ok_qty: "95",
+      quarantine_not_ok_qty: "5",
+      quarantine_segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+      quarantine_segregated_by_signature: "",
+      quarantine_approved_by: "KARTHIKEYAN C (690867)",
+      quarantine_approved_by_signature: "",
       page2_attachment_name: "",
     });
     setIsModalOpen(true);
@@ -489,26 +789,35 @@ function DeviationsPage() {
   const openModalForEdit = (dev: DeviationItem, initialTab: 1 | 2 = 1) => {
     setEditingDevId(dev.id);
     setActiveTab(initialTab);
+    const today = getTodayDateStr();
     setFormData({
       audit_id: dev.audit_id || "",
       title: dev.description,
       location: dev.location_operation,
       severity: dev.severity,
-      assigned_emp: dev.employee_number,
-      observed_condition: dev.observed_condition,
-      segregated_qty: dev.segregated_qty || "100",
-      ok_qty: dev.ok_qty || "95",
-      ng_qty: dev.ng_qty || "5",
-      root_cause: dev.root_cause || "",
-      segregated_by: dev.segregated_by || "",
-      employee_signature: dev.employee_signature || "",
+      report_date: dev.report_date || dev.created_at || today,
+      from_dept: dev.from_dept || "QUALITY ASSURANCE",
+      to_dept: dev.to_dept || "PRODUCTION",
+      part_name: dev.part_name || "STEERING KNUCKLE",
+      part_number: dev.part_number || "45110-M86R00",
+      stage: dev.stage || "INPROCESS",
+      observations: dev.observations && dev.observations.length > 0 ? dev.observations : DEFAULT_OBSERVATIONS,
+      cc: dev.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
+      doc_code: dev.doc_code || "QF/08/CQA-55",
+      doc_date: dev.doc_date || "25.12.2015",
+      inspected_by: dev.inspected_by || dev.segregated_by || "SILAMBARASAN S (688079)",
+      inspected_by_signature: dev.inspected_by_signature || dev.employee_signature || "",
       approved_by: dev.approved_by || "KARTHIKEYAN C (690867)",
       approved_by_signature: dev.approved_by_signature || "",
-      page2_root_cause: dev.page2_root_cause || "5-Why Root Cause Analysis: Insert tip micro-chipping due to coolant flow interruption at spindle unit #3.",
-      page2_corrective_action: dev.page2_corrective_action || dev.corrective_action || "Replaced tool insert and re-calibrated spindle unit.",
-      page2_preventive_action: dev.page2_preventive_action || "Installed automated coolant flow monitor with auto-shutoff sensor.",
-      page2_responsible: dev.page2_responsible || dev.segregated_by || "SILAMBARASAN S (688079)",
-      page2_target_date: dev.page2_target_date || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+
+      capa_items: dev.capa_items && dev.capa_items.length > 0 ? dev.capa_items : DEFAULT_CAPA_ITEMS,
+      quarantine_segregated_qty: dev.quarantine_segregated_qty || dev.segregated_qty || "100",
+      quarantine_ok_qty: dev.quarantine_ok_qty || dev.ok_qty || "95",
+      quarantine_not_ok_qty: dev.quarantine_not_ok_qty || dev.ng_qty || "5",
+      quarantine_segregated_by: dev.quarantine_segregated_by || dev.segregated_by || "SILAMBARASAN S (688079)",
+      quarantine_segregated_by_signature: dev.quarantine_segregated_by_signature || dev.employee_signature || "",
+      quarantine_approved_by: dev.quarantine_approved_by || dev.approved_by || "KARTHIKEYAN C (690867)",
+      quarantine_approved_by_signature: dev.quarantine_approved_by_signature || dev.approved_by_signature || "",
       page2_attachment_name: dev.page2_attachment_name || "",
     });
     setIsModalOpen(true);
@@ -531,6 +840,8 @@ function DeviationsPage() {
       return (
         d.dev_code.toLowerCase().includes(q) ||
         d.description.toLowerCase().includes(q) ||
+        d.part_name.toLowerCase().includes(q) ||
+        d.part_number.toLowerCase().includes(q) ||
         d.location_operation.toLowerCase().includes(q) ||
         d.employee_number.toLowerCase().includes(q)
       );
@@ -546,17 +857,17 @@ function DeviationsPage() {
   return (
     <AppShell
       title="Plant Deviation Tracker (2-Page CAPA Workflow)"
-      description="Record non-conformances across 2-page formats: Page 1 (Deviation Format) & Page 2 (Root Cause & Corrective Action) with multi-stage Admin approval."
+      description="Record non-conformances across official 2-page formats: Page 1 (Deviation Report QF/08/CQA-55) & Page 2 (RCA, CAPA & Quarantine Details) with multi-stage Admin approval."
     >
       <div className="space-y-6">
         {/* Header Action Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" /> Plant Non-Conformance & Deviation Register
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Sakthi Auto Plant Deviation Register (QF/08/CQA-55)
             </h2>
             <p className="text-xs text-slate-600 font-medium">
-              2-Page Deviation Life Cycle: Page 1 (Deviation Format) $\rightarrow$ Admin Page 1 Approval $\rightarrow$ User Page 1 Download $\rightarrow$ Page 2 (RCA & CAPA) $\rightarrow$ Dual Admin Approval.
+              2-Page Deviation Format: Page 1 (Deviation Report) &rarr; Admin P1 Approval &rarr; Page 2 (RCA, CAPA & Quarantine Details) &rarr; Dual Approval.
             </p>
           </div>
 
@@ -596,7 +907,7 @@ function DeviationsPage() {
 
         {/* Search & Filter Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-4 w-4 text-slate-500" />
             <button
               onClick={() => setStatusFilter("all")}
@@ -658,9 +969,9 @@ function DeviationsPage() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
                   <th className="p-3 w-28 font-bold">Dev Code</th>
-                  <th className="p-3 min-w-[200px] font-bold">Deviation Title</th>
-                  <th className="p-3 w-32 font-bold">Location</th>
-                  <th className="p-3 w-24 font-bold">Segregated Qty</th>
+                  <th className="p-3 min-w-[200px] font-bold">Part & Non-Conformance</th>
+                  <th className="p-3 w-32 font-bold">Stage & Line</th>
+                  <th className="p-3 w-28 font-bold">Segregated Qty</th>
                   <th className="p-3 w-32 font-bold">Page 1 Status</th>
                   <th className="p-3 w-32 font-bold">Page 2 Status</th>
                   <th className="p-3 w-44 font-bold text-center">Actions & Download</th>
@@ -673,19 +984,22 @@ function DeviationsPage() {
                     <tr key={dev.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3 font-mono font-bold text-brand">{dev.dev_code}</td>
                       <td className="p-3 space-y-1">
-                        <div className="font-bold text-slate-900 text-sm">{dev.description}</div>
+                        <div className="font-bold text-slate-900 text-sm">{dev.part_name} ({dev.part_number})</div>
                         <div className="text-xs text-slate-600 font-medium line-clamp-1">
-                          Root Cause: {dev.root_cause || dev.observed_condition}
+                          {dev.description}
                         </div>
                       </td>
                       <td className="p-3 font-semibold text-slate-700">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-800 uppercase mr-1 border border-slate-300">
+                          {dev.stage || "INPROCESS"}
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
+                          <Building2 className="h-3 w-3 text-slate-400" />
                           {dev.location_operation}
                         </div>
                       </td>
                       <td className="p-3 font-mono font-bold text-slate-900">
-                        {dev.segregated_qty || "100"} PCS
+                        {dev.quarantine_segregated_qty || dev.segregated_qty || "100"} PCS
                       </td>
                       <td className="p-3">
                         {dev.page1_approved ? (
@@ -717,7 +1031,7 @@ function DeviationsPage() {
                       </td>
                       <td className="p-3 text-center space-y-1">
                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          {/* View Report Button */}
+                          {/* View Official Format Report */}
                           <button
                             type="button"
                             onClick={() => setViewReportDev(dev)}
@@ -726,7 +1040,7 @@ function DeviationsPage() {
                             <FileText className="h-3 w-3 text-amber-600" /> View Report
                           </button>
 
-                          {/* Admin Approve Page 1 Button */}
+                          {/* Admin Approve Page 1 */}
                           {isAdmin && !dev.page1_approved && (
                             <button
                               type="button"
@@ -737,19 +1051,19 @@ function DeviationsPage() {
                             </button>
                           )}
 
-                          {/* Download Approved Page 1 Button */}
+                          {/* Download Approved Page 1 */}
                           {dev.page1_approved && (
                             <button
                               type="button"
                               onClick={() => setViewReportDev(dev)}
                               className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                              title="Download Approved Deviation Report (Page 1)"
+                              title="Download Approved Deviation Report (Page 1 & 2)"
                             >
-                              <Download className="h-3 w-3 text-emerald-600" /> Download P1
+                              <Download className="h-3 w-3 text-emerald-600" /> Download P1/P2
                             </button>
                           )}
 
-                          {/* Fill & Submit Page 2 Button */}
+                          {/* Fill Page 2 */}
                           {dev.page1_approved && !dev.both_approved && dev.status !== "closed" && (
                             <button
                               type="button"
@@ -760,7 +1074,7 @@ function DeviationsPage() {
                             </button>
                           )}
 
-                          {/* Admin Dual Final Approval Button */}
+                          {/* Admin Dual Approval */}
                           {isAdmin && dev.page2_submitted && !dev.both_approved && dev.status !== "closed" && (
                             <button
                               type="button"
@@ -801,10 +1115,10 @@ function DeviationsPage() {
           </div>
         </div>
 
-        {/* MODAL: 2-PAGE DEVIATION REPORT WIZARD (PAGE 1 & PAGE 2) */}
+        {/* MODAL: 2-PAGE DEVIATION REPORT WIZARD (MATCHING IMAGE 1 & IMAGE 2) */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto">
-            <div className="w-full max-w-3xl my-8 rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 space-y-4">
+            <div className="w-full max-w-4xl my-8 rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 space-y-4">
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-300 pb-3">
                 <div className="flex items-center gap-3">
@@ -813,10 +1127,10 @@ function DeviationsPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-black tracking-tight text-slate-900">
-                      OFFICIAL 2-PAGE DEVIATION REPORT WIZARD
+                      SAKTHI AUTO DEVIATION REPORT WIZARD (QF/08/CQA-55)
                     </h3>
                     <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                      Page 1: Deviation Format $\rightarrow$ Page 2: Root Cause & Corrective Action
+                      Page 1: Deviation Report Format &rarr; Page 2: RCA, CAPA & Quarantine Details
                     </p>
                   </div>
                 </div>
@@ -840,7 +1154,7 @@ function DeviationsPage() {
                   }`}
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white font-extrabold">1</span>
-                  Page 1: Deviation Report Format
+                  Page 1: Deviation Report (QF/08/CQA-55)
                 </button>
 
                 <button
@@ -853,236 +1167,353 @@ function DeviationsPage() {
                   }`}
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white font-extrabold">2</span>
-                  Page 2: Root Cause & Corrective Action
+                  Page 2: RCA, CAPA & Quarantine Details
                 </button>
               </div>
 
-              {/* ── PAGE 1 CONTENT: DEVIATION REPORT FORMAT ── */}
+              {/* ── PAGE 1 CONTENT: DEVIATION REPORT FORMAT (IMAGE 1) ── */}
               {activeTab === 1 && (
                 <form onSubmit={handleSubmitPage1} className="space-y-4 text-xs">
-                  {/* DEVIATION TITLE */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      DEVIATION TITLE *
-                    </label>
-                    <Input
-                      required
-                      placeholder="e.g. Steering Knuckle Bore Oversize Non-Conformance"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="border-slate-300 text-xs font-bold text-slate-900 bg-slate-50/50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* LOCATION / PLANT / LINE */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      LOCATION / PLANT / LINE *
-                    </label>
-                    <Input
-                      required
-                      placeholder="e.g. Machine Shop Line 1 / Plant 2"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="border-slate-300 text-xs font-bold text-slate-900 bg-slate-50/50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* SEVERITY */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      SEVERITY *
-                    </label>
-                    <div className="flex items-center gap-6 rounded-lg border border-slate-300 bg-slate-50/70 p-2.5">
-                      {(["Low", "Medium", "High", "Critical"] as const).map((sev) => (
-                        <label key={sev} className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-slate-800">
-                          <input
-                            type="radio"
-                            name="severity"
-                            value={sev}
-                            checked={formData.severity === sev}
-                            onChange={() => setFormData({ ...formData, severity: sev })}
-                            className="h-4 w-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                          />
-                          <span>☐ {sev}</span>
+                  {/* DOCUMENT HEADER FIELDS */}
+                  <div className="rounded-xl border border-slate-300 bg-slate-50/70 p-3 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          DATE *
                         </label>
-                      ))}
+                        <Input
+                          required
+                          type="date"
+                          value={formData.report_date}
+                          onChange={(e) => setFormData({ ...formData, report_date: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          FROM *
+                        </label>
+                        <Input
+                          required
+                          placeholder="e.g. QUALITY ASSURANCE / LINE 1"
+                          value={formData.from_dept}
+                          onChange={(e) => setFormData({ ...formData, from_dept: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          TO: *
+                        </label>
+                        <Input
+                          required
+                          placeholder="e.g. PRODUCTION / MACHINE SHOP"
+                          value={formData.to_dept}
+                          onChange={(e) => setFormData({ ...formData, to_dept: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          PART NAME *
+                        </label>
+                        <Input
+                          required
+                          placeholder="e.g. STEERING KNUCKLE"
+                          value={formData.part_name}
+                          onChange={(e) => setFormData({ ...formData, part_name: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          PART NUMBER *
+                        </label>
+                        <Input
+                          required
+                          placeholder="e.g. 45110-M86R00"
+                          value={formData.part_number}
+                          onChange={(e) => setFormData({ ...formData, part_number: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          DEVIATION TITLE / SUMMARY *
+                        </label>
+                        <Input
+                          required
+                          placeholder="e.g. Steering Knuckle Bore Oversize Non-Conformance"
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          className="bg-white border-slate-300 font-bold text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                          STAGE (INPROCESS / FINISHED / DEVELOPMENT) *
+                        </label>
+                        <div className="flex items-center gap-4 bg-white border border-slate-300 rounded-md p-2">
+                          {(["INPROCESS", "FINISHED", "DEVELOPMENT"] as const).map((stg) => (
+                            <label key={stg} className="flex items-center gap-1.5 cursor-pointer text-[11px] font-extrabold text-slate-800">
+                              <input
+                                type="radio"
+                                name="stage"
+                                value={stg}
+                                checked={formData.stage === stg}
+                                onChange={() => setFormData({ ...formData, stage: stg })}
+                                className="h-3.5 w-3.5 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              />
+                              <span>{stg}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* QUANTITY BREAKDOWN */}
-                  <div className="rounded-xl border border-slate-300 bg-slate-50 p-3 space-y-2">
+                  {/* OBSERVATION TABLE (IMAGE 1) */}
+                  <div className="rounded-xl border border-slate-300 bg-white p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-black uppercase tracking-wider text-slate-800 text-[11px]">
-                        QUANTITY BREAKDOWN *
+                      <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
+                        OBSERVATION MATRIX TABLE (SAMPLE OBSERVATIONS 1..6)
                       </span>
-                      <span className="text-[10px] font-bold text-slate-500">
-                        Formula: Segregated Qty = OK Qty + NG Qty
-                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddObservationRow}
+                        className="h-7 gap-1 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Observation Row
+                      </Button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block font-bold text-slate-800 mb-1 text-[11px]">
-                          SEGREGATED QUANTITY *
-                        </label>
-                        <Input
-                          required
-                          type="number"
-                          min={1}
-                          value={formData.segregated_qty}
-                          onChange={(e) => setFormData({ ...formData, segregated_qty: e.target.value })}
-                          placeholder="100"
-                          className="bg-white border-slate-300 font-mono font-black text-slate-900 text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-bold text-emerald-800 mb-1 text-[11px]">
-                          OK QUANTITY *
-                        </label>
-                        <Input
-                          required
-                          type="number"
-                          min={0}
-                          value={formData.ok_qty}
-                          onChange={(e) => setFormData({ ...formData, ok_qty: e.target.value })}
-                          placeholder="95"
-                          className="bg-white border-emerald-300 font-mono font-black text-emerald-900 text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-bold text-rose-800 mb-1 text-[11px]">
-                          NG QUANTITY *
-                        </label>
-                        <Input
-                          required
-                          type="number"
-                          min={0}
-                          value={formData.ng_qty}
-                          onChange={(e) => setFormData({ ...formData, ng_qty: e.target.value })}
-                          placeholder="5"
-                          className="bg-white border-rose-300 font-mono font-black text-rose-900 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    {/* QUANTITY VALIDATION BOX */}
-                    <div className="mt-2 rounded-lg border p-2.5 text-xs font-bold transition-all">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="uppercase text-[10px] tracking-wider text-slate-600">QUANTITY VALIDATION</span>
-                        <span className="font-mono text-[11px]">Formula: Segregated = OK + NG</span>
-                      </div>
-
-                      {isQtyValid ? (
-                        <div className="flex items-center gap-2 text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-md p-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                          <span>
-                            Quantity Validation Passed: OK Qty ({numOK}) + NG Qty ({numNG}) = Segregated Qty ({numSeg})
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-rose-800 bg-rose-50 border border-rose-300 rounded-md p-2">
-                          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                          <span>
-                            Quantity Validation Error: Segregated Qty ({numSeg}) does not match OK Qty ({numOK}) + NG Qty ({numNG}) = {numOK + numNG}.
-                          </span>
-                        </div>
-                      )}
+                    <div className="overflow-x-auto border border-slate-300 rounded-lg">
+                      <table className="w-full border-collapse text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800 uppercase">
+                            <th className="p-1.5 w-12 border-r border-slate-300 text-center">SL. NO.</th>
+                            <th className="p-1.5 min-w-[180px] border-r border-slate-300">SPECIFICATION</th>
+                            <th colSpan={6} className="p-1 border-r border-slate-300 text-center bg-slate-200">
+                              OBSERVATION (SAMPLES 1 TO 6)
+                            </th>
+                            <th className="p-1.5 min-w-[120px] border-r border-slate-300">REMARKS</th>
+                            <th className="p-1 w-10 text-center">DEL</th>
+                          </tr>
+                          <tr className="bg-slate-50 border-b border-slate-300 font-bold text-slate-700 text-center">
+                            <th className="border-r border-slate-300"></th>
+                            <th className="border-r border-slate-300"></th>
+                            <th className="p-1 w-12 border-r border-slate-300">1</th>
+                            <th className="p-1 w-12 border-r border-slate-300">2</th>
+                            <th className="p-1 w-12 border-r border-slate-300">3</th>
+                            <th className="p-1 w-12 border-r border-slate-300">4</th>
+                            <th className="p-1 w-12 border-r border-slate-300">5</th>
+                            <th className="p-1 w-12 border-r border-slate-300">6</th>
+                            <th className="border-r border-slate-300"></th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {formData.observations.map((obs, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="p-1.5 font-bold text-center border-r border-slate-300 bg-slate-50">{obs.sl_no}</td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.specification}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "specification", e.target.value)}
+                                  placeholder="e.g. Bore Dia Ø 62.00 +0.02/+0.05"
+                                  className="h-7 text-[11px] font-medium border-slate-200"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs1}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs1", e.target.value)}
+                                  placeholder="62.05"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs2}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs2", e.target.value)}
+                                  placeholder="62.06"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs3}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs3", e.target.value)}
+                                  placeholder="62.06"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs4}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs4", e.target.value)}
+                                  placeholder="62.05"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs5}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs5", e.target.value)}
+                                  placeholder="62.07"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.obs6}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "obs6", e.target.value)}
+                                  placeholder="62.06"
+                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={obs.remarks}
+                                  onChange={(e) => handleUpdateObservationRow(idx, "remarks", e.target.value)}
+                                  placeholder="Remarks"
+                                  className="h-7 text-[11px] font-medium border-slate-200"
+                                />
+                              </td>
+                              <td className="p-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveObservationRow(idx)}
+                                  disabled={formData.observations.length <= 1}
+                                  className="text-rose-600 hover:text-rose-800 disabled:opacity-30 cursor-pointer p-1"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  {/* ROOT CAUSE / OBSERVED CONDITION */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      DEFECT / OBSERVED CONDITION *
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="Enter observed non-conformance details..."
-                      value={formData.root_cause}
-                      onChange={(e) => setFormData({ ...formData, root_cause: e.target.value })}
-                      className="w-full rounded-md border border-slate-300 p-2.5 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-brand bg-slate-50/50 focus:bg-white"
-                    />
+                  {/* CC & SIGNATURES SECTION */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-black uppercase text-slate-800 text-[10px] mb-1">
+                        CC : (CARBON COPY TO DEPARTMENTS) *
+                      </label>
+                      <Input
+                        required
+                        value={formData.cc}
+                        onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
+                        placeholder="e.g. PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"
+                        className="bg-white border-slate-300 font-bold text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3">
+                      {/* INSPECTED BY */}
+                      <div className="space-y-2 border-r border-slate-200 pr-2">
+                        <span className="font-black uppercase text-slate-800 text-[11px]">
+                          INSPECTED BY *
+                        </span>
+                        <Input
+                          required
+                          value={formData.inspected_by}
+                          onChange={(e) => setFormData({ ...formData, inspected_by: e.target.value })}
+                          placeholder="Inspector Name"
+                          className="bg-white border-slate-300 text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="file"
+                          ref={inspectedSigInputRef}
+                          onChange={(e) => handleSignatureUpload(e, "inspected_by_signature")}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-600">Signature:</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => inspectedSigInputRef.current?.click()}
+                            className="h-6 text-[10px] font-bold text-amber-700 hover:bg-amber-100 px-1.5 cursor-pointer"
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Signature
+                          </Button>
+                        </div>
+                        {formData.inspected_by_signature ? (
+                          <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
+                            <img src={formData.inspected_by_signature} alt="Inspected Signature" className="h-8 w-auto object-contain max-w-[140px]" />
+                            <span className="text-[9px] text-emerald-700 font-bold">✓ Signed</span>
+                          </div>
+                        ) : (
+                          <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                            Signature Required
+                          </div>
+                        )}
+                      </div>
+
+                      {/* APPROVED BY */}
+                      <div className="space-y-2 pl-1">
+                        <span className="font-black uppercase text-slate-800 text-[11px]">
+                          APPROVED BY *
+                        </span>
+                        <Input
+                          required
+                          value={formData.approved_by}
+                          onChange={(e) => setFormData({ ...formData, approved_by: e.target.value })}
+                          placeholder="Approved Name"
+                          className="bg-white border-slate-300 text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="file"
+                          ref={approvedSigInputRef}
+                          onChange={(e) => handleSignatureUpload(e, "approved_by_signature")}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-600">Signature:</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => approvedSigInputRef.current?.click()}
+                            className="h-6 text-[10px] font-bold text-amber-700 hover:bg-amber-100 px-1.5 cursor-pointer"
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Signature
+                          </Button>
+                        </div>
+                        {formData.approved_by_signature ? (
+                          <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
+                            <img src={formData.approved_by_signature} alt="Approved Signature" className="h-8 w-auto object-contain max-w-[140px]" />
+                            <span className="text-[9px] text-emerald-700 font-bold">✓ Verified</span>
+                          </div>
+                        ) : (
+                          <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                            E-Signature Required
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* SIGNATURES SECTION (SEGREGATED BY & APPROVED BY) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3">
-                    {/* SEGREGATED BY */}
-                    <div className="space-y-2 border-r border-slate-200 pr-2">
-                      <span className="font-black uppercase text-slate-800 text-[11px]">
-                        SEGREGATED BY *
-                      </span>
-                      <Input
-                        required
-                        value={formData.segregated_by}
-                        onChange={(e) => setFormData({ ...formData, segregated_by: e.target.value })}
-                        placeholder="Employee Name"
-                        className="bg-white border-slate-300 text-xs font-bold text-slate-900"
-                      />
-                      <input type="file" ref={empSigInputRef} onChange={handleEmpSignatureUpload} accept="image/*" className="hidden" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-600">Signature:</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => empSigInputRef.current?.click()}
-                          className="h-6 text-[10px] font-bold text-amber-700 hover:bg-amber-100 px-1.5 cursor-pointer"
-                        >
-                          <Upload className="h-3 w-3 mr-1" /> Upload Signature
-                        </Button>
-                      </div>
-                      {formData.employee_signature ? (
-                        <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
-                          <img src={formData.employee_signature} alt="Employee Signature" className="h-8 w-auto object-contain max-w-[140px]" />
-                          <span className="text-[9px] text-emerald-700 font-bold">✓ Signed</span>
-                        </div>
-                      ) : (
-                        <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                          Signature Required
-                        </div>
-                      )}
-                    </div>
-
-                    {/* APPROVED BY */}
-                    <div className="space-y-2 pl-1">
-                      <span className="font-black uppercase text-slate-800 text-[11px]">
-                        APPROVED BY *
-                      </span>
-                      <Input
-                        required
-                        value={formData.approved_by}
-                        onChange={(e) => setFormData({ ...formData, approved_by: e.target.value })}
-                        placeholder="Approved Name"
-                        className="bg-white border-slate-300 text-xs font-bold text-slate-900"
-                      />
-                      <input type="file" ref={appSigInputRef} onChange={handleAppSignatureUpload} accept="image/*" className="hidden" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-600">Signature:</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => appSigInputRef.current?.click()}
-                          className="h-6 text-[10px] font-bold text-amber-700 hover:bg-amber-100 px-1.5 cursor-pointer"
-                        >
-                          <Upload className="h-3 w-3 mr-1" /> Upload E-Signature
-                        </Button>
-                      </div>
-                      {formData.approved_by_signature ? (
-                        <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
-                          <img src={formData.approved_by_signature} alt="Approved By Signature" className="h-8 w-auto object-contain max-w-[140px]" />
-                          <span className="text-[9px] text-emerald-700 font-bold">✓ Verified</span>
-                        </div>
-                      ) : (
-                        <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                          E-Signature Required
-                        </div>
-                      )}
-                    </div>
+                  {/* Document Footer Code Label */}
+                  <div className="flex items-center justify-between font-mono text-[10px] text-slate-500 font-bold pt-1">
+                    <span>DOCUMENT CODE: QF/08/CQA-55</span>
+                    <span>EFFECTIVE DATE: 25.12.2015</span>
                   </div>
 
                   {/* Submit Page 1 Button Bar */}
@@ -1115,104 +1546,293 @@ function DeviationsPage() {
                 </form>
               )}
 
-              {/* ── PAGE 2 CONTENT: ROOT CAUSE & CORRECTIVE ACTION REPORT ── */}
+              {/* ── PAGE 2 CONTENT: RCA, CAPA & QUARANTINE DETAILS (IMAGE 2) ── */}
               {activeTab === 2 && (
                 <form onSubmit={handleSubmitPage2} className="space-y-4 text-xs">
                   <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 flex items-center justify-between text-sky-900">
                     <span className="font-bold flex items-center gap-1.5">
                       <ShieldCheck className="h-4 w-4 text-sky-600" />
-                      Page 2: Root Cause Analysis (5-Why / 8D) & Corrective Action Report (CAPA)
+                      Page 2: Root Cause, Corrective Action (CAPA) & Quarantine Details
                     </span>
                     <span className="text-[10px] font-extrabold uppercase bg-sky-200 text-sky-900 px-2 py-0.5 rounded">
                       Page 2 of 2
                     </span>
                   </div>
 
-                  {/* ROOT CAUSE (5-WHY ANALYSIS) */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      ROOT CAUSE ANALYSIS (5-WHY / 8D METHODOLOGY) *
-                    </label>
-                    <textarea
-                      required
-                      rows={3}
-                      placeholder="Detail the 5-Why root cause analysis..."
-                      value={formData.page2_root_cause}
-                      onChange={(e) => setFormData({ ...formData, page2_root_cause: e.target.value })}
-                      className="w-full rounded-md border border-slate-300 p-2.5 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-sky-500 bg-slate-50/50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* CORRECTIVE ACTION */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      CORRECTIVE ACTION TAKEN (CAPA) *
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="Specify immediate corrective actions taken on process/part..."
-                      value={formData.page2_corrective_action}
-                      onChange={(e) => setFormData({ ...formData, page2_corrective_action: e.target.value })}
-                      className="w-full rounded-md border border-slate-300 p-2.5 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-sky-500 bg-slate-50/50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* PREVENTIVE ACTION */}
-                  <div>
-                    <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                      PREVENTIVE ACTION (PREVENT RECURRENCE) *
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="Specify long-term preventive controls implemented..."
-                      value={formData.page2_preventive_action}
-                      onChange={(e) => setFormData({ ...formData, page2_preventive_action: e.target.value })}
-                      className="w-full rounded-md border border-slate-300 p-2.5 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-sky-500 bg-slate-50/50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* RESPONSIBILITY & TARGET DATE */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                        RESPONSIBLE PERSON *
-                      </label>
-                      <Input
-                        required
-                        value={formData.page2_responsible}
-                        onChange={(e) => setFormData({ ...formData, page2_responsible: e.target.value })}
-                        placeholder="e.g. SILAMBARASAN S (688079)"
-                        className="bg-white border-slate-300 text-xs font-bold text-slate-900"
-                      />
+                  {/* CAPA TABLE (IMAGE 2 TOP TABLE) */}
+                  <div className="rounded-xl border border-slate-300 bg-white p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
+                        NON-CONFORMANCE & CORRECTIVE ACTION LOG (IMAGE 2 FORMAT)
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddCapaRow}
+                        className="h-7 gap-1 text-[11px] font-bold border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Action Row
+                      </Button>
                     </div>
 
-                    <div>
-                      <label className="block font-black uppercase tracking-wider text-slate-800 mb-1">
-                        TARGET COMPLETION DATE *
-                      </label>
-                      <Input
-                        required
-                        type="date"
-                        value={formData.page2_target_date}
-                        onChange={(e) => setFormData({ ...formData, page2_target_date: e.target.value })}
-                        className="bg-white border-slate-300 text-xs font-bold text-slate-900"
-                      />
+                    <div className="overflow-x-auto border border-slate-300 rounded-lg">
+                      <table className="w-full border-collapse text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800 uppercase">
+                            <th className="p-1.5 w-24 border-r border-slate-300">DATE</th>
+                            <th className="p-1.5 w-32 border-r border-slate-300">PART NAME</th>
+                            <th className="p-1.5 w-28 border-r border-slate-300">PART NO.</th>
+                            <th className="p-1.5 min-w-[140px] border-r border-slate-300">NON CONFORMANCE DETAILS</th>
+                            <th className="p-1.5 min-w-[140px] border-r border-slate-300">ROOT CAUSE</th>
+                            <th className="p-1.5 min-w-[160px] border-r border-slate-300">CORRECTIVE ACTION</th>
+                            <th className="p-1 w-10 text-center">DEL</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {formData.capa_items.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  type="date"
+                                  value={item.date}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "date", e.target.value)}
+                                  className="h-7 text-[10px] font-mono border-slate-200 p-1"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={item.part_name}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "part_name", e.target.value)}
+                                  placeholder="Part Name"
+                                  className="h-7 text-[11px] font-medium border-slate-200"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <Input
+                                  value={item.part_no}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "part_no", e.target.value)}
+                                  placeholder="Part No."
+                                  className="h-7 text-[11px] font-medium border-slate-200"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <textarea
+                                  rows={2}
+                                  value={item.non_conformance}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "non_conformance", e.target.value)}
+                                  placeholder="Non-conformance details..."
+                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <textarea
+                                  rows={2}
+                                  value={item.root_cause}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "root_cause", e.target.value)}
+                                  placeholder="Root cause..."
+                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
+                                />
+                              </td>
+                              <td className="p-1 border-r border-slate-300">
+                                <textarea
+                                  rows={2}
+                                  value={item.corrective_action}
+                                  onChange={(e) => handleUpdateCapaRow(idx, "corrective_action", e.target.value)}
+                                  placeholder="Corrective action..."
+                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
+                                />
+                              </td>
+                              <td className="p-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCapaRow(idx)}
+                                  disabled={formData.capa_items.length <= 1}
+                                  className="text-rose-600 hover:text-rose-800 disabled:opacity-30 cursor-pointer p-1"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  {/* FILE ATTACHMENT / UPLOAD */}
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center space-y-2">
+                  {/* QUARANTINE DETAILS SECTION (IMAGE 2 BOTTOM SECTION) */}
+                  <div className="rounded-xl border-2 border-slate-900 bg-slate-50 p-4 space-y-3">
+                    <div className="font-black uppercase text-slate-900 text-xs border-b border-slate-900 pb-1.5 tracking-wider">
+                      QUARANTINE DETAILS :
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-black uppercase text-slate-900 text-[10px] mb-1">
+                          SEGREGATED QTY: *
+                        </label>
+                        <Input
+                          required
+                          type="number"
+                          min={1}
+                          value={formData.quarantine_segregated_qty}
+                          onChange={(e) => setFormData({ ...formData, quarantine_segregated_qty: e.target.value })}
+                          placeholder="100"
+                          className="bg-white border-slate-400 font-mono font-black text-slate-900 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-emerald-800 text-[10px] mb-1">
+                          OK QTY: *
+                        </label>
+                        <Input
+                          required
+                          type="number"
+                          min={0}
+                          value={formData.quarantine_ok_qty}
+                          onChange={(e) => setFormData({ ...formData, quarantine_ok_qty: e.target.value })}
+                          placeholder="95"
+                          className="bg-white border-emerald-400 font-mono font-black text-emerald-900 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-rose-800 text-[10px] mb-1">
+                          NOT OK QTY: *
+                        </label>
+                        <Input
+                          required
+                          type="number"
+                          min={0}
+                          value={formData.quarantine_not_ok_qty}
+                          onChange={(e) => setFormData({ ...formData, quarantine_not_ok_qty: e.target.value })}
+                          placeholder="5"
+                          className="bg-white border-rose-400 font-mono font-black text-rose-900 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* QUANTITY VALIDATION CHECK */}
+                    <div className="rounded-lg border p-2 text-xs font-bold transition-all">
+                      {isQtyValid ? (
+                        <div className="flex items-center gap-2 text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-md p-2">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span>
+                            Quarantine Quantity Valid: OK Qty ({numOK}) + NOT OK Qty ({numNotOK}) = Segregated Qty ({numSeg})
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-rose-800 bg-rose-50 border border-rose-300 rounded-md p-2">
+                          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                          <span>
+                            Quarantine Quantity Error: Segregated Qty ({numSeg}) does not equal OK Qty ({numOK}) + NOT OK Qty ({numNotOK}) = {numOK + numNotOK}.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* QUARANTINE SIGNATURES (IMAGE 2) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-900 pt-3">
+                      {/* SEGREGATED BY */}
+                      <div className="space-y-2 border-r border-slate-300 pr-2">
+                        <span className="font-black uppercase text-slate-900 text-[11px]">
+                          SEGREGATED BY *
+                        </span>
+                        <Input
+                          required
+                          value={formData.quarantine_segregated_by}
+                          onChange={(e) => setFormData({ ...formData, quarantine_segregated_by: e.target.value })}
+                          placeholder="Employee Name"
+                          className="bg-white border-slate-300 text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="file"
+                          ref={segSigInputRef}
+                          onChange={(e) => handleSignatureUpload(e, "quarantine_segregated_by_signature")}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-600">Signature:</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => segSigInputRef.current?.click()}
+                            className="h-6 text-[10px] font-bold text-sky-700 hover:bg-sky-100 px-1.5 cursor-pointer"
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Signature
+                          </Button>
+                        </div>
+                        {formData.quarantine_segregated_by_signature ? (
+                          <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
+                            <img src={formData.quarantine_segregated_by_signature} alt="Segregated Signature" className="h-8 w-auto object-contain max-w-[140px]" />
+                            <span className="text-[9px] text-emerald-700 font-bold">✓ Signed</span>
+                          </div>
+                        ) : (
+                          <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                            Signature Required
+                          </div>
+                        )}
+                      </div>
+
+                      {/* APPROVED BY */}
+                      <div className="space-y-2 pl-1">
+                        <span className="font-black uppercase text-slate-900 text-[11px]">
+                          APPROVED BY *
+                        </span>
+                        <Input
+                          required
+                          value={formData.quarantine_approved_by}
+                          onChange={(e) => setFormData({ ...formData, quarantine_approved_by: e.target.value })}
+                          placeholder="Approved Name"
+                          className="bg-white border-slate-300 text-xs font-bold text-slate-900"
+                        />
+                        <input
+                          type="file"
+                          ref={quarantineAppSigInputRef}
+                          onChange={(e) => handleSignatureUpload(e, "quarantine_approved_by_signature")}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-600">Signature:</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => quarantineAppSigInputRef.current?.click()}
+                            className="h-6 text-[10px] font-bold text-sky-700 hover:bg-sky-100 px-1.5 cursor-pointer"
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Signature
+                          </Button>
+                        </div>
+                        {formData.quarantine_approved_by_signature ? (
+                          <div className="rounded border border-slate-300 bg-white p-1 flex items-center gap-2">
+                            <img src={formData.quarantine_approved_by_signature} alt="Quarantine Approved Signature" className="h-8 w-auto object-contain max-w-[140px]" />
+                            <span className="text-[9px] text-emerald-700 font-bold">✓ Verified</span>
+                          </div>
+                        ) : (
+                          <div className="h-8 rounded border border-dashed border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                            Signature Required
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* FILE ATTACHMENT */}
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-center space-y-1">
                     <input type="file" ref={page2FileInputRef} onChange={handlePage2FileUpload} className="hidden" />
                     <div className="flex items-center justify-center gap-2">
-                      <Upload className="h-5 w-5 text-sky-600" />
+                      <Upload className="h-4 w-4 text-sky-600" />
                       <span className="font-bold text-slate-800 text-xs">
-                        Attach Supporting RCA / 8D PDF or Document
+                        Attach Supporting 8D / RCA Document (Optional)
                       </span>
                     </div>
                     {formData.page2_attachment_name ? (
-                      <div className="text-xs font-bold text-emerald-700 bg-emerald-50 py-1 px-3 rounded-full inline-block border border-emerald-300">
+                      <div className="text-xs font-bold text-emerald-700 bg-emerald-50 py-0.5 px-3 rounded-full inline-block border border-emerald-300">
                         Attached: {formData.page2_attachment_name}
                       </div>
                     ) : (
@@ -1220,7 +1840,7 @@ function DeviationsPage() {
                         type="button"
                         variant="outline"
                         onClick={() => page2FileInputRef.current?.click()}
-                        className="h-7 text-xs font-bold border-slate-300 cursor-pointer"
+                        className="h-6 text-[11px] font-bold border-slate-300 cursor-pointer"
                       >
                         Choose File to Upload
                       </Button>
@@ -1250,7 +1870,7 @@ function DeviationsPage() {
                             : "bg-slate-300 text-slate-500 cursor-not-allowed"
                         }`}
                       >
-                        Submit & Upload Page 2 (Both Reports $\rightarrow$ Admin Review)
+                        Submit Page 2 (Both Reports &rarr; Admin Review)
                       </Button>
                     </div>
                   </div>
@@ -1260,17 +1880,17 @@ function DeviationsPage() {
           </div>
         )}
 
-        {/* MODAL: VIEW & PRINT OFFICIAL DEVIATION REPORT */}
+        {/* MODAL: VIEW & PRINT OFFICIAL DEVIATION REPORT (IMAGE 1 & IMAGE 2 REPLICAS) */}
         {viewReportDev && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs overflow-y-auto">
-            <div className="w-full max-w-3xl my-8 rounded-2xl border border-slate-300 bg-white p-8 shadow-2xl space-y-6">
+            <div className="w-full max-w-4xl my-8 rounded-2xl border border-slate-300 bg-white p-8 shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
                 <div>
                   <h2 className="text-2xl font-black tracking-tight text-slate-900">
-                    DEVIATION REPORT
+                    OFFICIAL DEVIATION REPORT & CAPA DOCUMENT
                   </h2>
-                  <p className="text-xs font-bold text-slate-500 font-mono">
-                    DOCUMENT CODE: {viewReportDev.dev_code} | AUDIT REF: {viewReportDev.audit_id || "AUD-MSIL-01"}
+                  <p className="text-xs font-bold text-slate-600 font-mono">
+                    DEV CODE: {viewReportDev.dev_code} | AUDIT REF: {viewReportDev.audit_id || "AUD-MSIL-01"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1280,7 +1900,7 @@ function DeviationsPage() {
                     onClick={() => window.print()}
                     className="gap-1.5 text-xs font-bold border-slate-300 cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300"
                   >
-                    <Printer className="h-4 w-4" /> Download / Print Approved Report
+                    <Printer className="h-4 w-4" /> Download / Print Official Document
                   </Button>
                   <button
                     onClick={() => setViewReportDev(null)}
@@ -1291,75 +1911,245 @@ function DeviationsPage() {
                 </div>
               </div>
 
-              {/* 2-PAGE PRINTABLE VIEW */}
-              <div className="border-2 border-slate-900 rounded-lg overflow-hidden text-xs space-y-4 p-4 bg-white">
-                <div className="text-center border-b border-slate-300 pb-2">
-                  <h3 className="font-black text-sm uppercase text-slate-900">PAGE 1: DEVIATION REPORT FORMAT</h3>
-                </div>
-
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">DEVIATION TITLE</div>
-                  <div className="p-2.5 col-span-2 font-bold">{viewReportDev.description}</div>
-                </div>
-
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">LOCATION / PLANT / LINE</div>
-                  <div className="p-2.5 col-span-2 font-bold">{viewReportDev.location_operation}</div>
-                </div>
-
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">SEVERITY</div>
-                  <div className="p-2.5 col-span-2 font-bold">{viewReportDev.severity}</div>
-                </div>
-
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">SEGREGATED QTY</div>
-                  <div className="p-2.5 col-span-2 font-mono font-black">{viewReportDev.segregated_qty || "100"} PCS (OK: {viewReportDev.ok_qty || "95"}, NG: {viewReportDev.ng_qty || "5"})</div>
-                </div>
-
-                <div className="grid grid-cols-2 border border-slate-900 bg-white">
-                  <div className="p-3 border-r border-slate-900 space-y-1">
-                    <p className="font-black uppercase text-slate-900">SEGREGATED BY</p>
-                    <p className="font-bold">{viewReportDev.segregated_by}</p>
-                    {viewReportDev.employee_signature && (
-                      <img src={viewReportDev.employee_signature} alt="Signature" className="h-8 max-w-[120px] object-contain border p-1" />
-                    )}
+              {/* 2-PAGE PRINTABLE VIEW (EXACT IMAGE 1 & IMAGE 2 REPLICAS) */}
+              <div className="space-y-8 font-sans">
+                {/* ── PAGE 1: DEVIATION REPORT (IMAGE 1 FORMAT) ── */}
+                <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
+                  {/* Top Header Block */}
+                  <div className="grid grid-cols-4 border-b-2 border-slate-900 font-black text-center text-sm uppercase">
+                    <div className="p-3 border-r-2 border-slate-900 flex items-center justify-center">
+                      SAKTHI AUTO
+                    </div>
+                    <div className="p-3 col-span-2 border-r-2 border-slate-900 flex items-center justify-center text-base">
+                      DEVIATION REPORT
+                    </div>
+                    <div className="p-3 text-left font-mono text-xs flex flex-col justify-center">
+                      <span>DATE: {viewReportDev.report_date || viewReportDev.created_at}</span>
+                    </div>
                   </div>
 
-                  <div className="p-3 space-y-1">
-                    <p className="font-black uppercase text-slate-900">ADMIN PAGE 1 APPROVAL</p>
-                    <p className="font-bold text-emerald-800">
-                      {viewReportDev.page1_approved ? `✓ Approved by ${viewReportDev.page1_approved_by || "Admin Lead"}` : "Pending Admin Page 1 Approval"}
-                    </p>
-                    {viewReportDev.approved_by_signature && (
-                      <img src={viewReportDev.approved_by_signature} alt="Admin Signature" className="h-8 max-w-[120px] object-contain border p-1" />
-                    )}
+                  {/* Header Sub-row 1: FROM / TO */}
+                  <div className="grid grid-cols-2 border-b border-slate-900 font-bold uppercase">
+                    <div className="p-2 border-r border-slate-900 flex items-center gap-2">
+                      <span className="font-black text-slate-900 w-16">FROM</span>
+                      <span>{viewReportDev.from_dept || "QUALITY ASSURANCE"}</span>
+                    </div>
+                    <div className="p-2 flex items-center gap-2">
+                      <span className="font-black text-slate-900 w-16">TO:</span>
+                      <span>{viewReportDev.to_dept || "PRODUCTION & MANUFACTURING"}</span>
+                    </div>
+                  </div>
+
+                  {/* Header Sub-row 2: PART NAME */}
+                  <div className="border-b border-slate-900 p-2 flex items-center gap-2 font-bold uppercase">
+                    <span className="font-black text-slate-900 w-32">PART NAME</span>
+                    <span className="text-sm font-black">{viewReportDev.part_name || viewReportDev.description}</span>
+                  </div>
+
+                  {/* Header Sub-row 3: PART NUMBER & STAGE */}
+                  <div className="grid grid-cols-3 border-b-2 border-slate-900 font-bold uppercase">
+                    <div className="p-2 col-span-2 border-r border-slate-900 flex items-center gap-2">
+                      <span className="font-black text-slate-900 w-32">PART NUMBER</span>
+                      <span className="text-sm font-black font-mono">{viewReportDev.part_number || "45110-M86R00"}</span>
+                    </div>
+                    <div className="p-2 flex items-center justify-between text-[10px] font-black">
+                      <span className={viewReportDev.stage === "INPROCESS" ? "underline font-extrabold text-brand" : "text-slate-400"}>
+                        {viewReportDev.stage === "INPROCESS" ? "☑ INPROCESS" : "☐ INPROCESS"}
+                      </span>
+                      <span className={viewReportDev.stage === "FINISHED" ? "underline font-extrabold text-brand" : "text-slate-400"}>
+                        {viewReportDev.stage === "FINISHED" ? "☑ FINISHED" : "☐ FINISHED"}
+                      </span>
+                      <span className={viewReportDev.stage === "DEVELOPMENT" ? "underline font-extrabold text-brand" : "text-slate-400"}>
+                        {viewReportDev.stage === "DEVELOPMENT" ? "☑ DEVELOPMENT" : "☐ DEVELOPMENT"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* OBSERVATION TABLE (IMAGE 1) */}
+                  <div className="border-b-2 border-slate-900">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-900 font-black text-[11px] text-center uppercase bg-slate-100">
+                          <th className="p-2 w-12 border-r border-slate-900">SL. NO.</th>
+                          <th className="p-2 min-w-[200px] border-r border-slate-900">SPECIFICATION</th>
+                          <th colSpan={6} className="p-1 border-r border-slate-900 bg-slate-200">
+                            OBSERVATION
+                          </th>
+                          <th className="p-2 min-w-[140px]">REMARKS</th>
+                        </tr>
+                        <tr className="border-b border-slate-900 font-black text-[10px] text-center uppercase bg-slate-50">
+                          <th className="border-r border-slate-900"></th>
+                          <th className="border-r border-slate-900"></th>
+                          <th className="p-1 w-10 border-r border-slate-900">1</th>
+                          <th className="p-1 w-10 border-r border-slate-900">2</th>
+                          <th className="p-1 w-10 border-r border-slate-900">3</th>
+                          <th className="p-1 w-10 border-r border-slate-900">4</th>
+                          <th className="p-1 w-10 border-r border-slate-900">5</th>
+                          <th className="p-1 w-10 border-r border-slate-900">6</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900 text-[11px]">
+                        {(viewReportDev.observations && viewReportDev.observations.length > 0
+                          ? viewReportDev.observations
+                          : DEFAULT_OBSERVATIONS
+                        ).map((obs, idx) => (
+                          <tr key={idx}>
+                            <td className="p-2 font-bold text-center border-r border-slate-900">{obs.sl_no}</td>
+                            <td className="p-2 font-medium border-r border-slate-900">{obs.specification}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs1}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs2}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs3}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs4}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs5}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs6}</td>
+                            <td className="p-2 font-medium">{obs.remarks}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* CC Row */}
+                  <div className="p-2 border-b-2 border-slate-900 font-bold flex items-center gap-2">
+                    <span className="font-black text-slate-900">CC :</span>
+                    <span>{viewReportDev.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"}</span>
+                  </div>
+
+                  {/* Bottom Footer (Image 1 Bottom Left & Bottom Right) */}
+                  <div className="grid grid-cols-3 font-bold">
+                    <div className="p-3 border-r-2 border-slate-900 font-mono text-[10px] flex flex-col justify-end space-y-1">
+                      <span>{viewReportDev.doc_code || "QF/08/CQA-55"}</span>
+                      <span>{viewReportDev.doc_date || "25.12.2015"}</span>
+                    </div>
+
+                    <div className="p-3 border-r-2 border-slate-900 space-y-1">
+                      <p className="font-black uppercase text-[10px] text-slate-900">INSPECTED BY</p>
+                      <p className="font-bold text-xs">{viewReportDev.inspected_by || viewReportDev.segregated_by}</p>
+                      {viewReportDev.inspected_by_signature ? (
+                        <img src={viewReportDev.inspected_by_signature} alt="Inspected Signature" className="h-8 max-w-[120px] object-contain border p-1" />
+                      ) : (
+                        <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                      )}
+                    </div>
+
+                    <div className="p-3 space-y-1">
+                      <p className="font-black uppercase text-[10px] text-slate-900">APPROVED BY</p>
+                      <p className="font-bold text-xs">{viewReportDev.approved_by || "KARTHIKEYAN C (690867)"}</p>
+                      {viewReportDev.approved_by_signature ? (
+                        <img src={viewReportDev.approved_by_signature} alt="Approved Signature" className="h-8 max-w-[120px] object-contain border p-1" />
+                      ) : (
+                        <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* PAGE 2 SECTION */}
-                <div className="text-center border-b border-t border-slate-300 py-2 mt-6">
-                  <h3 className="font-black text-sm uppercase text-slate-900">PAGE 2: ROOT CAUSE & CORRECTIVE ACTION REPORT (CAPA)</h3>
-                </div>
+                {/* ── PAGE 2: ROOT CAUSE, CAPA & QUARANTINE DETAILS (IMAGE 2 FORMAT) ── */}
+                <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
+                  <div className="bg-slate-100 p-2 border-b-2 border-slate-900 text-center font-black text-xs uppercase tracking-wider">
+                    PAGE 2: ROOT CAUSE, CORRECTIVE ACTION & QUARANTINE DETAILS
+                  </div>
 
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">ROOT CAUSE (5-WHY)</div>
-                  <div className="p-2.5 col-span-2 font-medium">{viewReportDev.page2_root_cause || viewReportDev.root_cause || "5-Why Analysis complete."}</div>
-                </div>
+                  {/* CAPA TABLE (IMAGE 2 TOP TABLE) */}
+                  <div className="border-b-2 border-slate-900 overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-900 font-black text-[11px] text-center uppercase bg-slate-100">
+                          <th className="p-2 w-24 border-r border-slate-900">DATE</th>
+                          <th className="p-2 w-32 border-r border-slate-900">PART NAME</th>
+                          <th className="p-2 w-28 border-r border-slate-900">PART NO.</th>
+                          <th className="p-2 min-w-[150px] border-r border-slate-900">NON CONFORMANCE DETAILS</th>
+                          <th className="p-2 min-w-[150px] border-r border-slate-900">ROOT CAUSE</th>
+                          <th className="p-2 min-w-[180px]">CORRECTIVE ACTION</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900 text-[11px]">
+                        {(viewReportDev.capa_items && viewReportDev.capa_items.length > 0
+                          ? viewReportDev.capa_items
+                          : [
+                              {
+                                date: viewReportDev.created_at || getTodayDateStr(),
+                                part_name: viewReportDev.part_name || "STEERING KNUCKLE",
+                                part_no: viewReportDev.part_number || "45110-M86R00",
+                                non_conformance: viewReportDev.observed_condition || viewReportDev.description,
+                                root_cause: viewReportDev.root_cause || "Insert tip wear out during long run machining",
+                                corrective_action: viewReportDev.corrective_action || "Replaced tool insert and re-inspected lot.",
+                              },
+                            ]
+                        ).map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-2 font-mono font-bold text-center border-r border-slate-900">{item.date}</td>
+                            <td className="p-2 font-bold border-r border-slate-900">{item.part_name}</td>
+                            <td className="p-2 font-mono font-bold border-r border-slate-900">{item.part_no}</td>
+                            <td className="p-2 font-medium border-r border-slate-900">{item.non_conformance}</td>
+                            <td className="p-2 font-medium border-r border-slate-900">{item.root_cause}</td>
+                            <td className="p-2 font-medium">{item.corrective_action}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">CORRECTIVE ACTION (CAPA)</div>
-                  <div className="p-2.5 col-span-2 font-medium">{viewReportDev.page2_corrective_action || viewReportDev.corrective_action || "Tool replacement and re-inspection completed."}</div>
-                </div>
+                  {/* QUARANTINE DETAILS SECTION (IMAGE 2 BOTTOM SECTION) */}
+                  <div>
+                    <div className="p-2 font-black uppercase text-slate-900 border-b border-slate-900 tracking-wider">
+                      QUARANTINE DETAILS :
+                    </div>
 
-                <div className="grid grid-cols-3 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-black uppercase bg-slate-100 border-r border-slate-900">PREVENTIVE ACTION</div>
-                  <div className="p-2.5 col-span-2 font-medium">{viewReportDev.page2_preventive_action || "Automated coolant sensor installed."}</div>
-                </div>
+                    {/* Quantities Row */}
+                    <div className="grid grid-cols-3 border-b border-slate-900 font-bold uppercase text-center">
+                      <div className="p-2 border-r border-slate-900">
+                        <span className="font-black text-slate-700 mr-2">SEGREGATED QTY:</span>
+                        <span className="font-mono font-black text-sm text-slate-900">
+                          {viewReportDev.quarantine_segregated_qty || viewReportDev.segregated_qty || "100"}
+                        </span>
+                      </div>
+                      <div className="p-2 border-r border-slate-900">
+                        <span className="font-black text-emerald-800 mr-2">OK QTY:</span>
+                        <span className="font-mono font-black text-sm text-emerald-900">
+                          {viewReportDev.quarantine_ok_qty || viewReportDev.ok_qty || "95"}
+                        </span>
+                      </div>
+                      <div className="p-2">
+                        <span className="font-black text-rose-800 mr-2">NOT OK QTY:</span>
+                        <span className="font-mono font-black text-sm text-rose-900">
+                          {viewReportDev.quarantine_not_ok_qty || viewReportDev.ng_qty || "5"}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 border border-slate-900 bg-white">
-                  <div className="p-2.5 font-bold">Responsibility: {viewReportDev.page2_responsible || viewReportDev.segregated_by}</div>
-                  <div className="p-2.5 font-bold">Target Date: {viewReportDev.page2_target_date || new Date().toISOString().split("T")[0]}</div>
+                    {/* Quarantine Signatures Row (Image 2 Bottom) */}
+                    <div className="grid grid-cols-2 font-bold uppercase">
+                      <div className="p-3 border-r border-slate-900 space-y-1">
+                        <p className="font-black text-[10px] text-slate-900">SEGREGATED BY</p>
+                        <p className="font-bold text-xs">{viewReportDev.quarantine_segregated_by || viewReportDev.segregated_by}</p>
+                        {viewReportDev.quarantine_segregated_by_signature || viewReportDev.employee_signature ? (
+                          <img
+                            src={viewReportDev.quarantine_segregated_by_signature || viewReportDev.employee_signature}
+                            alt="Segregated Signature"
+                            className="h-8 max-w-[120px] object-contain border p-1"
+                          />
+                        ) : (
+                          <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                        )}
+                      </div>
+
+                      <div className="p-3 space-y-1">
+                        <p className="font-black text-[10px] text-slate-900">APPROVED BY</p>
+                        <p className="font-bold text-xs">{viewReportDev.quarantine_approved_by || viewReportDev.approved_by}</p>
+                        {viewReportDev.quarantine_approved_by_signature || viewReportDev.approved_by_signature ? (
+                          <img
+                            src={viewReportDev.quarantine_approved_by_signature || viewReportDev.approved_by_signature}
+                            alt="Approved Signature"
+                            className="h-8 max-w-[120px] object-contain border p-1"
+                          />
+                        ) : (
+                          <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
