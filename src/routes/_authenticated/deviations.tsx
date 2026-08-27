@@ -16,6 +16,8 @@ import {
   Printer,
   AlertCircle,
   Download,
+  Save,
+  FileEdit,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
@@ -60,6 +62,7 @@ export type DeviationItem = {
   employee_number: string;
   severity: "Low" | "Medium" | "High" | "Critical";
   status: "open" | "page1_submitted" | "page1_approved" | "page2_submitted" | "under_review" | "closed";
+  is_draft?: boolean; // Draft status for resuming work tomorrow
   created_at: string;
 
   // Page 1 Specific Fields (Matching Image 1: DEVIATION REPORT QF/08/CQA-55)
@@ -242,6 +245,13 @@ function DeviationsPage() {
     page2_attachment_name: "",
   });
 
+  // Auto-save active uncommitted draft while editing in modal wizard
+  useEffect(() => {
+    if (isModalOpen && formData && typeof window !== "undefined") {
+      localStorage.setItem("sakthi_active_deviation_draft", JSON.stringify(formData));
+    }
+  }, [isModalOpen, formData]);
+
   // Load registered signatures automatically if available
   useEffect(() => {
     const currentEmp = profile?.employee_number || "688079";
@@ -312,6 +322,7 @@ function DeviationsPage() {
                 employee_number: String(d.employee_number || "688079"),
                 severity: (d.severity || "High") as "Low" | "Medium" | "High" | "Critical",
                 status: (d.status || "page1_submitted") as any,
+                is_draft: Boolean(d.is_draft),
                 created_at: String(d.created_at || today),
 
                 report_date: String(d.report_date || d.created_at || today),
@@ -529,6 +540,65 @@ function DeviationsPage() {
     }));
   };
 
+  // Save Draft Function (Allows saving progress at any stage without blocking on missing fields)
+  const handleSaveDraft = async () => {
+    const today = getTodayDateStr();
+    const existingDev = editingDevId ? deviations.find((d) => d.id === editingDevId) : null;
+    const draftCode = existingDev?.dev_code || `DEV-DRAFT-${Math.floor(100 + Math.random() * 900)}`;
+
+    const draftDev: DeviationItem = {
+      id: editingDevId || `dev-draft-${Date.now()}`,
+      audit_id: formData.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+      dev_code: draftCode,
+      description: formData.title || "Untitled Deviation Draft",
+      observed_condition: formData.observations[0]?.specification || "Draft non-conformance observation",
+      location_operation: formData.location || "Machine Shop - Line 1",
+      employee_number: profile?.employee_number || "688079",
+      severity: formData.severity,
+      status: "open",
+      is_draft: true,
+      created_at: existingDev?.created_at || today,
+
+      report_date: formData.report_date || today,
+      from_dept: formData.from_dept,
+      to_dept: formData.to_dept,
+      part_name: formData.part_name || "STEERING KNUCKLE",
+      part_number: formData.part_number || "45110-M86R00",
+      stage: formData.stage,
+      observations: formData.observations,
+      cc: formData.cc,
+      doc_code: formData.doc_code || "QF/08/CQA-55",
+      doc_date: formData.doc_date || "25.12.2015",
+      inspected_by: formData.inspected_by,
+      inspected_by_signature: formData.inspected_by_signature,
+      approved_by: formData.approved_by,
+      approved_by_signature: formData.approved_by_signature,
+
+      page1_approved: existingDev?.page1_approved || false,
+      page2_submitted: existingDev?.page2_submitted || false,
+      capa_items: formData.capa_items,
+      quarantine_segregated_qty: formData.quarantine_segregated_qty,
+      quarantine_ok_qty: formData.quarantine_ok_qty,
+      quarantine_not_ok_qty: formData.quarantine_not_ok_qty,
+      quarantine_segregated_by: formData.quarantine_segregated_by,
+      quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature,
+      quarantine_approved_by: formData.quarantine_approved_by,
+      quarantine_approved_by_signature: formData.quarantine_approved_by_signature,
+      page2_attachment_name: formData.page2_attachment_name,
+    };
+
+    let updated: DeviationItem[];
+    if (editingDevId && deviations.some((d) => d.id === editingDevId)) {
+      updated = deviations.map((d) => (d.id === editingDevId ? draftDev : d));
+    } else {
+      updated = [draftDev, ...deviations];
+    }
+
+    await saveDeviationsList(updated);
+    setIsModalOpen(false);
+    toast.success(`Draft report ${draftCode} saved successfully! You can resume editing tomorrow or anytime.`);
+  };
+
   // Submit Page 1 (Deviation Report Format QF/08/CQA-55)
   const handleSubmitPage1 = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -563,13 +633,15 @@ function DeviationsPage() {
             inspected_by_signature: formData.inspected_by_signature || d.inspected_by_signature || "",
             approved_by: formData.approved_by,
             approved_by_signature: formData.approved_by_signature || d.approved_by_signature || "",
+            status: "page1_submitted",
+            is_draft: false, // Mark as submitted, no longer draft
           };
         }
         return d;
       });
       await saveDeviationsList(updated);
       setIsModalOpen(false);
-      toast.success("Page 1 [Deviation Report Format QF/08/CQA-55] updated successfully!");
+      toast.success("Page 1 [Deviation Report Format QF/08/CQA-55] submitted successfully!");
     } else {
       // Create new deviation record (Status: page1_submitted)
       const newCode = `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
@@ -583,6 +655,7 @@ function DeviationsPage() {
         employee_number: profile?.employee_number || "688079",
         severity: formData.severity,
         status: "page1_submitted",
+        is_draft: false,
         created_at: today,
 
         report_date: formData.report_date || today,
@@ -615,7 +688,7 @@ function DeviationsPage() {
       const updated = [newDev, ...deviations];
       await saveDeviationsList(updated);
       setIsModalOpen(false);
-      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Moves to Deviations icon for Admin Page 1 approval.`);
+      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Moves for Admin Page 1 approval.`);
     }
   };
 
@@ -681,6 +754,7 @@ function DeviationsPage() {
           page2_attachment_name: formData.page2_attachment_name || "RCA_CAPA_Report.pdf",
           page2_submitted_at: nowIso,
           status: "under_review" as const,
+          is_draft: false,
         };
       }
       return d;
@@ -753,36 +827,55 @@ function DeviationsPage() {
     setEditingDevId(null);
     setActiveTab(1);
     const today = getTodayDateStr();
-    setFormData({
-      audit_id: `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
-      title: "Steering Knuckle Bore Oversize Non-Conformance",
-      location: "Machine Shop Line 1 / Plant 2",
-      severity: "High",
-      report_date: today,
-      from_dept: "QUALITY ASSURANCE / LINE 1",
-      to_dept: "PRODUCTION & MANUFACTURING",
-      part_name: "STEERING KNUCKLE",
-      part_number: "45110-M86R00",
-      stage: "INPROCESS",
-      observations: DEFAULT_OBSERVATIONS,
-      cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
-      doc_code: "QF/08/CQA-55",
-      doc_date: "25.12.2015",
-      inspected_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-      inspected_by_signature: "",
-      approved_by: "KARTHIKEYAN C (690867)",
-      approved_by_signature: "",
 
-      capa_items: DEFAULT_CAPA_ITEMS,
-      quarantine_segregated_qty: "100",
-      quarantine_ok_qty: "95",
-      quarantine_not_ok_qty: "5",
-      quarantine_segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
-      quarantine_segregated_by_signature: "",
-      quarantine_approved_by: "KARTHIKEYAN C (690867)",
-      quarantine_approved_by_signature: "",
-      page2_attachment_name: "",
-    });
+    // Check if there is an uncommitted active draft stored locally
+    let restoredDraft = null;
+    if (typeof window !== "undefined") {
+      const draftRaw = localStorage.getItem("sakthi_active_deviation_draft");
+      if (draftRaw) {
+        try {
+          restoredDraft = JSON.parse(draftRaw);
+        } catch {
+          // Ignore
+        }
+      }
+    }
+
+    if (restoredDraft) {
+      setFormData(restoredDraft);
+      toast.info("Restored your previous active draft!");
+    } else {
+      setFormData({
+        audit_id: `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+        title: "Steering Knuckle Bore Oversize Non-Conformance",
+        location: "Machine Shop Line 1 / Plant 2",
+        severity: "High",
+        report_date: today,
+        from_dept: "QUALITY ASSURANCE / LINE 1",
+        to_dept: "PRODUCTION & MANUFACTURING",
+        part_name: "STEERING KNUCKLE",
+        part_number: "45110-M86R00",
+        stage: "INPROCESS",
+        observations: DEFAULT_OBSERVATIONS,
+        cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
+        doc_code: "QF/08/CQA-55",
+        doc_date: "25.12.2015",
+        inspected_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+        inspected_by_signature: "",
+        approved_by: "KARTHIKEYAN C (690867)",
+        approved_by_signature: "",
+
+        capa_items: DEFAULT_CAPA_ITEMS,
+        quarantine_segregated_qty: "100",
+        quarantine_ok_qty: "95",
+        quarantine_not_ok_qty: "5",
+        quarantine_segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+        quarantine_segregated_by_signature: "",
+        quarantine_approved_by: "KARTHIKEYAN C (690867)",
+        quarantine_approved_by_signature: "",
+        page2_attachment_name: "",
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -834,6 +927,7 @@ function DeviationsPage() {
   };
 
   const filteredDeviations = deviations.filter((d) => {
+    if (statusFilter === "drafts") return d.is_draft || d.status === "open";
     if (statusFilter !== "all" && d.status !== statusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -849,7 +943,8 @@ function DeviationsPage() {
     return true;
   });
 
-  const openCount = deviations.filter((d) => d.status === "open" || d.status === "page1_submitted").length;
+  const draftsCount = deviations.filter((d) => d.is_draft || d.status === "open").length;
+  const openCount = deviations.filter((d) => !d.is_draft && d.status === "page1_submitted").length;
   const page1ApprovedCount = deviations.filter((d) => d.status === "page1_approved" || d.page1_approved).length;
   const reviewCount = deviations.filter((d) => d.status === "under_review" || d.status === "page2_submitted").length;
   const closedCount = deviations.filter((d) => d.status === "closed" || d.both_approved).length;
@@ -857,7 +952,7 @@ function DeviationsPage() {
   return (
     <AppShell
       title="Plant Deviation Tracker (2-Page CAPA Workflow)"
-      description="Record non-conformances across official 2-page formats: Page 1 (Deviation Report QF/08/CQA-55) & Page 2 (RCA, CAPA & Quarantine Details) with multi-stage Admin approval."
+      description="Record non-conformances across official 2-page formats: Page 1 (Deviation Report QF/08/CQA-55) & Page 2 (RCA, CAPA & Quarantine Details) with multi-stage Admin approval & Save Draft support."
     >
       <div className="space-y-6">
         {/* Header Action Bar */}
@@ -867,7 +962,7 @@ function DeviationsPage() {
               <AlertTriangle className="h-5 w-5 text-amber-500" /> Sakthi Auto Plant Deviation Register (QF/08/CQA-55)
             </h2>
             <p className="text-xs text-slate-600 font-medium">
-              2-Page Deviation Format: Page 1 (Deviation Report) &rarr; Admin P1 Approval &rarr; Page 2 (RCA, CAPA & Quarantine Details) &rarr; Dual Approval.
+              2-Page Deviation Format: Page 1 (Deviation Report) &rarr; Admin P1 Approval &rarr; Page 2 (RCA, CAPA & Quarantine Details) &rarr; Dual Approval. Supports <strong>Save Draft</strong> for resuming later.
             </p>
           </div>
 
@@ -880,26 +975,32 @@ function DeviationsPage() {
         </div>
 
         {/* Overview Stats Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Total Logged Deviations</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase">Total Logged</div>
             <div className="mt-1 text-2xl font-extrabold text-slate-900">{deviations.length}</div>
           </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-xs">
-            <div className="text-xs font-semibold text-amber-700 uppercase flex items-center gap-1">
-              <AlertTriangle className="h-3.5 w-3.5" /> Page 1 Submitted / Open
+          <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 shadow-xs">
+            <div className="text-xs font-semibold text-amber-800 uppercase flex items-center gap-1">
+              <Save className="h-3.5 w-3.5 text-amber-600" /> Saved Drafts
             </div>
-            <div className="mt-1 text-2xl font-extrabold text-amber-900">{openCount}</div>
+            <div className="mt-1 text-2xl font-extrabold text-amber-900">{draftsCount}</div>
+          </div>
+          <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4 shadow-xs">
+            <div className="text-xs font-semibold text-orange-700 uppercase flex items-center gap-1">
+              <AlertTriangle className="h-3.5 w-3.5" /> P1 Submitted
+            </div>
+            <div className="mt-1 text-2xl font-extrabold text-orange-900">{openCount}</div>
           </div>
           <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 shadow-xs">
             <div className="text-xs font-semibold text-sky-700 uppercase flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> Page 2 / Under Review
+              <Clock className="h-3.5 w-3.5" /> P2 Under Review
             </div>
             <div className="mt-1 text-2xl font-extrabold text-sky-900">{reviewCount}</div>
           </div>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-xs">
             <div className="text-xs font-semibold text-emerald-700 uppercase flex items-center gap-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Approved & Completed
+              <CheckCircle2 className="h-3.5 w-3.5" /> Dual Approved
             </div>
             <div className="mt-1 text-2xl font-extrabold text-emerald-900">{closedCount}</div>
           </div>
@@ -918,9 +1019,17 @@ function DeviationsPage() {
               All ({deviations.length})
             </button>
             <button
+              onClick={() => setStatusFilter("drafts")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                statusFilter === "drafts" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300"
+              }`}
+            >
+              Drafts ({draftsCount})
+            </button>
+            <button
               onClick={() => setStatusFilter("page1_submitted")}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
-                statusFilter === "page1_submitted" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                statusFilter === "page1_submitted" ? "bg-orange-600 text-white" : "bg-orange-50 text-orange-800 hover:bg-orange-100"
               }`}
             >
               Page 1 Submitted ({openCount})
@@ -1002,12 +1111,16 @@ function DeviationsPage() {
                         {dev.quarantine_segregated_qty || dev.segregated_qty || "100"} PCS
                       </td>
                       <td className="p-3">
-                        {dev.page1_approved ? (
+                        {dev.is_draft || dev.status === "open" ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">
+                            <Clock className="h-3 w-3 text-amber-600" /> Draft Saved (In Progress)
+                          </span>
+                        ) : dev.page1_approved ? (
                           <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
                             <CheckCircle2 className="h-3 w-3" /> Page 1 Approved
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-300">
+                          <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-800 border border-orange-300">
                             <Clock className="h-3 w-3" /> Page 1 Submitted
                           </span>
                         )}
@@ -1031,17 +1144,31 @@ function DeviationsPage() {
                       </td>
                       <td className="p-3 text-center space-y-1">
                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {/* Resume Draft Button */}
+                          {(dev.is_draft || dev.status === "open") && (
+                            <button
+                              type="button"
+                              onClick={() => openModalForEdit(dev, 1)}
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-extrabold text-white hover:bg-amber-700 transition-colors cursor-pointer shadow-2xs"
+                              title="Resume editing saved draft"
+                            >
+                              <FileEdit className="h-3 w-3" /> Resume Draft
+                            </button>
+                          )}
+
                           {/* View Official Format Report */}
-                          <button
-                            type="button"
-                            onClick={() => setViewReportDev(dev)}
-                            className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
-                          >
-                            <FileText className="h-3 w-3 text-amber-600" /> View Report
-                          </button>
+                          {!dev.is_draft && (
+                            <button
+                              type="button"
+                              onClick={() => setViewReportDev(dev)}
+                              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
+                            >
+                              <FileText className="h-3 w-3 text-amber-600" /> View Report
+                            </button>
+                          )}
 
                           {/* Admin Approve Page 1 */}
-                          {isAdmin && !dev.page1_approved && (
+                          {isAdmin && !dev.is_draft && !dev.page1_approved && (
                             <button
                               type="button"
                               onClick={() => handleAdminApprovePage1(dev)}
@@ -1115,7 +1242,7 @@ function DeviationsPage() {
           </div>
         </div>
 
-        {/* MODAL: 2-PAGE DEVIATION REPORT WIZARD (MATCHING IMAGE 1 & IMAGE 2) */}
+        {/* MODAL: 2-PAGE DEVIATION REPORT WIZARD (MATCHING IMAGE 1 & IMAGE 2) WITH SAVE DRAFT SUPPORT */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto">
             <div className="w-full max-w-4xl my-8 rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 space-y-4">
@@ -1517,11 +1644,11 @@ function DeviationsPage() {
                   </div>
 
                   {/* Submit Page 1 Button Bar */}
-                  <div className="border-t border-slate-300 pt-3 flex items-center justify-between">
+                  <div className="border-t border-slate-300 pt-3 flex items-center justify-between flex-wrap gap-2">
                     <span className="text-[11px] text-slate-600 font-medium">
-                      Submitting Page 1 registers the report in the <strong>Deviations icon</strong> for Admin approval.
+                      Save as draft to resume tomorrow or submit to move for Admin approval.
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <Button
                         type="button"
                         variant="outline"
@@ -1530,6 +1657,17 @@ function DeviationsPage() {
                       >
                         Cancel
                       </Button>
+
+                      {/* SAVE AS DRAFT BUTTON */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSaveDraft}
+                        className="border-amber-400 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft (Resume Tomorrow)
+                      </Button>
+
                       <Button
                         type="submit"
                         disabled={!isPage1Valid}
@@ -1848,11 +1986,11 @@ function DeviationsPage() {
                   </div>
 
                   {/* Submit Page 2 Bar */}
-                  <div className="border-t border-slate-300 pt-3 flex items-center justify-between">
+                  <div className="border-t border-slate-300 pt-3 flex items-center justify-between flex-wrap gap-2">
                     <span className="text-[11px] text-slate-600 font-medium">
-                      Submitting Page 2 moves <strong>both reports (Inspection + Deviation)</strong> to Admin <strong>Under Review</strong>.
+                      Save draft to resume later or submit for Admin review.
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <Button
                         type="button"
                         variant="outline"
@@ -1861,6 +1999,17 @@ function DeviationsPage() {
                       >
                         Cancel
                       </Button>
+
+                      {/* SAVE AS DRAFT BUTTON */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSaveDraft}
+                        className="border-amber-400 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft (Resume Tomorrow)
+                      </Button>
+
                       <Button
                         type="submit"
                         disabled={!isPage2Valid}
