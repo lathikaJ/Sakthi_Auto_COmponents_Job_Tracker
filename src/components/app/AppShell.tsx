@@ -12,12 +12,10 @@ const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/assignments", label: "Assignments" },
   { to: "/review", label: "Review Queue" },
-  { to: "/deviations", label: "Deviations" },
 ] as const;
 
 const EMPLOYEE_NAV = [
   { to: "/dashboard", label: "My Work Queue" },
-  { to: "/deviations", label: "My Deviations" },
 ] as const;
 
 export function AppShell({
