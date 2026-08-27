@@ -6,7 +6,7 @@ import { ExcelTaskGrid } from "@/components/excel/ExcelTaskGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-import { DEFAULT_OFFICIAL_AUDITS } from "@/lib/audit";
+import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/assignments")({
   component: AssignmentsPage,
@@ -39,7 +39,8 @@ function AssignmentsPage() {
           try {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setLocalExcelTasks(parsed);
+              const clean = mergeAndDeduplicateTasks(parsed);
+              setLocalExcelTasks(clean);
             }
           } catch {
             // Ignore
@@ -52,11 +53,13 @@ function AssignmentsPage() {
     return () => window.removeEventListener("excel_tasks_updated", loadStored);
   }, []);
 
-  const initialRows = localExcelTasks.length > 0
-    ? localExcelTasks
-    : dbRows.length > 0
-    ? dbRows
-    : DEFAULT_OFFICIAL_AUDITS;
+  const initialRows = mergeAndDeduplicateTasks(
+    localExcelTasks.length > 0
+      ? localExcelTasks
+      : dbRows.length > 0
+      ? dbRows
+      : DEFAULT_OFFICIAL_AUDITS
+  );
 
   return (
     <AppShell

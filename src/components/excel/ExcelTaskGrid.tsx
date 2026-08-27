@@ -31,6 +31,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { mergeAndDeduplicateTasks } from "@/lib/audit";
 
 export type ExcelTaskRow = {
   id: string;
@@ -109,14 +110,8 @@ export function ExcelTaskGrid({
   // Sync rows when initialRows changes if user hasn't edited
   useEffect(() => {
     if (!hasChanges) {
-      const uniqueMap = new Map<string, ExcelTaskRow>();
-      initialRows.forEach((r) => {
-        const key = r.audit_code || r.id;
-        if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, r);
-        }
-      });
-      setRows(Array.from(uniqueMap.values()));
+      const clean = mergeAndDeduplicateTasks(initialRows);
+      setRows(clean);
     }
   }, [initialRows, hasChanges]);
 
@@ -396,9 +391,12 @@ export function ExcelTaskGrid({
           status: STATUSES.includes(item["Status"]) ? item["Status"] : "Assigned",
         }));
 
-        setRows((prev) => [...importedRows, ...prev]);
+        setRows((prev) => {
+          const merged = mergeAndDeduplicateTasks(prev, importedRows);
+          return merged;
+        });
         setHasChanges(true);
-        toast.success(`Imported ${importedRows.length} rows into Excel sheet! Click 'Save & Sync' to save.`);
+        toast.success(`Imported & smart-merged ${importedRows.length} rows into Excel sheet! Click 'Save & Sync' to save.`);
       } catch {
         toast.error("Error reading Excel file. Please ensure it is a valid .xlsx or .csv document.");
       }

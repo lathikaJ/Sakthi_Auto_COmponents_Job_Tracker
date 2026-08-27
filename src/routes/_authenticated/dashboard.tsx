@@ -47,6 +47,7 @@ import {
   LowProductionRecord,
   DEFAULT_LOW_PRODUCTION_DATA,
   AuditDocument,
+  mergeAndDeduplicateTasks,
 } from "@/lib/audit";
 import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
 
@@ -187,7 +188,8 @@ export function DashboardPage() {
           try {
             const parsed = JSON.parse(storedTasks);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setLocalExcelTasks(parsed);
+              const clean = mergeAndDeduplicateTasks(parsed);
+              setLocalExcelTasks(clean);
             }
           } catch {
             // Ignore
@@ -227,7 +229,9 @@ export function DashboardPage() {
     };
   }, []);
 
-  const rawTaskRows: Assignment[] = (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[];
+  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks(
+    (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[]
+  );
   const currentEmpNumber = profile?.employee_number;
   const allTaskRows = isAdmin
     ? rawTaskRows
@@ -466,13 +470,13 @@ export function DashboardPage() {
           };
         });
 
-        const updated = [...importedTasks, ...rawTaskRows];
+        const updated = mergeAndDeduplicateTasks(rawTaskRows, importedTasks);
         setLocalExcelTasks(updated);
         if (typeof window !== "undefined") {
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
           window.dispatchEvent(new Event("excel_tasks_updated"));
         }
-        toast.success(`Imported ${importedTasks.length} audit records into ${selectedCategory}!`);
+        toast.success(`Imported & smart-merged ${importedTasks.length} audit records into ${selectedCategory}! Total unique tasks: ${updated.length}.`);
       } catch (err) {
         toast.error("Failed to parse Excel file. Please ensure valid file format (.xlsx, .xls, .csv).");
       }

@@ -303,3 +303,52 @@ export const DEFAULT_OFFICIAL_AUDITS = [
     status: "In Progress",
   },
 ];
+
+/**
+ * Utility to merge and deduplicate task arrays by audit_code / id / title.
+ * Prevents identical audit records from being duplicated 25+ times upon file import or reload.
+ */
+export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: string; title?: string }>(
+  existingTasks: T[],
+  newTasks: T[] = []
+): T[] {
+  const map = new Map<string, T>();
+
+  const getKey = (task: T): string => {
+    if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
+      return task.audit_code.trim().toUpperCase();
+    }
+    if (task.id && typeof task.id === "string" && task.id.trim() && !task.id.startsWith("temp-") && !task.id.startsWith("imp-")) {
+      return task.id.trim().toUpperCase();
+    }
+    if (task.title && typeof task.title === "string" && task.title.trim()) {
+      return task.title.trim().toUpperCase();
+    }
+    return `TASK-${Math.random()}`;
+  };
+
+  (existingTasks || []).forEach((task) => {
+    if (!task) return;
+    const key = getKey(task);
+    if (!map.has(key)) {
+      map.set(key, task);
+    }
+  });
+
+  (newTasks || []).forEach((task) => {
+    if (!task) return;
+    const key = getKey(task);
+    if (map.has(key)) {
+      const existing = map.get(key)!;
+      map.set(key, {
+        ...existing,
+        ...task,
+        id: existing.id || task.id,
+      });
+    } else {
+      map.set(key, task);
+    }
+  });
+
+  return Array.from(map.values());
+}
