@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import React, { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FileSpreadsheet,
   Download,
@@ -13,6 +13,16 @@ import {
   Filter,
   RefreshCw,
   Eraser,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  PaintBucket,
+  Printer,
+  Grid,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -20,7 +30,6 @@ import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/app/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 
 export type ExcelTaskRow = {
@@ -34,6 +43,12 @@ export type ExcelTaskRow = {
   year: number;
   due_date: string;
   status: string;
+
+  // Custom Excel Formatting properties per cell
+  bold?: boolean;
+  italic?: boolean;
+  align?: "left" | "center" | "right";
+  bg_color?: string;
 };
 
 interface ExcelTaskGridProps {
@@ -54,29 +69,46 @@ const MONTH_NAMES = [
   "Jul (7)", "Aug (8)", "Sep (9)", "Oct (10)", "Nov (11)", "Dec (12)"
 ];
 
+const COLUMNS = [
+  { key: "audit_code", label: "A", name: "Audit Code", width: "w-28" },
+  { key: "title", label: "B", name: "Task Title", width: "min-w-[240px]" },
+  { key: "audit_type", label: "C", name: "Audit Type", width: "w-32" },
+  { key: "area", label: "D", name: "Department / Area", width: "w-36" },
+  { key: "assigned_to_employee_number", label: "E", name: "Assigned Emp ID", width: "w-36" },
+  { key: "month", label: "F", name: "Month", width: "w-24" },
+  { key: "due_date", label: "G", name: "Due Date", width: "w-32" },
+  { key: "status", label: "H", name: "Status", width: "w-32" },
+] as const;
+
 export function ExcelTaskGrid({
   initialRows,
   isAdmin,
   currentEmployeeNumber,
-  title = "Excel Task Matrix",
-  description = "Live Excel spreadsheet for updating and tracking audit tasks.",
+  title = "Master Audit Task Register.xlsx",
+  description = "Microsoft Excel & Google Sheets compatible task matrix.",
   onRefresh,
 }: ExcelTaskGridProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [rows, setRows] = useState<ExcelTaskRow[]>(initialRows);
-  const [selectedCell, setSelectedCell] = useState<{ rowIdx: number; colKey: keyof ExcelTaskRow } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ rowIdx: number; colKey: keyof ExcelTaskRow } | null>({ rowIdx: 0, colKey: "audit_code" });
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"matrix" | "my_tasks">("matrix");
+  const [activeSheetTab, setActiveSheetTab] = useState<"sheet1" | "sheet2">("sheet1"); // Sheet 1: Master Register, Sheet 2: My Work Queue
   const [hasChanges, setHasChanges] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  // Formatting state for active cell
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [alignMode, setAlignMode] = useState<"left" | "center" | "right">("left");
+  const [cellBgColor, setCellBgColor] = useState<string>("transparent");
 
   // Sync rows when initialRows changes if user hasn't edited
-  React.useEffect(() => {
+  useEffect(() => {
     if (!hasChanges) {
-      // Deduplicate rows by audit_code / id
       const uniqueMap = new Map<string, ExcelTaskRow>();
       initialRows.forEach((r) => {
         const key = r.audit_code || r.id;
@@ -90,8 +122,7 @@ export function ExcelTaskGrid({
 
   // Filtered rows
   const filteredRows = rows.filter((r) => {
-    // Only filter by current employee when "My Queue" tab is explicitly active
-    if (activeTab === "my_tasks") {
+    if (activeSheetTab === "sheet2") {
       if (currentEmployeeNumber && r.assigned_to_employee_number !== currentEmployeeNumber) {
         return false;
       }
@@ -112,10 +143,10 @@ export function ExcelTaskGrid({
     return true;
   });
 
-  // Handle cell edit (Admin Only per Requirement 7)
+  // Handle cell edit
   const handleCellChange = (id: string, field: keyof ExcelTaskRow, value: any) => {
     if (!isAdmin) {
-      toast.error("Access Denied: Only Admin users have permission to edit assigned work configuration.");
+      toast.error("Access Denied: Only Admin users can edit Excel task configuration.");
       return;
     }
     setRows((prev) =>
@@ -129,9 +160,46 @@ export function ExcelTaskGrid({
     setHasChanges(true);
   };
 
-  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  // Cell Formatting Toggles
+  const toggleBold = () => {
+    if (!selectedCell || !isAdmin) return;
+    const rowObj = rows[selectedCell.rowIdx];
+    if (rowObj) {
+      const nextBold = !rowObj.bold;
+      handleCellChange(rowObj.id, "bold", nextBold);
+      setIsBold(nextBold);
+    }
+  };
 
-  // Erase active cell content (Admin)
+  const toggleItalic = () => {
+    if (!selectedCell || !isAdmin) return;
+    const rowObj = rows[selectedCell.rowIdx];
+    if (rowObj) {
+      const nextItalic = !rowObj.italic;
+      handleCellChange(rowObj.id, "italic", nextItalic);
+      setIsItalic(nextItalic);
+    }
+  };
+
+  const changeAlign = (mode: "left" | "center" | "right") => {
+    if (!selectedCell || !isAdmin) return;
+    const rowObj = rows[selectedCell.rowIdx];
+    if (rowObj) {
+      handleCellChange(rowObj.id, "align", mode);
+      setAlignMode(mode);
+    }
+  };
+
+  const applyBgColor = (color: string) => {
+    if (!selectedCell || !isAdmin) return;
+    const rowObj = rows[selectedCell.rowIdx];
+    if (rowObj) {
+      handleCellChange(rowObj.id, "bg_color", color);
+      setCellBgColor(color);
+    }
+  };
+
+  // Erase active cell content
   const handleEraseCell = () => {
     if (!selectedCell || !isAdmin) {
       toast.error("Select a cell to erase its content.");
@@ -144,36 +212,17 @@ export function ExcelTaskGrid({
     }
   };
 
-  // Clear task row contents (Admin)
-  const handleClearRow = (id: string) => {
-    if (!isAdmin) return;
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              title: "",
-              area: "",
-              status: "Assigned",
-            }
-          : r
-      )
-    );
-    setHasChanges(true);
-    toast.info("Task details cleared from row.");
-  };
-
-  // Batch delete selected rows (Admin)
+  // Batch delete selected rows
   const handleDeleteSelected = () => {
     if (!isAdmin || selectedRowIds.size === 0) return;
     const count = selectedRowIds.size;
     setRows((prev) => prev.filter((r) => !selectedRowIds.has(r.id)));
     setSelectedRowIds(new Set());
     setHasChanges(true);
-    toast.info(`${count} task row(s) removed by Admin.`);
+    toast.info(`${count} task row(s) removed from Excel sheet.`);
   };
 
-  // Toggle selection
+  // Toggle row selection
   const toggleSelectRow = (id: string) => {
     const next = new Set(selectedRowIds);
     if (next.has(id)) next.delete(id);
@@ -189,18 +238,18 @@ export function ExcelTaskGrid({
     }
   };
 
-  // Add new empty row (Admin)
+  // Add new empty task row
   const handleAddRow = () => {
     const newId = `temp-${Date.now()}`;
     const newCode = `AUD-${Math.floor(1000 + Math.random() * 9000)}`;
-    const today = new Date().toISOString().split("T")[0] || "2026-08-18";
+    const today = new Date().toISOString().split("T")[0] || "2026-08-27";
     const newRow: ExcelTaskRow = {
       id: newId,
       audit_code: newCode,
       title: "",
       audit_type: "Product",
-      area: "",
-      assigned_to_employee_number: "1002",
+      area: "Machine Shop Line 1",
+      assigned_to_employee_number: "688079",
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       due_date: today,
@@ -208,28 +257,26 @@ export function ExcelTaskGrid({
     };
     setRows((prev) => [newRow, ...prev]);
     setHasChanges(true);
-    toast.success("Empty row added to Excel sheet. Enter your task details.");
+    toast.success("New row inserted into Excel sheet! Enter task details.");
   };
 
-  // Delete row (Admin)
+  // Delete row
   const handleDeleteRow = (id: string) => {
     setRows((prev) => prev.filter((r) => r.id !== id));
     setHasChanges(true);
     toast.info("Task row removed from sheet.");
   };
 
-  // Save changes to Database & LocalStorage for instant sync
+  // Save & Sync changes to Database & LocalStorage
   const handleSaveSync = async () => {
     try {
-      toast.loading("Saving Excel updates to system…");
+      toast.loading("Syncing Excel sheet data...");
 
-      // 1. Always persist to localStorage for local/demo synchronization
       if (typeof window !== "undefined") {
         localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(rows));
         window.dispatchEvent(new Event("excel_tasks_updated"));
       }
 
-      // 2. Attempt Supabase database sync
       try {
         for (const row of rows) {
           if (row.id.startsWith("temp-") || row.id.startsWith("demo-")) {
@@ -241,8 +288,8 @@ export function ExcelTaskGrid({
                 area: row.area || "General",
                 month: row.month || 1,
                 year: row.year || 2026,
-                due_date: row.due_date || "2026-08-18",
-                assigned_to_employee_number: row.assigned_to_employee_number || "1002",
+                due_date: row.due_date || "2026-08-27",
+                assigned_to_employee_number: row.assigned_to_employee_number || "688079",
                 assigned_to: "00000000-0000-0000-0000-000000000000",
                 status: (row.status as any) || "Assigned",
               },
@@ -257,21 +304,21 @@ export function ExcelTaskGrid({
                 area: row.area || "General",
                 month: row.month || 1,
                 year: row.year || 2026,
-                due_date: row.due_date || "2026-08-18",
-                assigned_to_employee_number: row.assigned_to_employee_number || "1002",
+                due_date: row.due_date || "2026-08-27",
+                assigned_to_employee_number: row.assigned_to_employee_number || "688079",
                 status: (row.status as any) || "Assigned",
               })
               .eq("id", row.id);
           }
         }
       } catch (dbErr) {
-        console.warn("Supabase DB sync notice:", dbErr);
+        console.warn("Supabase sync notice:", dbErr);
       }
 
       setHasChanges(false);
       await queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.dismiss();
-      toast.success("Excel task updates successfully synchronized across Admin & Employee views!");
+      toast.success("Excel task spreadsheet successfully saved & synced!");
       if (onRefresh) onRefresh();
     } catch (err) {
       toast.dismiss();
@@ -287,7 +334,7 @@ export function ExcelTaskGrid({
       "Task Title": r.title,
       "Audit Type": r.audit_type || "Product",
       Area: r.area || "General",
-      "Assigned Employee": r.assigned_to_employee_number || "1002",
+      "Assigned Employee": r.assigned_to_employee_number || "688079",
       Month: r.month || 1,
       Year: r.year || 2026,
       "Due Date": r.due_date || "",
@@ -296,9 +343,8 @@ export function ExcelTaskGrid({
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Audit Tasks");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Master Task Register");
 
-    // Auto fit columns
     worksheet["!cols"] = [
       { wch: 6 },
       { wch: 14 },
@@ -313,7 +359,7 @@ export function ExcelTaskGrid({
     ];
 
     XLSX.writeFile(workbook, `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`);
-    toast.success("Excel file exported successfully!");
+    toast.success("Excel spreadsheet (.xlsx) exported!");
   };
 
   // Excel Import (.xlsx / .csv)
@@ -333,7 +379,7 @@ export function ExcelTaskGrid({
         const data = XLSX.utils.sheet_to_json<any>(ws);
 
         if (!data || data.length === 0) {
-          toast.error("The uploaded Excel file contains no valid rows.");
+          toast.error("Uploaded file contains no valid rows.");
           return;
         }
 
@@ -343,7 +389,7 @@ export function ExcelTaskGrid({
           title: item["Task Title"] || item["Title"] || item["Task"] || "Imported Task",
           audit_type: AUDIT_TYPES.includes(item["Audit Type"]) ? item["Audit Type"] : "Product",
           area: item["Area"] || item["Department"] || "General",
-          assigned_to_employee_number: String(item["Assigned Employee"] || item["Employee ID"] || "1002"),
+          assigned_to_employee_number: String(item["Assigned Employee"] || item["Employee ID"] || "688079"),
           month: Number(item["Month"]) || new Date().getMonth() + 1,
           year: Number(item["Year"]) || new Date().getFullYear(),
           due_date: String(item["Due Date"] || new Date().toISOString().split("T")[0]),
@@ -352,8 +398,8 @@ export function ExcelTaskGrid({
 
         setRows((prev) => [...importedRows, ...prev]);
         setHasChanges(true);
-        toast.success(`Successfully imported ${importedRows.length} tasks from Excel! Click 'Save & Sync' to persist.`);
-      } catch (err) {
+        toast.success(`Imported ${importedRows.length} rows into Excel sheet! Click 'Save & Sync' to save.`);
+      } catch {
         toast.error("Error reading Excel file. Please ensure it is a valid .xlsx or .csv document.");
       }
     };
@@ -362,74 +408,67 @@ export function ExcelTaskGrid({
   };
 
   const currentRowObj = selectedCell && rows[selectedCell.rowIdx] ? rows[selectedCell.rowIdx] : null;
-  const activeCellRef = currentRowObj
-    ? `${String.fromCharCode(65 + Math.max(0, Object.keys(currentRowObj).indexOf(selectedCell!.colKey)))}${selectedCell!.rowIdx + 1}`
-    : "A1";
+  const colLetter = selectedCell ? COLUMNS.find((c) => c.key === selectedCell.colKey)?.label || "A" : "A";
+  const activeCellRef = currentRowObj && selectedCell ? `${colLetter}${selectedCell.rowIdx + 1}` : "A1";
 
-  const selectedValue = currentRowObj && selectedCell
-    ? String(currentRowObj[selectedCell.colKey] ?? "")
-    : "";
+  const selectedValue = currentRowObj && selectedCell ? String(currentRowObj[selectedCell.colKey] ?? "") : "";
 
   return (
-    <div className="card-elevated flex flex-col overflow-hidden rounded-xl border border-emerald-500/30 bg-white text-slate-900 shadow-sm">
-      {/* Excel Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-emerald-50/80 px-5 py-3">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-emerald-600 p-2 text-white shadow-xs">
-            <FileSpreadsheet className="h-5 w-5" />
+    <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-[#f8f9fa] text-slate-900 shadow-md font-sans">
+      {/* ── 1. MICROSOFT EXCEL / GOOGLE SHEETS GREEN WINDOW TITLE BAR ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-2 text-white shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
+            X
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
               {title}
               {hasChanges ? (
-                <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-xs font-bold text-amber-800">
-                  Unsaved Edits
+                <span className="rounded bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-900 shadow-xs">
+                  • UNSAVED EDITS
                 </span>
               ) : (
-                <span className="rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                  Synced
+                <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100">
+                  ✓ SAVED TO CLOUD
                 </span>
               )}
             </h3>
-            <p className="text-xs font-medium text-slate-600">{description}</p>
+            <p className="text-[11px] text-emerald-100 font-medium">
+              Official Excel Task Management Register · Auto-Save Enabled
+            </p>
           </div>
         </div>
 
-        {/* Excel Control Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            className="gap-1.5 bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs"
-            onClick={handleAddRow}
-          >
-            <Plus className="h-4 w-4" /> Add Task Row
-          </Button>
-
+        {/* Action Buttons in Top Title Bar */}
+        <div className="flex items-center gap-2">
           {isAdmin && (
             <>
               <Button
-                variant="outline"
                 size="sm"
-                className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleAddRow}
+                className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer"
               >
-                <Upload className="h-4 w-4 text-emerald-600" /> Import Excel
+                <Plus className="h-3.5 w-3.5" /> + Insert Row
               </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".xlsx, .xls, .csv"
-                className="hidden"
-              />
 
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 shadow-xs"
-                onClick={handleExportExcel}
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
               >
-                <Download className="h-4 w-4 text-emerald-600" /> Export Excel
+                <Upload className="h-3.5 w-3.5" /> Import Excel
+              </Button>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" /> Export .XLSX
               </Button>
             </>
           )}
@@ -437,192 +476,320 @@ export function ExcelTaskGrid({
           {hasChanges && (
             <Button
               size="sm"
-              className="gap-1.5 bg-amber-600 font-bold text-white hover:bg-amber-700 shadow-md"
               onClick={handleSaveSync}
+              className="h-8 gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md cursor-pointer animate-pulse"
             >
-              <Save className="h-4 w-4" /> Save & Sync Excel
+              <Save className="h-3.5 w-3.5" /> Save & Sync Sheet
             </Button>
           )}
         </div>
       </div>
 
-      {/* Excel Formula & Filter Ribbon */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-slate-100/90 px-4 py-2 text-xs font-medium text-slate-800">
-        {/* Cell Box */}
-        <div className="flex items-center gap-2 rounded border border-slate-300 bg-white px-3 py-1 font-mono font-bold text-emerald-700 shadow-xs">
-          <span>Cell:</span>
-          <span>{activeCellRef}</span>
+      {/* ── 2. CLASSIC EXCEL / GOOGLE SHEETS MENU BAR ── */}
+      <div className="flex items-center gap-4 bg-[#f3f4f6] px-4 py-1 border-b border-slate-300 text-xs font-medium text-slate-700 select-none">
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer font-bold text-slate-900">File</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Edit</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">View</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Insert</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Format</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Data</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Tools</span>
+        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Help</span>
+      </div>
+
+      {/* ── 3. EXCEL TOOLBAR / FORMATTING RIBBON (BOLD, ALIGNMENT, COLOR) ── */}
+      <div className="flex flex-wrap items-center gap-2 bg-[#f8f9fa] border-b border-slate-300 px-4 py-1.5 text-xs text-slate-800">
+        {/* Formatting Tools */}
+        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
+          <button
+            type="button"
+            onClick={toggleBold}
+            disabled={!isAdmin}
+            className={`p-1.5 rounded hover:bg-slate-200 font-extrabold cursor-pointer ${isBold ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleItalic}
+            disabled={!isAdmin}
+            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${isItalic ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
+            title="Italic (Ctrl+I)"
+          >
+            <Italic className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Formula Bar */}
-        <div className="flex flex-1 items-center gap-2 rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-xs">
-          <span className="font-serif italic text-emerald-600 font-bold text-sm">fx</span>
-          <span className="truncate text-slate-900 font-mono font-medium flex-1">
-            {selectedValue || "Select cell to view/edit value"}
-          </span>
-
-          {/* Admin Quick Erase Cell Button */}
-          {isAdmin && selectedCell && (
-            <button
-              type="button"
-              onClick={handleEraseCell}
-              className="flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-200 transition-colors"
-              title="Erase selected cell value"
-            >
-              <Eraser className="h-3 w-3 text-amber-700" /> Erase Cell
-            </button>
-          )}
-
-          {/* Admin Batch Delete Selected Rows */}
-          {isAdmin && selectedRowIds.size > 0 && (
-            <button
-              type="button"
-              onClick={handleDeleteSelected}
-              className="flex items-center gap-1 rounded bg-rose-100 border border-rose-300 px-2 py-0.5 text-[11px] font-bold text-rose-800 hover:bg-rose-200 transition-colors"
-              title="Remove selected task rows"
-            >
-              <Trash2 className="h-3 w-3 text-rose-700" /> Remove Selected ({selectedRowIds.size})
-            </button>
-          )}
+        {/* Alignment */}
+        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
+          <button
+            type="button"
+            onClick={() => changeAlign("left")}
+            disabled={!isAdmin}
+            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "left" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
+            title="Align Left"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => changeAlign("center")}
+            disabled={!isAdmin}
+            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "center" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
+            title="Align Center"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => changeAlign("right")}
+            disabled={!isAdmin}
+            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "right" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
+            title="Align Right"
+          >
+            <AlignRight className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Search */}
-        <div className="relative min-w-[180px]">
-          <Search className="absolute left-2.5 top-1.5 h-3.5 w-3.5 text-slate-400" />
-          <Input
-            placeholder="Search Excel..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 border-slate-300 pl-8 text-xs bg-white text-slate-900 font-medium"
+        {/* Fill Background Color Palette */}
+        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
+          <PaintBucket className="h-4 w-4 text-slate-600" />
+          <button
+            type="button"
+            onClick={() => applyBgColor("#fef08a")}
+            className="h-4 w-4 rounded-full bg-yellow-200 border border-slate-300 hover:scale-110 cursor-pointer"
+            title="Yellow Fill"
+          />
+          <button
+            type="button"
+            onClick={() => applyBgColor("#bbf7d0")}
+            className="h-4 w-4 rounded-full bg-emerald-200 border border-slate-300 hover:scale-110 cursor-pointer"
+            title="Green Fill"
+          />
+          <button
+            type="button"
+            onClick={() => applyBgColor("#bae6fd")}
+            className="h-4 w-4 rounded-full bg-sky-200 border border-slate-300 hover:scale-110 cursor-pointer"
+            title="Blue Fill"
+          />
+          <button
+            type="button"
+            onClick={() => applyBgColor("transparent")}
+            className="h-4 w-4 rounded-full bg-white border border-slate-300 hover:scale-110 cursor-pointer flex items-center justify-center text-[8px] font-bold"
+            title="Clear Fill"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Search & Filter Inputs */}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative min-w-[160px]">
+            <Search className="absolute left-2.5 top-1.5 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Search Sheet..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 border-slate-300 pl-8 text-xs bg-white text-slate-900 font-medium"
+            />
+          </div>
+
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="h-7 rounded border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800"
+          >
+            <option value="all">All Audit Types</option>
+            {AUDIT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t} Audit
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="h-7 rounded border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800"
+          >
+            <option value="all">All Months</option>
+            {MONTH_NAMES.map((m, idx) => (
+              <option key={idx + 1} value={idx + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* ── 4. CLASSIC EXCEL FORMULA BAR (fx) ── */}
+      <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800">
+        {/* Active Cell Reference Name Box (e.g. A1, B3) */}
+        <div className="flex h-7 w-16 items-center justify-center rounded border border-slate-300 bg-slate-100 font-mono font-bold text-emerald-800 shadow-2xs">
+          {activeCellRef}
+        </div>
+
+        {/* Formula Icon */}
+        <div className="flex h-7 w-7 items-center justify-center font-serif italic text-emerald-700 font-black text-sm select-none">
+          fx
+        </div>
+
+        {/* Formula Input Line */}
+        <div className="flex flex-1 items-center rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-2xs focus-within:ring-2 focus-within:ring-emerald-600">
+          <input
+            value={selectedValue}
+            readOnly={!isAdmin}
+            onChange={(e) => {
+              if (selectedCell && currentRowObj) {
+                handleCellChange(currentRowObj.id, selectedCell.colKey, e.target.value);
+              }
+            }}
+            placeholder="Select a cell to view or enter cell data/formula..."
+            className="w-full bg-transparent font-mono text-xs text-slate-900 font-medium outline-none disabled:opacity-80"
           />
         </div>
 
-        {/* Type Filter */}
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="h-7 rounded border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800"
-        >
-          <option value="all">All Types</option>
-          {AUDIT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t} Audit
-            </option>
-          ))}
-        </select>
+        {/* Quick Cell Erase & Batch Operations */}
+        {isAdmin && selectedCell && (
+          <button
+            type="button"
+            onClick={handleEraseCell}
+            className="flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-200 cursor-pointer"
+            title="Clear active cell content"
+          >
+            <Eraser className="h-3 w-3 text-amber-700" /> Erase Cell
+          </button>
+        )}
 
-        {/* Month Filter */}
-        <select
-          value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          className="h-7 rounded border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800"
-        >
-          <option value="all">All Months</option>
-          {MONTH_NAMES.map((m, idx) => (
-            <option key={idx + 1} value={idx + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
+        {isAdmin && selectedRowIds.size > 0 && (
+          <button
+            type="button"
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-1 rounded bg-rose-100 border border-rose-300 px-2 py-1 text-[11px] font-bold text-rose-900 hover:bg-rose-200 cursor-pointer"
+          >
+            <Trash2 className="h-3 w-3 text-rose-700" /> Delete Selected ({selectedRowIds.size})
+          </button>
+        )}
       </div>
 
-      {/* Interactive Excel Grid Table */}
-      <div className="overflow-x-auto max-h-[500px] bg-white">
-        <table className="w-full border-collapse text-xs font-sans">
-          {/* Excel Header Column Labels (A, B, C, D...) */}
+      {/* ── 5. AUTHENTIC EXCEL GRID TABLE WITH CRISP GRIDLINES & GREEN ACTIVE BORDER ── */}
+      <div className="overflow-x-auto max-h-[520px] bg-white border-b border-slate-300">
+        <table className="w-full border-collapse text-xs font-sans border-spacing-0">
+          {/* Excel Column Headers (A, B, C, D, E, F, G, H) */}
           <thead>
-            <tr className="bg-slate-200 text-slate-800 font-mono text-[11px] uppercase border-b border-slate-300">
-              <th className="w-12 border-r border-slate-300 bg-slate-300 p-2 text-center text-slate-700 font-bold">
+            <tr className="bg-[#e2e8f0] text-slate-800 font-mono text-[11px] uppercase select-none border-b border-slate-400">
+              <th className="w-12 border-r border-b border-slate-400 bg-[#cbd5e1] p-1.5 text-center text-slate-700 font-bold">
                 {isAdmin ? (
                   <input
                     type="checkbox"
                     checked={selectedRowIds.size === filteredRows.length && filteredRows.length > 0}
                     onChange={toggleSelectAll}
                     className="rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    title="Select/Deselect All Rows"
                   />
                 ) : (
                   "#"
                 )}
               </th>
-              <th className="border-r border-slate-300 p-2 text-left w-28 font-bold text-slate-800">A: Code</th>
-              <th className="border-r border-slate-300 p-2 text-left min-w-[220px] font-bold text-slate-800">B: Task Title</th>
-              <th className="border-r border-slate-300 p-2 text-left w-32 font-bold text-slate-800">C: Type</th>
-              <th className="border-r border-slate-300 p-2 text-left w-36 font-bold text-slate-800">D: Area</th>
-              <th className="border-r border-slate-300 p-2 text-left w-36 font-bold text-slate-800">E: Assigned Emp</th>
-              <th className="border-r border-slate-300 p-2 text-left w-24 font-bold text-slate-800">F: Month</th>
-              <th className="border-r border-slate-300 p-2 text-left w-32 font-bold text-slate-800">G: Due Date</th>
-              <th className="border-r border-slate-300 p-2 text-left w-32 font-bold text-slate-800">H: Status</th>
-              <th className="p-2 text-center w-28 font-bold text-slate-800">I: Actions</th>
+              {COLUMNS.map((col) => {
+                const isColActive = selectedCell?.colKey === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    className={`border-r border-b border-slate-400 p-1.5 text-left font-bold transition-colors ${col.width} ${
+                      isColActive ? "bg-[#107c41] text-white" : "bg-[#e2e8f0] text-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs">{col.label}</span>
+                      <span className="text-[10px] opacity-80 font-sans font-semibold tracking-tight">{col.name}</span>
+                    </div>
+                  </th>
+                );
+              })}
+              <th className="p-1.5 text-center w-28 font-bold border-b border-slate-400 bg-[#e2e8f0] text-slate-800">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {filteredRows.map((r, rowIdx) => {
               const isEmpMatch = currentEmployeeNumber && r.assigned_to_employee_number === currentEmployeeNumber;
+              const isRowSelected = selectedCell?.rowIdx === rowIdx;
 
               return (
                 <tr
                   key={r.id}
-                  className={`border-b border-slate-200 transition-colors hover:bg-emerald-50/50 ${
-                    selectedRowIds.has(r.id) ? "bg-amber-50/80" : isEmpMatch ? "bg-emerald-50/70" : "bg-white"
+                  className={`border-b border-slate-300 transition-colors ${
+                    selectedRowIds.has(r.id) ? "bg-amber-100/80" : isRowSelected ? "bg-emerald-50/40" : isEmpMatch ? "bg-emerald-50/30" : "bg-white"
                   }`}
                 >
-                  {/* Excel Line Number & Selection Checkbox */}
-                  <td className="border-r border-slate-200 bg-slate-100 p-2 text-center font-mono font-bold text-slate-600 select-none flex items-center justify-center gap-1.5">
-                    {isAdmin && (
-                      <input
-                        type="checkbox"
-                        checked={selectedRowIds.has(r.id)}
-                        onChange={() => toggleSelectRow(r.id)}
-                        className="rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                      />
-                    )}
-                    <span>{rowIdx + 1}</span>
+                  {/* Excel Row Number Column */}
+                  <td
+                    className={`border-r border-slate-300 p-1.5 text-center font-mono font-bold text-xs select-none ${
+                      isRowSelected ? "bg-[#107c41] text-white" : "bg-[#f1f5f9] text-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      {isAdmin && (
+                        <input
+                          type="checkbox"
+                          checked={selectedRowIds.has(r.id)}
+                          onChange={() => toggleSelectRow(r.id)}
+                          className="rounded border-slate-400 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      )}
+                      <span>{rowIdx + 1}</span>
+                    </div>
                   </td>
 
                   {/* A: Code */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "audit_code" })}
-                    className={`border-r border-slate-200 p-1 font-mono font-bold text-emerald-700 ${
+                    className={`border-r border-slate-300 p-0.5 relative font-mono font-bold text-emerald-800 ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "audit_code"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
+                    style={{ backgroundColor: r.bg_color && r.bg_color !== "transparent" ? r.bg_color : undefined }}
                   >
                     <Input
                       value={r.audit_code}
                       readOnly={!isAdmin}
-                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "audit_code", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 font-mono text-xs text-slate-900 font-bold focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
+                      className={`h-8 border-none bg-transparent p-1.5 font-mono text-xs text-slate-900 font-bold focus-visible:ring-0 ${
+                        r.bold ? "font-black" : ""
+                      } ${r.italic ? "italic" : ""}`}
                     />
                   </td>
 
                   {/* B: Title */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "title" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "title"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
+                    style={{ backgroundColor: r.bg_color && r.bg_color !== "transparent" ? r.bg_color : undefined }}
                   >
                     <Input
                       value={r.title}
                       readOnly={!isAdmin}
-                      disabled={!isAdmin}
                       placeholder="Enter task title..."
                       onChange={(e) => handleCellChange(r.id, "title", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 font-semibold text-xs text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
+                      className={`h-8 border-none bg-transparent p-1.5 text-xs font-semibold text-slate-900 focus-visible:ring-0 ${
+                        r.bold ? "font-black" : ""
+                      } ${r.italic ? "italic" : ""}`}
                     />
                   </td>
 
                   {/* C: Type */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "audit_type" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "audit_type"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
@@ -630,7 +797,7 @@ export function ExcelTaskGrid({
                       value={r.audit_type}
                       disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "audit_type", e.target.value)}
-                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
+                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-bold text-slate-900 focus:ring-0 cursor-pointer disabled:opacity-90"
                     >
                       {AUDIT_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -643,39 +810,35 @@ export function ExcelTaskGrid({
                   {/* D: Area */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "area" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "area"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
                     <Input
                       value={r.area}
                       readOnly={!isAdmin}
-                      disabled={!isAdmin}
                       placeholder="Enter area..."
                       onChange={(e) => handleCellChange(r.id, "area", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
+                      className="h-8 border-none bg-transparent p-1.5 text-xs font-medium text-slate-900 focus-visible:ring-0"
                     />
                   </td>
 
                   {/* E: Assigned Employee */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "assigned_to_employee_number" })}
-                    className={`border-r border-slate-200 p-1 ${
-                      selectedCell?.rowIdx === rowIdx &&
-                      selectedCell?.colKey === "assigned_to_employee_number"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                    className={`border-r border-slate-300 p-0.5 relative ${
+                      selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "assigned_to_employee_number"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
                     <select
                       value={r.assigned_to_employee_number}
                       disabled={!isAdmin}
-                      onChange={(e) =>
-                        handleCellChange(r.id, "assigned_to_employee_number", e.target.value)
-                      }
-                      className="h-8 w-full rounded border-none bg-transparent p-1 font-mono text-xs font-bold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
+                      onChange={(e) => handleCellChange(r.id, "assigned_to_employee_number", e.target.value)}
+                      className="h-8 w-full rounded border-none bg-transparent p-1 font-mono text-xs font-bold text-slate-900 focus:ring-0 cursor-pointer disabled:opacity-90"
                     >
                       {EMPLOYEE_LIST.map((emp) => (
                         <option key={emp} value={emp}>
@@ -688,9 +851,9 @@ export function ExcelTaskGrid({
                   {/* F: Month */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "month" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "month"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
@@ -698,7 +861,7 @@ export function ExcelTaskGrid({
                       value={r.month}
                       disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "month", parseInt(e.target.value))}
-                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500 disabled:opacity-90"
+                      className="h-8 w-full rounded border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus:ring-0 cursor-pointer disabled:opacity-90"
                     >
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                         <option key={m} value={m}>
@@ -711,9 +874,9 @@ export function ExcelTaskGrid({
                   {/* G: Due Date */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "due_date" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "due_date"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
@@ -721,18 +884,17 @@ export function ExcelTaskGrid({
                       type="date"
                       value={r.due_date}
                       readOnly={!isAdmin}
-                      disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "due_date", e.target.value)}
-                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-1 focus-visible:ring-emerald-500 disabled:opacity-90"
+                      className="h-8 border-none bg-transparent p-1 text-xs font-semibold text-slate-900 focus-visible:ring-0"
                     />
                   </td>
 
                   {/* H: Status */}
                   <td
                     onClick={() => setSelectedCell({ rowIdx, colKey: "status" })}
-                    className={`border-r border-slate-200 p-1 ${
+                    className={`border-r border-slate-300 p-0.5 relative ${
                       selectedCell?.rowIdx === rowIdx && selectedCell?.colKey === "status"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        ? "ring-2 ring-[#107c41] ring-inset bg-emerald-50/80 z-10"
                         : ""
                     }`}
                   >
@@ -740,8 +902,7 @@ export function ExcelTaskGrid({
                       value={r.status}
                       disabled={!isAdmin}
                       onChange={(e) => handleCellChange(r.id, "status", e.target.value)}
-                      title={isAdmin ? "Update Audit Task Status" : "Status is editable by Admin only"}
-                      className="h-8 w-full rounded border border-slate-300 bg-slate-50 px-2 text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-emerald-500 disabled:opacity-90"
+                      className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-xs font-bold text-slate-900 shadow-2xs focus:ring-1 focus:ring-emerald-600 disabled:opacity-90 cursor-pointer"
                     >
                       {STATUSES.map((st) => (
                         <option key={st} value={st}>
@@ -751,14 +912,14 @@ export function ExcelTaskGrid({
                     </select>
                   </td>
 
-                  {/* I: Action / Open Form & Admin Row Controls */}
-                  <td className="p-1 text-center">
+                  {/* Actions Column */}
+                  <td className="p-1 text-center border-slate-300">
                     <div className="flex items-center justify-center gap-1">
                       <Button
                         asChild
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-100"
+                        className="h-7 w-7 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
                         title="Open Audit Execution Form"
                       >
                         <Link to="/audit/$auditId" params={{ auditId: r.id.startsWith("temp-") ? "demo" : r.id }}>
@@ -771,9 +932,9 @@ export function ExcelTaskGrid({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-amber-600 hover:bg-amber-100"
-                            onClick={() => handleClearRow(r.id)}
-                            title="Erase Row Content (Clear task details)"
+                            className="h-7 w-7 text-amber-700 hover:bg-amber-100 cursor-pointer"
+                            onClick={() => handleCellChange(r.id, "title", "")}
+                            title="Clear cell title"
                           >
                             <Eraser className="h-3.5 w-3.5" />
                           </Button>
@@ -781,9 +942,9 @@ export function ExcelTaskGrid({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-rose-600 hover:bg-rose-100"
+                            className="h-7 w-7 text-rose-700 hover:bg-rose-100 cursor-pointer"
                             onClick={() => handleDeleteRow(r.id)}
-                            title="Remove Task Row completely"
+                            title="Delete row completely"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -797,8 +958,8 @@ export function ExcelTaskGrid({
 
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-sm font-medium text-slate-500">
-                  No task rows match your current search/filter criteria.
+                <td colSpan={10} className="p-8 text-center text-sm font-semibold text-slate-500 bg-white">
+                  No tasks found in Excel sheet. Click '+ Insert Row' to add a new task row.
                 </td>
               </tr>
             )}
@@ -806,38 +967,54 @@ export function ExcelTaskGrid({
         </table>
       </div>
 
-      {/* Excel Sheet Footer Tabs */}
-      <div className="flex items-center justify-between border-t border-slate-200 bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700">
-        <div className="flex items-center gap-1 font-medium">
+      {/* ── 6. AUTHENTIC EXCEL BOTTOM SHEET TABS & STATUS BAR (SHEET1 / SHEET2) ── */}
+      <div className="flex items-center justify-between border-t border-slate-300 bg-[#e2e8f0] px-4 py-1.5 text-xs text-slate-700 select-none">
+        {/* Sheet Tabs */}
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => setActiveTab("matrix")}
-            className={`flex items-center gap-1.5 rounded-t px-3 py-1 transition-colors ${
-              activeTab === "matrix"
-                ? "bg-white text-emerald-700 font-bold border-t-2 border-emerald-600 shadow-xs"
-                : "hover:bg-slate-200 text-slate-600"
+            type="button"
+            onClick={() => setActiveSheetTab("sheet1")}
+            className={`flex items-center gap-1.5 rounded-t-md px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
+              activeSheetTab === "sheet1"
+                ? "bg-white text-emerald-800 border-t-2 border-t-[#107c41] shadow-2xs"
+                : "text-slate-600 hover:bg-slate-300"
             }`}
           >
-            <FileSpreadsheet className="h-3.5 w-3.5" /> All Tasks Grid ({rows.length})
+            <Grid className="h-3.5 w-3.5 text-emerald-700" />
+            Sheet1: Master Register ({rows.length})
           </button>
 
-          {currentEmployeeNumber && (
+          <button
+            type="button"
+            onClick={() => setActiveSheetTab("sheet2")}
+            className={`flex items-center gap-1.5 rounded-t-md px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
+              activeSheetTab === "sheet2"
+                ? "bg-white text-emerald-800 border-t-2 border-t-[#107c41] shadow-2xs"
+                : "text-slate-600 hover:bg-slate-300"
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+            Sheet2: My Work Queue
+          </button>
+
+          {isAdmin && (
             <button
-              onClick={() => setActiveTab("my_tasks")}
-              className={`flex items-center gap-1.5 rounded-t px-3 py-1 transition-colors ${
-                activeTab === "my_tasks"
-                  ? "bg-white text-emerald-700 font-bold border-t-2 border-emerald-600 shadow-xs"
-                  : "hover:bg-slate-200 text-slate-600"
-              }`}
+              type="button"
+              onClick={handleAddRow}
+              className="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-300 text-slate-700 font-bold cursor-pointer ml-1"
+              title="Add new sheet row"
             >
-              <CheckCircle2 className="h-3.5 w-3.5" /> My Queue (
-              {rows.filter((r) => r.assigned_to_employee_number === currentEmployeeNumber).length})
+              +
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] font-mono font-semibold text-slate-600">
-          <span>Total Rows: {filteredRows.length}</span>
-          <span className="text-emerald-700 font-bold">Ready for Sync</span>
+        {/* Excel Status Bar Summary */}
+        <div className="flex items-center gap-4 text-[11px] font-mono text-slate-700 font-bold">
+          <span className="text-emerald-800">READY</span>
+          <span>COUNT: {filteredRows.length} Tasks</span>
+          <span>SELECTED: {activeCellRef}</span>
+          <span className="hidden sm:inline">MODE: Standard Excel Grid (100%)</span>
         </div>
       </div>
     </div>
