@@ -347,52 +347,7 @@ export function ExcelTaskGrid({
     toast.success("Excel spreadsheet (.xlsx) exported!");
   };
 
-  // Download Blank MS Excel Template (.xlsx)
-  const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        "Audit Code": "AUD-1001",
-        "Task Title": "Steering Knuckle Housing Quality Audit",
-        "Audit Type": "Product",
-        "Area": "Machine Shop Line 1",
-        "Assigned Employee": "688079",
-        "Month": 8,
-        "Year": 2026,
-        "Due Date": "2026-08-30",
-        "Status": "Assigned",
-      },
-      {
-        "Audit Code": "REV-002",
-        "Task Title": "Fan Bracket Revalidation Inspection",
-        "Audit Type": "Revalidation",
-        "Area": "Machine Shop 2",
-        "Assigned Employee": "690867",
-        "Month": 8,
-        "Year": 2026,
-        "Due Date": "2026-08-31",
-        "Status": "Planned",
-      },
-    ];
 
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Audit Plan Template");
-
-    worksheet["!cols"] = [
-      { wch: 14 },
-      { wch: 35 },
-      { wch: 16 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 14 },
-      { wch: 14 },
-    ];
-
-    XLSX.writeFile(workbook, "Sakthi_Auto_Audit_Plan_Template.xlsx");
-    toast.success("Blank MS Excel Template (.xlsx) downloaded!");
-  };
 
   // Excel Import (.xlsx / .csv)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,15 +455,7 @@ export function ExcelTaskGrid({
                 <Plus className="h-3.5 w-3.5" /> + Insert Row
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadTemplate}
-                className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
-                title="Download blank MS Excel template (.xlsx)"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Blank Excel Template
-              </Button>
+
 
               <Button
                 variant="outline"
@@ -696,15 +643,7 @@ export function ExcelTaskGrid({
               <Save className="h-3.5 w-3.5" /> Save & Sync to All Employees
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleDownloadTemplate}
-            className="h-7 text-[11px] font-bold border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100 gap-1 cursor-pointer shadow-2xs"
-            title="Download blank pre-formatted MS Excel sheet template"
-          >
-            <Download className="h-3 w-3" /> Blank Template (.xlsx)
-          </Button>
+
           <Button
             size="sm"
             onClick={handleExportExcel}
