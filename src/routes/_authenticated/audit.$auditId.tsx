@@ -17,8 +17,12 @@ import {
   Camera,
   Check,
   Package,
+  FileSpreadsheet,
+  Download,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -273,6 +277,102 @@ function AuditFormPage() {
 
   const deleteCheckpointRow = (id: string) => {
     setCheckpoints((prev) => prev.filter((cp) => cp.id !== id));
+  };
+
+  const checkpointFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Excel Import for Quality Characteristics & Specification Checkpoints
+  const handleCheckpointsFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        if (!wsname) return;
+        const ws = wb.Sheets[wsname];
+        if (!ws) return;
+        const data = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (!data || data.length === 0) {
+          toast.error("Uploaded file contains no valid checkpoint rows.");
+          return;
+        }
+
+        const importedCheckpoints: CheckpointItem[] = data.map((item, idx) => {
+          const rawStatus = String(
+            item["Result"] || item["RESULT"] || item["Status"] || item["RESULT (OK / NOT OK)"] || ""
+          ).toUpperCase();
+          const isFail = rawStatus.includes("FAIL") || rawStatus.includes("NOT OK");
+          return {
+            id: `cp-imp-${Date.now()}-${idx}`,
+            sl_no: idx + 1,
+            parameter: String(
+              item["Characteristics"] ||
+                item["CHARACTERISTICS / PARAMETER"] ||
+                item["Parameter"] ||
+                item["Task"] ||
+                `Characteristic #${idx + 1}`
+            ),
+            specification: String(
+              item["Specification"] || item["SPECIFICATION"] || item["Spec"] || "As per drawing"
+            ),
+            check_method: String(
+              item["Check Method"] || item["CHECK METHOD"] || item["Method"] || "Visual"
+            ),
+            actual_value: String(
+              item["Observation"] ||
+                item["OBSERVATION / VALUE"] ||
+                item["Value"] ||
+                item["Actual"] ||
+                "Conforms"
+            ),
+            status: isFail ? "Fail" : "Pass",
+            remarks: String(item["Remarks"] || item["REMARKS"] || "OK"),
+          };
+        });
+
+        setCheckpoints(importedCheckpoints);
+        toast.success(`Imported ${importedCheckpoints.length} inspection checkpoints from MS Excel (.xlsx)!`);
+      } catch {
+        toast.error("Error reading Excel file. Please ensure it is a valid .xlsx or .csv document.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (checkpointFileInputRef.current) checkpointFileInputRef.current.value = "";
+  };
+
+  // Excel Export for Quality Characteristics & Specification Checkpoints
+  const handleExportCheckpointsExcel = () => {
+    const exportData = checkpoints.map((cp, idx) => ({
+      "SL. NO.": idx + 1,
+      "CHARACTERISTICS / PARAMETER": cp.parameter,
+      "SPECIFICATION": cp.specification,
+      "CHECK METHOD": cp.check_method || "Visual",
+      "OBSERVATION / VALUE": cp.actual_value || "Conforms",
+      "RESULT (OK / NOT OK)": cp.status === "Pass" ? "OK" : "NOT OK",
+      "REMARKS": cp.remarks || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Checkpoints");
+
+    worksheet["!cols"] = [
+      { wch: 8 },
+      { wch: 35 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+
+    XLSX.writeFile(workbook, `Sakthi_Auto_Inspection_Checkpoints_${auditId}.xlsx`);
+    toast.success("Inspection Checkpoints exported to MS Excel (.xlsx)!");
   };
 
   // Save Draft
@@ -631,100 +731,203 @@ function AuditFormPage() {
               </div>
             </div>
 
-            {/* Checkpoints & Specification Table */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <FileCheck className="h-5 w-5 text-emerald-600" /> Quality Characteristics & Specification Checkpoints
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Format matching official Sakthi Auto Audit Inspection Report.
-                  </p>
+            {/* ── MICROSOFT EXCEL SHEET FORMAT FOR QUALITY CHARACTERISTICS & INSPECTION CHECKPOINTS ── */}
+            <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-[#f8f9fa] text-slate-900 shadow-md font-sans">
+              {/* 1. GREEN MICROSOFT EXCEL WINDOW TITLE BAR */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-2.5 text-white shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
+                    X
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+                      Quality Characteristics & Specifications — MS Excel (.xlsx)
+                      <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100 border border-emerald-600">
+                        ✓ EXCEL CHECKPOINTS MATRIX
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-emerald-100 font-medium">
+                      Official Sakthi Auto Audit Inspection Report Checkpoints · Microsoft Excel Compatible
+                    </p>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={addCheckpointRow}
-                  className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-xs"
-                >
-                  + Add Checkpoint Row
-                </button>
+
+                {/* Top Action Buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={addCheckpointRow}
+                    className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> + Insert Checkpoint Row
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => checkpointFileInputRef.current?.click()}
+                    className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer shadow-xs"
+                    title="Upload & import Quality Characteristics from an MS Excel file (.xlsx)"
+                  >
+                    <Upload className="h-3.5 w-3.5" /> Import MS Excel (.xlsx)
+                  </Button>
+                  <input
+                    type="file"
+                    ref={checkpointFileInputRef}
+                    onChange={handleCheckpointsFileUpload}
+                    accept=".xlsx, .xls, .csv"
+                    className="hidden"
+                  />
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={handleExportCheckpointsExcel}
+                    className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer shadow-xs"
+                    title="Download current inspection checkpoints as an MS Excel file (.xlsx)"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download MS Excel (.xlsx)
+                  </Button>
+                </div>
               </div>
 
+              {/* 2. CLASSIC EXCEL MENU BAR */}
+              <div className="flex items-center gap-4 bg-[#f3f4f6] px-4 py-1 border-b border-slate-300 text-xs font-medium text-slate-700 select-none">
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer font-bold text-slate-900">File</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Edit</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">View</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Insert</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Format</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Data</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Tools</span>
+                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Help</span>
+              </div>
+
+              {/* 3. EXCEL USER HELPER BANNER */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 px-4 py-2 border-b border-emerald-200 text-xs">
+                <div className="flex items-center gap-2 text-emerald-900 font-semibold">
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <span>
+                    <strong>Microsoft Excel Inspection Format:</strong> Enter characteristics & measurements below or click <strong>'Import MS Excel (.xlsx)'</strong> to upload your checklist sheet!
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={handleExportCheckpointsExcel}
+                    className="h-7 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <Download className="h-3 w-3" /> Download MS Excel (.xlsx)
+                  </Button>
+                </div>
+              </div>
+
+              {/* 4. CLASSIC EXCEL FORMULA BAR (fx) */}
+              <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800">
+                <div className="flex h-7 w-16 items-center justify-center rounded border border-slate-300 bg-slate-100 font-mono font-bold text-emerald-800 shadow-2xs">
+                  A1
+                </div>
+                <div className="flex h-7 w-7 items-center justify-center font-serif italic text-emerald-700 font-black text-sm select-none">
+                  fx
+                </div>
+                <div className="flex flex-1 items-center rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-2xs">
+                  <span className="font-mono text-xs text-slate-600 truncate">
+                    {checkpoints[0]?.parameter || "HARDNESS (MSIL QF/08/CQA-09)"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 5. MS EXCEL WORKSHEET TABLE GRID */}
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs font-sans border border-slate-300">
+                <table className="w-full border-collapse text-left text-xs font-sans border border-slate-300 bg-white">
                   <thead>
-                    <tr className="border-b border-slate-300 bg-slate-800 text-white font-mono text-[11px] uppercase tracking-wider">
-                      <th className="p-2.5 w-12 text-center border-r border-slate-700">SL. NO.</th>
-                      <th className="p-2.5 min-w-[220px] border-r border-slate-700">CHARACTERISTICS / PARAMETER</th>
-                      <th className="p-2.5 w-56 border-r border-slate-700">SPECIFICATION</th>
-                      <th className="p-2.5 w-40 border-r border-slate-700">CHECK METHOD</th>
-                      <th className="p-2.5 w-44 border-r border-slate-700">OBSERVATION / VALUE</th>
-                      <th className="p-2.5 text-center w-28 border-r border-slate-700">RESULT (OK / NOT OK)</th>
-                      <th className="p-2.5 w-36 border-r border-slate-700">REMARKS</th>
+                    {/* Excel Column Letters Header */}
+                    <tr className="bg-slate-200 border-b border-slate-300 text-slate-700 font-mono text-[11px] text-center font-bold">
+                      <th className="p-1 w-12 border-r border-slate-300 bg-slate-300 text-slate-800">#</th>
+                      <th className="p-1 border-r border-slate-300">A</th>
+                      <th className="p-1 border-r border-slate-300">B</th>
+                      <th className="p-1 border-r border-slate-300">C</th>
+                      <th className="p-1 border-r border-slate-300">D</th>
+                      <th className="p-1 border-r border-slate-300">E</th>
+                      <th className="p-1 border-r border-slate-300">F</th>
+                      <th className="p-1 w-10">G</th>
+                    </tr>
+                    {/* Official Inspection Column Header */}
+                    <tr className="border-b border-slate-300 bg-[#107c41] text-white font-mono text-[11px] uppercase tracking-wider">
+                      <th className="p-2.5 w-12 text-center border-r border-emerald-700">SL. NO.</th>
+                      <th className="p-2.5 min-w-[220px] border-r border-emerald-700">CHARACTERISTICS / PARAMETER</th>
+                      <th className="p-2.5 min-w-[200px] border-r border-emerald-700">SPECIFICATION</th>
+                      <th className="p-2.5 w-40 border-r border-emerald-700">CHECK METHOD</th>
+                      <th className="p-2.5 min-w-[180px] border-r border-emerald-700">OBSERVATION / VALUE</th>
+                      <th className="p-2.5 text-center w-36 border-r border-emerald-700">RESULT (OK / NOT OK)</th>
+                      <th className="p-2.5 w-36 border-r border-emerald-700">REMARKS</th>
                       <th className="p-2.5 w-10 text-center"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-900 bg-white">
                     {checkpoints.map((cp, idx) => (
-                      <tr key={cp.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-2 text-center font-mono font-bold text-slate-600 border-r border-slate-200">
+                      <tr key={cp.id} className="hover:bg-emerald-50/40 transition-colors">
+                        <td className="p-2 text-center font-mono font-bold text-slate-600 bg-slate-100 border-r border-slate-300">
                           {idx + 1}
                         </td>
 
                         {/* CHARACTERISTICS / PARAMETER */}
-                        <td className="p-2 border-r border-slate-200">
+                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
                           <textarea
                             rows={2}
                             value={cp.parameter}
                             onChange={(e) => handleParamChange(cp.id, e.target.value)}
                             placeholder="e.g. HARDNESS / MICROSTRUCTURE / APPEARANCE"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none"
                           />
                         </td>
 
                         {/* SPECIFICATION */}
-                        <td className="p-2 border-r border-slate-200">
+                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
                           <textarea
                             rows={2}
                             value={cp.specification}
                             onChange={(e) => handleSpecChange(cp.id, e.target.value)}
                             placeholder="e.g. 164 ~ 188 BHN / 500 MPa MIN"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none"
                           />
                         </td>
 
                         {/* CHECK METHOD */}
-                        <td className="p-2 border-r border-slate-200">
+                        <td className="p-2 border-r border-slate-300">
                           <input
                             type="text"
                             value={cp.check_method ?? "Visual"}
                             onChange={(e) => handleCheckMethodChange(cp.id, e.target.value)}
                             placeholder="e.g. Visual / Gauge / Hardness Tester"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-none"
                           />
                         </td>
 
                         {/* OBSERVATION / MEASURED VALUE */}
-                        <td className="p-2 border-r border-slate-200">
+                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
                           <input
                             type="text"
                             value={cp.actual_value}
                             onChange={(e) => handleValueChange(cp.id, e.target.value)}
                             placeholder="e.g. 176 BHN / Conforms"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-none"
                           />
                         </td>
 
                         {/* RESULT (OK / NOT OK) */}
-                        <td className="p-2 text-center border-r border-slate-200">
+                        <td className="p-2 text-center border-r border-slate-300">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleToggleStatus(cp.id, "Pass")}
-                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all ${
+                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all cursor-pointer ${
                                 cp.status === "Pass"
-                                  ? "bg-emerald-600 text-white shadow-2xs"
+                                  ? "bg-emerald-600 text-white shadow-2xs ring-1 ring-emerald-700"
                                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                               }`}
                             >
@@ -733,9 +936,9 @@ function AuditFormPage() {
                             <button
                               type="button"
                               onClick={() => handleToggleStatus(cp.id, "Fail")}
-                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all ${
+                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all cursor-pointer ${
                                 cp.status === "Fail"
-                                  ? "bg-rose-600 text-white shadow-2xs"
+                                  ? "bg-rose-600 text-white shadow-2xs ring-1 ring-rose-700"
                                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                               }`}
                             >
@@ -745,13 +948,13 @@ function AuditFormPage() {
                         </td>
 
                         {/* REMARKS */}
-                        <td className="p-2 border-r border-slate-200">
+                        <td className="p-2 border-r border-slate-300">
                           <input
                             type="text"
                             value={cp.remarks ?? ""}
                             onChange={(e) => handleRemarksChange(cp.id, e.target.value)}
                             placeholder="Remarks"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-800 focus:border-emerald-600 focus:outline-none"
                           />
                         </td>
 
@@ -760,7 +963,7 @@ function AuditFormPage() {
                           <button
                             type="button"
                             onClick={() => deleteCheckpointRow(cp.id)}
-                            className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
                             title="Remove row"
                           >
                             <X className="h-4 w-4" />
@@ -772,12 +975,21 @@ function AuditFormPage() {
                     {checkpoints.length === 0 && (
                       <tr>
                         <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400">
-                          No checkpoints added yet. Click "+ Add Checkpoint Row" above.
+                          No quality characteristics added yet. Click "+ Insert Checkpoint Row" or "Import MS Excel (.xlsx)" above.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Excel Bottom Status Footer Bar */}
+              <div className="flex items-center justify-between bg-[#f3f4f6] px-4 py-1.5 border-t border-slate-300 text-[11px] font-mono text-slate-600 select-none">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                  READY · TOTAL CHECKPOINTS: <strong>{checkpoints.length}</strong>
+                </span>
+                <span>MODE: Standard Excel Inspection Grid (100%)</span>
               </div>
             </div>
 
