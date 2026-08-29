@@ -357,6 +357,53 @@ export function ExcelTaskGrid({
     toast.success("Excel spreadsheet (.xlsx) exported!");
   };
 
+  // Download Blank MS Excel Template (.xlsx)
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        "Audit Code": "AUD-1001",
+        "Task Title": "Steering Knuckle Housing Quality Audit",
+        "Audit Type": "Product",
+        "Area": "Machine Shop Line 1",
+        "Assigned Employee": "688079",
+        "Month": 8,
+        "Year": 2026,
+        "Due Date": "2026-08-30",
+        "Status": "Assigned",
+      },
+      {
+        "Audit Code": "REV-002",
+        "Task Title": "Fan Bracket Revalidation Inspection",
+        "Audit Type": "Revalidation",
+        "Area": "Machine Shop 2",
+        "Assigned Employee": "690867",
+        "Month": 8,
+        "Year": 2026,
+        "Due Date": "2026-08-31",
+        "Status": "Planned",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Audit Plan Template");
+
+    worksheet["!cols"] = [
+      { wch: 14 },
+      { wch: 35 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 14 },
+    ];
+
+    XLSX.writeFile(workbook, "Sakthi_Auto_Audit_Plan_Template.xlsx");
+    toast.success("Blank MS Excel Template (.xlsx) downloaded!");
+  };
+
   // Excel Import (.xlsx / .csv)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -453,10 +500,21 @@ export function ExcelTaskGrid({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleDownloadTemplate}
+                className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
+                title="Download blank MS Excel template (.xlsx)"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Blank Excel Template
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
+                title="Upload & import MS Excel file (.xlsx)"
               >
-                <Upload className="h-3.5 w-3.5" /> Import Excel
+                <Upload className="h-3.5 w-3.5" /> Import MS Excel (.xlsx)
               </Button>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
 
@@ -465,8 +523,9 @@ export function ExcelTaskGrid({
                 size="sm"
                 onClick={handleExportExcel}
                 className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
+                title="Download standard MS Excel file (.xlsx)"
               >
-                <Download className="h-3.5 w-3.5" /> Export .XLSX
+                <Download className="h-3.5 w-3.5" /> Download MS Excel (.xlsx)
               </Button>
             </>
           )}
@@ -618,6 +677,35 @@ export function ExcelTaskGrid({
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* ── USER-FRIENDLY MICROSOFT EXCEL HELPER BANNER FOR NON-TECHNICAL USERS ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 px-4 py-2.5 border-b border-emerald-200 text-xs">
+        <div className="flex items-center gap-2 text-emerald-900 font-semibold">
+          <FileSpreadsheet className="h-4 w-4 text-emerald-700 shrink-0" />
+          <span>
+            <strong>Prefer Ordinary Microsoft Excel?</strong> Click <strong>'Download MS Excel (.xlsx)'</strong> to edit directly in MS Excel on your PC, then click <strong>'Import MS Excel (.xlsx)'</strong> to upload your sheet back anytime!
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className="h-7 text-[11px] font-bold border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100 gap-1 cursor-pointer shadow-2xs"
+            title="Download blank pre-formatted MS Excel sheet template"
+          >
+            <Download className="h-3 w-3" /> Blank Template (.xlsx)
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleExportExcel}
+            className="h-7 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white gap-1 cursor-pointer shadow-2xs"
+            title="Download current audit sheet as MS Excel (.xlsx)"
+          >
+            <Download className="h-3 w-3" /> Download MS Excel (.xlsx)
+          </Button>
         </div>
       </div>
 

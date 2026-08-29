@@ -63,16 +63,16 @@ function AssignmentsPage() {
 
   return (
     <AppShell
-      title="Monthly Assignment Matrix"
-      description="Interactive built-in Excel spreadsheet for assigning tasks, updating schedules, and importing/exporting audit plans."
+      title="Monthly Assignment Matrix — Microsoft Excel (.xlsx) Compatible"
+      description="View online or click 'Download MS Excel (.xlsx)' to edit in Microsoft Excel on your computer and upload back anytime."
     >
       <div className="space-y-6">
         <ExcelTaskGrid
           initialRows={initialRows}
           isAdmin={isAdmin}
           currentEmployeeNumber={profile?.employee_number || ""}
-          title="Monthly Task Assignment Sheet (Built-in Excel)"
-          description="Admin can update task titles, assign employee IDs, change audit statuses, and import/export Excel sheets in real time."
+          title="Master Audit Task Register — Microsoft Excel (.xlsx)"
+          description="Download standard .xlsx sheets for Microsoft Excel, fill offline on your PC, and upload back to sync."
           onRefresh={() => assignments.refetch()}
         />
       </div>
