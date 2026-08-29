@@ -491,6 +491,19 @@ export function ExcelTaskGrid({
             <>
               <Button
                 size="sm"
+                onClick={handleSaveSync}
+                className={`h-8.5 gap-1.5 font-black text-xs shadow-lg cursor-pointer transition-all px-3.5 ${
+                  hasChanges
+                    ? "bg-amber-400 hover:bg-amber-500 text-slate-950 animate-pulse ring-2 ring-amber-300"
+                    : "bg-amber-400 hover:bg-amber-500 text-slate-950 ring-1 ring-amber-300"
+                }`}
+                title="Click to save and sync all task assignments to all registered employees across the plant"
+              >
+                <Save className="h-4 w-4 text-slate-950" /> 💾 Save & Sync to All Employees
+              </Button>
+
+              <Button
+                size="sm"
                 onClick={handleAddRow}
                 className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer"
               >
@@ -528,21 +541,6 @@ export function ExcelTaskGrid({
                 <Download className="h-3.5 w-3.5" /> Download MS Excel (.xlsx)
               </Button>
             </>
-          )}
-
-          {isAdmin && (
-            <Button
-              size="sm"
-              onClick={handleSaveSync}
-              className={`h-8 gap-1.5 font-extrabold text-xs shadow-md cursor-pointer transition-all ${
-                hasChanges
-                  ? "bg-amber-400 hover:bg-amber-500 text-slate-950 animate-pulse ring-2 ring-amber-300"
-                  : "bg-amber-500 hover:bg-amber-600 text-slate-950"
-              }`}
-              title="Click to save and sync all task assignments to all registered employees across the plant"
-            >
-              <Save className="h-3.5 w-3.5" /> Save & Sync to All Employees
-            </Button>
           )}
         </div>
       </div>
