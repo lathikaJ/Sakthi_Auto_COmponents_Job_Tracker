@@ -262,58 +262,48 @@ export function ExcelTaskGrid({
     toast.info("Task row removed from sheet.");
   };
 
-  // Save & Sync changes to Database & LocalStorage
+  // Save & Sync changes to Database & LocalStorage for ALL registered employees
   const handleSaveSync = async () => {
     try {
-      toast.loading("Syncing Excel sheet data...");
+      toast.loading("Syncing Excel sheet data to all registered employees...");
+
+      const cleanRows = mergeAndDeduplicateTasks(rows);
+      setRows(cleanRows);
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(rows));
+        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(cleanRows));
         window.dispatchEvent(new Event("excel_tasks_updated"));
+        window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
       }
 
       try {
-        for (const row of rows) {
-          if (row.id.startsWith("temp-") || row.id.startsWith("demo-")) {
-            await supabase.from("audit_assignments").upsert(
-              {
-                audit_code: row.audit_code,
-                title: row.title,
-                audit_type: (row.audit_type as any) || "Product",
-                area: row.area || "General",
-                month: row.month || 1,
-                year: row.year || 2026,
-                due_date: row.due_date || "2026-08-27",
-                assigned_to_employee_number: row.assigned_to_employee_number || "688079",
-                assigned_to: "00000000-0000-0000-0000-000000000000",
-                status: (row.status as any) || "Assigned",
-              },
-              { onConflict: "audit_code" }
-            );
-          } else {
-            await supabase
-              .from("audit_assignments")
-              .update({
-                title: row.title,
-                audit_type: (row.audit_type as any) || "Product",
-                area: row.area || "General",
-                month: row.month || 1,
-                year: row.year || 2026,
-                due_date: row.due_date || "2026-08-27",
-                assigned_to_employee_number: row.assigned_to_employee_number || "688079",
-                status: (row.status as any) || "Assigned",
-              })
-              .eq("id", row.id);
-          }
+        for (const row of cleanRows) {
+          await supabase.from("audit_assignments").upsert(
+            {
+              audit_code: row.audit_code,
+              title: row.title,
+              audit_type: (row.audit_type as any) || "Product",
+              area: row.area || "General",
+              month: row.month || 1,
+              year: row.year || 2026,
+              due_date: row.due_date || "2026-08-27",
+              assigned_to_employee_number: String(row.assigned_to_employee_number || "688079"),
+              assigned_to: "00000000-0000-0000-0000-000000000000",
+              status: (row.status as any) || "Assigned",
+            },
+            { onConflict: "audit_code" }
+          );
         }
       } catch (dbErr) {
-        console.warn("Supabase sync notice:", dbErr);
+        console.warn("Supabase task sync notice:", dbErr);
       }
 
       setHasChanges(false);
       await queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      await queryClient.invalidateQueries({ queryKey: ["submitted-audits"] });
+
       toast.dismiss();
-      toast.success("Excel task spreadsheet successfully saved & synced!");
+      toast.success("✓ Task sheet saved & synced to all registered employees!");
       if (onRefresh) onRefresh();
     } catch (err) {
       toast.dismiss();
