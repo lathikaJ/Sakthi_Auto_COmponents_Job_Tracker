@@ -530,13 +530,18 @@ export function ExcelTaskGrid({
             </>
           )}
 
-          {hasChanges && (
+          {isAdmin && (
             <Button
               size="sm"
               onClick={handleSaveSync}
-              className="h-8 gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md cursor-pointer animate-pulse"
+              className={`h-8 gap-1.5 font-extrabold text-xs shadow-md cursor-pointer transition-all ${
+                hasChanges
+                  ? "bg-amber-400 hover:bg-amber-500 text-slate-950 animate-pulse ring-2 ring-amber-300"
+                  : "bg-amber-500 hover:bg-amber-600 text-slate-950"
+              }`}
+              title="Click to save and sync all task assignments to all registered employees across the plant"
             >
-              <Save className="h-3.5 w-3.5" /> Save & Sync Sheet
+              <Save className="h-3.5 w-3.5" /> Save & Sync to All Employees
             </Button>
           )}
         </div>
@@ -685,10 +690,24 @@ export function ExcelTaskGrid({
         <div className="flex items-center gap-2 text-emerald-900 font-semibold">
           <FileSpreadsheet className="h-4 w-4 text-emerald-700 shrink-0" />
           <span>
-            <strong>Prefer Ordinary Microsoft Excel?</strong> Click <strong>'Download MS Excel (.xlsx)'</strong> to edit directly in MS Excel on your PC, then click <strong>'Import MS Excel (.xlsx)'</strong> to upload your sheet back anytime!
+            <strong>Task Sync Status:</strong> After editing tasks or importing Excel, click <strong>'Save & Sync to All Employees'</strong> to update all registered employee dashboards plant-wide.
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <Button
+              size="sm"
+              onClick={handleSaveSync}
+              className={`h-7 text-[11px] font-extrabold shadow-2xs gap-1 cursor-pointer transition-all ${
+                hasChanges
+                  ? "bg-amber-500 hover:bg-amber-600 text-slate-950 animate-pulse ring-2 ring-amber-300"
+                  : "bg-amber-500 hover:bg-amber-600 text-slate-950"
+              }`}
+              title="Click to save and sync all task assignments to all registered employees"
+            >
+              <Save className="h-3.5 w-3.5" /> Save & Sync to All Employees
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
