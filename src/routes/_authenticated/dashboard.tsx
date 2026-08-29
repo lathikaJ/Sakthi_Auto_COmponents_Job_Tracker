@@ -180,6 +180,9 @@ export function DashboardPage() {
   const [localLowProd, setLocalLowProd] = useState<LowProductionRecord[]>(DEFAULT_LOW_PRODUCTION_DATA);
   const [documentsMap, setDocumentsMap] = useState<Record<string, AuditDocument[]>>({});
 
+  // Employee Dashboard filter state for Assigned Work / Ongoing Audit section
+  const [empWorkFilter, setEmpWorkFilter] = useState<"all" | "ongoing" | "plan" | "review_completed">("all");
+
   useEffect(() => {
     const loadStored = () => {
       if (typeof window !== "undefined") {
@@ -223,9 +226,13 @@ export function DashboardPage() {
     loadStored();
     window.addEventListener("excel_tasks_updated", loadStored);
     window.addEventListener("sakthi_deviations_updated", loadStored);
+    window.addEventListener("sakthi_submitted_audits_updated", loadStored);
+    window.addEventListener("sakthi_signatures_updated", loadStored);
     return () => {
       window.removeEventListener("excel_tasks_updated", loadStored);
       window.removeEventListener("sakthi_deviations_updated", loadStored);
+      window.removeEventListener("sakthi_submitted_audits_updated", loadStored);
+      window.removeEventListener("sakthi_signatures_updated", loadStored);
     };
   }, []);
 
@@ -233,9 +240,34 @@ export function DashboardPage() {
     (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[]
   );
   const currentEmpNumber = profile?.employee_number;
-  const allTaskRows = isAdmin
-    ? rawTaskRows
-    : rawTaskRows.filter((r) => !currentEmpNumber || r.assigned_to_employee_number === currentEmpNumber);
+  const currentEmpName = profile?.full_name?.toLowerCase();
+
+  const allTaskRows = useMemo(() => {
+    if (isAdmin) return rawTaskRows;
+    return rawTaskRows.filter((r) => {
+      if (!currentEmpNumber) return true;
+      const empIdMatch = r.assigned_to_employee_number === currentEmpNumber;
+      const empNameMatch = Boolean(currentEmpName && r.auditor_name?.toLowerCase().includes(currentEmpName));
+      const auditorIdMatch = Boolean(r.auditor_name && r.auditor_name.includes(currentEmpNumber));
+      const empNumInAssigned = Boolean(r.assigned_to_employee_number && r.assigned_to_employee_number.includes(currentEmpNumber));
+      return empIdMatch || empNameMatch || auditorIdMatch || empNumInAssigned;
+    });
+  }, [isAdmin, rawTaskRows, currentEmpNumber, currentEmpName]);
+
+  const assignedWorkTasks = useMemo(() => {
+    return allTaskRows.filter((task) => {
+      if (empWorkFilter === "ongoing") {
+        return ["In Progress", "Ongoing", "Assigned", "Planned"].includes(task.status);
+      }
+      if (empWorkFilter === "plan") {
+        return ["Planned", "Assigned", "Pending"].includes(task.status);
+      }
+      if (empWorkFilter === "review_completed") {
+        return ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status);
+      }
+      return true;
+    });
+  }, [allTaskRows, empWorkFilter]);
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
@@ -716,6 +748,153 @@ export function DashboardPage() {
         {/* Tab: Main Audit Categories & Status Dashboard */}
         {dashboardTab === "overview" && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* ── DEDICATED ASSIGNED WORK / ONGOING AUDIT SECTION (EMPLOYEE DASHBOARD & DUAL SYNC) ── */}
+            <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-lg space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-xl bg-amber-500/20 p-2 text-amber-400 border border-amber-500/30">
+                      <ClipboardList className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                        Assigned Work / Ongoing Audit
+                        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-extrabold text-white">
+                          {allTaskRows.length} {allTaskRows.length === 1 ? "Task" : "Tasks"}
+                        </span>
+                      </h2>
+                      <p className="text-xs text-slate-300 font-medium">
+                        {isAdmin
+                          ? "All Admin-assigned audit tasks synchronized in real-time across the plant."
+                          : `All work assigned to ${profile?.full_name ?? "Employee"} (${profile?.employee_number}) by Admin.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-Filter Tabs for Assigned Work */}
+                <div className="flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setEmpWorkFilter("all")}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                      empWorkFilter === "all"
+                        ? "bg-amber-500 text-white shadow-xs"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    All Assigned ({allTaskRows.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmpWorkFilter("ongoing")}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                      empWorkFilter === "ongoing"
+                        ? "bg-amber-600 text-white shadow-xs"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Ongoing / In Progress ({allTaskRows.filter((t) => ["In Progress", "Ongoing", "Assigned", "Planned"].includes(t.status)).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmpWorkFilter("plan")}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                      empWorkFilter === "plan"
+                        ? "bg-sky-600 text-white shadow-xs"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Audit Plan ({allTaskRows.filter((t) => ["Planned", "Assigned", "Pending"].includes(t.status)).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmpWorkFilter("review_completed")}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                      empWorkFilter === "review_completed"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Reviewed & Completed ({allTaskRows.filter((t) => ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(t.status)).length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Table of Admin-Assigned Work */}
+              <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/90 backdrop-blur-md">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white/5 text-slate-300 font-extrabold uppercase tracking-wider border-b border-white/10">
+                    <tr>
+                      <th className="p-3 w-14 text-center">SL. NO.</th>
+                      <th className="p-3">PART NAME</th>
+                      <th className="p-3">PART NUMBER</th>
+                      <th className="p-3">AUDIT CATEGORY</th>
+                      <th className="p-3">DEPARTMENT</th>
+                      <th className="p-3">PLANNED DATE</th>
+                      <th className="p-3">ATTACHED EXCEL</th>
+                      <th className="p-3">AUDITOR</th>
+                      <th className="p-3">STATUS</th>
+                      <th className="p-3 text-right">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10 text-slate-200">
+                    {assignedWorkTasks.map((task, idx) => (
+                      <tr key={task.id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-3 text-center font-mono font-bold text-slate-400">
+                          {task.sl_no ?? idx + 1}
+                        </td>
+                        <td className="p-3 font-bold text-white max-w-xs">{task.title}</td>
+                        <td className="p-3 font-mono font-bold text-amber-400">{task.audit_code}</td>
+                        <td className="p-3 font-semibold text-sky-300">{task.audit_type}</td>
+                        <td className="p-3 font-medium text-slate-300">{task.area}</td>
+                        <td className="p-3 font-bold text-emerald-400">
+                          {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                        </td>
+                        <td className="p-3">
+                          {task.attached_file_name ? (
+                            <Link
+                              to="/audit/$auditId"
+                              params={{ auditId: task.id }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                              title="Click to open attached Excel inspection checklist"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                              <span className="truncate max-w-[130px]">{task.attached_file_name}</span>
+                            </Link>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 italic">
+                              <Paperclip className="h-3 w-3" /> No file
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 font-medium text-slate-300">
+                          {task.auditor_name ?? task.assigned_to_employee_number}
+                        </td>
+                        <td className="p-3">
+                          <StatusBadge status={task.status} />
+                        </td>
+                        <td className="p-3 text-right">
+                          <Button asChild size="sm" className="bg-amber-600 text-white font-bold hover:bg-amber-500 text-xs shadow-xs gap-1">
+                            <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                              Start Audit / Open Checklist <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {assignedWorkTasks.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-xs font-semibold text-slate-400 italic">
+                          No Admin-assigned work matching the selected filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* ── REQUIREMENT SECTION 1: DASHBOARD MAIN VIEW (3 TOUCH-ENABLED AUDIT CATEGORIES) ── */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

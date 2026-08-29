@@ -92,9 +92,36 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           // Ignore
         }
       }
+
+      // Sync linked deviation in sakthi_deviations (remains in deviations list as closed/approved)
+      const storedDevs = localStorage.getItem("sakthi_deviations");
+      if (storedDevs) {
+        try {
+          let devs = JSON.parse(storedDevs);
+          let devChanged = false;
+          devs = devs.map((d: any) => {
+            if (d.audit_id === item.id || d.audit_id === item.audit_code || d.dev_code === item.audit_code.replace("AUD-", "DEV-")) {
+              devChanged = true;
+              return {
+                ...d,
+                status: "closed",
+                both_approved: true,
+                final_approved_by: adminSig?.employee_name || "KARTHIKEYAN C (690867)",
+              };
+            }
+            return d;
+          });
+          if (devChanged) {
+            localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
+            window.dispatchEvent(new Event("sakthi_deviations_updated"));
+          }
+        } catch {
+          // Ignore
+        }
+      }
     }
 
-    toast.success(`Audit ${item.audit_code} verified & moved to Audit Completed!`);
+    toast.success(`Audit ${item.audit_code} approved & moved to Completed Audit! Deviation record remains archived in Deviations.`);
   };
 
   const handleMoveToDeviation = (item: SubmittedAuditItem) => {
@@ -195,7 +222,20 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
   const underReviewCount = submittedList.filter((s) => s.status === "Under Review" || s.status === "Submitted").length;
   const completedCount = submittedList.filter((s) => s.status === "Completed" || s.status === "Approved").length;
-  const deviationCount = submittedList.filter((s) => s.status === "Deviation").length;
+  
+  // Dynamic deviation count from submitted jobs and sakthi_deviations store
+  const storedDevsCount = (() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const raw = localStorage.getItem("sakthi_deviations");
+      if (!raw) return 0;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.length : 0;
+    } catch {
+      return 0;
+    }
+  })();
+  const deviationCount = Math.max(submittedList.filter((s) => s.status === "Deviation").length, storedDevsCount);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">

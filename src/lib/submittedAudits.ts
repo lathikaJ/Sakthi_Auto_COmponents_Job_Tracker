@@ -124,13 +124,23 @@ export function recordSubmittedAudit(item: Omit<SubmittedAuditItem, "id">) {
   }
 }
 
-export function updateSubmittedAuditStatus(id: string, status: SubmittedAuditItem["status"], adminNotes?: string) {
+export function updateSubmittedAuditStatus(
+  idOrCode: string,
+  status: SubmittedAuditItem["status"],
+  adminNotes?: string,
+  extraFields?: Partial<SubmittedAuditItem>
+) {
   if (typeof window === "undefined") return;
   try {
     const existing = getSubmittedAudits();
     const updated = existing.map((item) => {
-      if (item.id === id) {
-        return { ...item, status, ...(adminNotes ? { admin_notes: adminNotes } : {}) };
+      if (item.id === idOrCode || item.audit_code === idOrCode || item.audit_code.toLowerCase() === idOrCode.toLowerCase()) {
+        return {
+          ...item,
+          status,
+          ...(adminNotes ? { admin_notes: adminNotes } : {}),
+          ...(extraFields || {}),
+        };
       }
       return item;
     });

@@ -359,11 +359,9 @@ function AuditFormPage() {
   // Raise Deviation (2-Page Deviation Report Workflow)
   const handleRaiseDeviation = () => {
     const failed = checkpoints.filter((cp) => cp.status === "Fail");
-    if (failed.length === 0) return;
-
-    const desc = failed
-      .map((cp) => `${cp.parameter || "Parameter"} (Spec: ${cp.specification || "N/A"}, Got: ${cp.actual_value || "N/A"})`)
-      .join(" | ");
+    const desc = failed.length > 0
+      ? failed.map((cp) => `${cp.parameter || "Parameter"} (Spec: ${cp.specification || "N/A"}, Got: ${cp.actual_value || "N/A"})`).join(" | ")
+      : `Non-conformance identified during ${partName || auditId} quality inspection.`;
 
     const prefill = {
       audit_id: auditId,
@@ -371,6 +369,8 @@ function AuditFormPage() {
       observed_condition: desc,
       location: `Audit ${auditId} — ${customer}`,
       severity: "High" as const,
+      part_name: partName,
+      part_no: partNo,
       assigned_emp: profile?.employee_number || "688079",
       segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
     };
@@ -395,7 +395,7 @@ function AuditFormPage() {
         }
       }
     }
-    toast.info("Navigating to 2-Page Deviation Report Format — Please complete Page 1 details.");
+    toast.info("Opening 2-Page Deviation Report — Please fill Page 1 details.");
     navigate({ to: "/deviations" });
   };
 
@@ -1041,7 +1041,7 @@ function AuditFormPage() {
                 <ChevronLeft className="h-4 w-4" /> Back to Photos
               </Button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   onClick={handleSaveDraft}
@@ -1051,10 +1051,18 @@ function AuditFormPage() {
                 </Button>
 
                 <Button
+                  variant="outline"
+                  onClick={handleRaiseDeviation}
+                  className="gap-1.5 border-rose-300 bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 text-xs shadow-xs"
+                >
+                  <AlertTriangle className="h-4 w-4 text-rose-600" /> NOT OK (Raise 2-Page Deviation)
+                </Button>
+
+                <Button
                   onClick={handleSubmitAudit}
                   className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs"
                 >
-                  <CheckCircle2 className="h-4 w-4" /> Submit Completed Audit
+                  <CheckCircle2 className="h-4 w-4" /> OK (Submit for Admin Review)
                 </Button>
               </div>
             </div>
