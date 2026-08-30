@@ -286,54 +286,42 @@ export function ExcelTaskGrid({
 
         const authUser = (await supabase.auth.getUser()).data.user;
 
+        // First, fetch ALL existing audit_codes from DB to avoid duplicate inserts
+        const { data: existingRows } = await supabase.from("audit_assignments").select("audit_code");
+        const existingCodes = new Set((existingRows || []).map((r: any) => String(r.audit_code).trim().toUpperCase()));
+
         for (const row of cleanRows) {
           const empNum = String(row.assigned_to_employee_number || "688079");
           const targetUserId = profileMap.get(empNum) || authUser?.id || "00000000-0000-0000-0000-000000000000";
+          const rowPayload = {
+            audit_code: row.audit_code,
+            title: row.title,
+            audit_type: (row.audit_type as any) || "Product",
+            area: row.area || "General",
+            month: row.month || 1,
+            year: row.year || 2026,
+            due_date: row.due_date || "2026-08-27",
+            assigned_to_employee_number: empNum,
+            assigned_to: targetUserId,
+            status: (row.status as any) || "Assigned",
+          };
 
-          let { error: upsertErr } = await supabase.from("audit_assignments").upsert(
-            {
-              audit_code: row.audit_code,
-              title: row.title,
-              audit_type: (row.audit_type as any) || "Product",
-              area: row.area || "General",
-              month: row.month || 1,
-              year: row.year || 2026,
-              due_date: row.due_date || "2026-08-27",
-              assigned_to_employee_number: empNum,
-              assigned_to: targetUserId,
-              status: (row.status as any) || "Assigned",
-            },
-            { onConflict: "audit_code" }
-          );
+          const codeUpper = String(row.audit_code).trim().toUpperCase();
 
-          if (upsertErr) {
-            const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", row.audit_code).maybeSingle();
-            if (existing) {
-              await supabase.from("audit_assignments").update({
-                title: row.title,
-                audit_type: (row.audit_type as any) || "Product",
-                area: row.area || "General",
-                month: row.month || 1,
-                year: row.year || 2026,
-                due_date: row.due_date || "2026-08-27",
-                assigned_to_employee_number: empNum,
-                assigned_to: targetUserId,
-                status: (row.status as any) || "Assigned",
-              }).eq("audit_code", row.audit_code);
-            } else {
-              await supabase.from("audit_assignments").insert({
-                audit_code: row.audit_code,
-                title: row.title,
-                audit_type: (row.audit_type as any) || "Product",
-                area: row.area || "General",
-                month: row.month || 1,
-                year: row.year || 2026,
-                due_date: row.due_date || "2026-08-27",
-                assigned_to_employee_number: empNum,
-                assigned_to: targetUserId,
-                status: (row.status as any) || "Assigned",
-              });
+          if (existingCodes.has(codeUpper)) {
+            // Record exists in DB — UPDATE only, never insert
+            await supabase.from("audit_assignments").update(rowPayload).eq("audit_code", row.audit_code);
+          } else {
+            // Record does NOT exist — try upsert first, then insert as last resort
+            const { error: upsertErr } = await supabase.from("audit_assignments").upsert(
+              rowPayload,
+              { onConflict: "audit_code" }
+            );
+            if (upsertErr) {
+              // Upsert failed (e.g. missing unique constraint) — safe insert with duplicate guard
+              await supabase.from("audit_assignments").insert(rowPayload);
             }
+            existingCodes.add(codeUpper); // Track newly inserted codes to prevent re-inserting in same batch
           }
         }
       } catch (dbErr) {

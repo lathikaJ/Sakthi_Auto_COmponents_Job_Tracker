@@ -236,10 +236,15 @@ export function DashboardPage() {
     };
   }, []);
 
-  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks([
-    ...(dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS),
-    ...localExcelTasks,
-  ] as Assignment[]);
+  // DB is source of truth when available; localStorage is fallback only.
+  // DO NOT merge both — that causes duplicates (the "insert 10 times" bug).
+  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks(
+    dbRows.length > 0
+      ? [...dbRows, ...localExcelTasks.filter((lt) => !dbRows.some((db) => db.audit_code === lt.audit_code))]
+      : localExcelTasks.length > 0
+        ? localExcelTasks
+        : DEFAULT_OFFICIAL_AUDITS
+  ) as Assignment[];
 
   const currentEmpNumber = profile?.employee_number;
   const currentEmpName = profile?.full_name?.toLowerCase();
@@ -504,7 +509,9 @@ export function DashboardPage() {
           };
         });
 
-        const updated = mergeAndDeduplicateTasks(rawTaskRows, importedTasks);
+        // Merge imported records into local tasks ONLY (not rawTaskRows which includes DB rows)
+        // This prevents DB rows from getting duplicated into localStorage
+        const updated = mergeAndDeduplicateTasks(localExcelTasks, importedTasks);
         setLocalExcelTasks(updated);
         if (typeof window !== "undefined") {
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));

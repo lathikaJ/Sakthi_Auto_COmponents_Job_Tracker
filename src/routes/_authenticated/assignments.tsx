@@ -53,10 +53,13 @@ function AssignmentsPage() {
     return () => window.removeEventListener("excel_tasks_updated", loadStored);
   }, []);
 
-  const initialRows = mergeAndDeduplicateTasks([
-    ...(dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS),
-    ...localExcelTasks,
-  ]);
+  const initialRows = mergeAndDeduplicateTasks(
+    dbRows.length > 0
+      ? [...dbRows, ...localExcelTasks.filter((lt) => !dbRows.some((db: any) => db.audit_code === lt.audit_code))]
+      : localExcelTasks.length > 0
+        ? localExcelTasks
+        : DEFAULT_OFFICIAL_AUDITS
+  );
 
   return (
     <AppShell
