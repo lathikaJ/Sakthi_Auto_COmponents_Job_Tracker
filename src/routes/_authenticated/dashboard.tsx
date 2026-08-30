@@ -175,6 +175,47 @@ export function DashboardPage() {
   const dbRows = assignmentsQuery.data ?? [];
   const dbDevs = deviationsQuery.data ?? [];
 
+  // ONE-TIME CLEANUP: Remove duplicate audit_assignments rows that were created
+  // by the old sync bug. Runs once per session, keeps the earliest record per audit_code.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const CLEANUP_KEY = "sakthi_dup_cleanup_v2";
+    if (sessionStorage.getItem(CLEANUP_KEY)) return; // Already ran this session
+    sessionStorage.setItem(CLEANUP_KEY, "1");
+
+    (async () => {
+      try {
+        const { data: all } = await supabase.from("audit_assignments").select("id, audit_code, created_at").order("created_at", { ascending: true });
+        if (!all || all.length === 0) return;
+
+        const seen = new Map<string, string>(); // audit_code -> first id
+        const duplicateIds: string[] = [];
+        for (const row of all) {
+          const code = String(row.audit_code || "").trim().toUpperCase();
+          if (!code) continue;
+          if (seen.has(code)) {
+            duplicateIds.push(row.id); // This is a duplicate — mark for deletion
+          } else {
+            seen.set(code, row.id);
+          }
+        }
+
+        if (duplicateIds.length > 0) {
+          console.log(`[Cleanup] Removing ${duplicateIds.length} duplicate audit_assignment rows...`);
+          // Delete in batches of 50
+          for (let i = 0; i < duplicateIds.length; i += 50) {
+            const batch = duplicateIds.slice(i, i + 50);
+            await supabase.from("audit_assignments").delete().in("id", batch);
+          }
+          console.log(`[Cleanup] Done. Removed ${duplicateIds.length} duplicates.`);
+          assignmentsQuery.refetch();
+        }
+      } catch (err) {
+        console.warn("[Cleanup] Duplicate removal notice:", err);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [localExcelTasks, setLocalExcelTasks] = useState<Assignment[]>([]);
   const [localDeviations, setLocalDeviations] = useState<Deviation[]>([]);
   const [localLowProd, setLocalLowProd] = useState<LowProductionRecord[]>(DEFAULT_LOW_PRODUCTION_DATA);
