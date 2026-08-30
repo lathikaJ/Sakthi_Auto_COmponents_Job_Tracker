@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -765,6 +766,9 @@ function DeviationsPage() {
     // Update linked Inspection Audit in sakthi_submitted_audits_v2 to "Under Review"
     if (currentDev.audit_id) {
       updateSubmittedAuditStatus(currentDev.audit_id, "Under Review", "Page 2 Root Cause, CAPA & Quarantine details submitted. Under Admin review.");
+      supabase.from("audit_assignments").update({ status: "Submitted" as any }).eq("audit_code", currentDev.audit_id).then(({ error }) => {
+        if (error) console.warn("Supabase assignment update error:", error);
+      });
     }
 
     setIsModalOpen(false);
@@ -794,6 +798,9 @@ function DeviationsPage() {
 
     if (dev.audit_id) {
       updateSubmittedAuditStatus(dev.audit_id, "Completed", `Approved & Signed by Admin (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
+      supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", dev.audit_id).then(({ error }) => {
+        if (error) console.warn("Supabase assignment update error:", error);
+      });
     }
 
     if (typeof window !== "undefined") {

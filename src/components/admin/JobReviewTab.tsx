@@ -21,6 +21,7 @@ import {
   type SubmittedAuditItem,
 } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -92,6 +93,11 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           // Ignore
         }
       }
+
+      // Sync to Supabase DB
+      supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", item.audit_code).then(({ error }) => {
+        if (error) console.warn("Supabase status update error:", error);
+      });
 
       // Sync linked deviation in sakthi_deviations (remains in deviations list as closed/approved)
       const storedDevs = localStorage.getItem("sakthi_deviations");

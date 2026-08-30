@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { recordSubmittedAudit } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/audit/$auditId")({
@@ -450,6 +451,12 @@ function AuditFormPage() {
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
 
+    // Sync to Supabase DB
+    const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
+    supabase.from("audit_assignments").update({ status: "Submitted" as any }).eq("audit_code", cleanAuditCode).then(({ error }) => {
+      if (error) console.warn("Supabase assignment status update notice:", error);
+    });
+
     toast.success("Audit inspection report saved & submitted for Admin Review! Status updated to Under Review.");
     setTimeout(() => {
       navigate({ to: "/dashboard" });
@@ -495,6 +502,12 @@ function AuditFormPage() {
         }
       }
     }
+
+    // Sync to Supabase DB
+    const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
+    supabase.from("audit_assignments").update({ status: "Deviation" }).eq("audit_code", cleanAuditCode).then(({ error }) => {
+      if (error) console.warn("Supabase assignment status update notice:", error);
+    });
     toast.info("Opening 2-Page Deviation Report — Please fill Page 1 details.");
     navigate({ to: "/deviations" });
   };

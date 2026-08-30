@@ -1443,6 +1443,7 @@ export function DashboardPage() {
                                     }
                                   }
                                   updateSubmittedAuditStatus(task.id, "Completed", "Marked as Completed by Admin Dashboard");
+                                  supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
                                   toast.success(`Audit ${task.audit_code} moved to Audit Completed!`);
                                 }}
                                 disabled={!isAdmin}
@@ -1510,6 +1511,7 @@ export function DashboardPage() {
                                     }
                                   }
                                   updateSubmittedAuditStatus(task.id, "Deviation", "Moved to Deviations by Admin Dashboard");
+                                  supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
                                   toast.warning(`Deviation logged for ${task.audit_code}. Audit moved to Deviations!`);
                                 }}
                                 disabled={!isAdmin}
