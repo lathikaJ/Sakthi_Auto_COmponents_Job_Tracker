@@ -277,8 +277,20 @@ export function ExcelTaskGrid({
       }
 
       try {
+        // Fetch profiles to map employee numbers to Supabase User UUIDs
+        const { data: profiles } = await supabase.from("profiles").select("id, employee_number");
+        const profileMap = new Map<string, string>();
+        if (profiles) {
+          profiles.forEach((p) => profileMap.set(p.employee_number, p.id));
+        }
+
+        const authUser = (await supabase.auth.getUser()).data.user;
+
         for (const row of cleanRows) {
-          await supabase.from("audit_assignments").upsert(
+          const empNum = String(row.assigned_to_employee_number || "688079");
+          const targetUserId = profileMap.get(empNum) || authUser?.id || "00000000-0000-0000-0000-000000000000";
+
+          let { error: upsertErr } = await supabase.from("audit_assignments").upsert(
             {
               audit_code: row.audit_code,
               title: row.title,
@@ -287,12 +299,42 @@ export function ExcelTaskGrid({
               month: row.month || 1,
               year: row.year || 2026,
               due_date: row.due_date || "2026-08-27",
-              assigned_to_employee_number: String(row.assigned_to_employee_number || "688079"),
-              assigned_to: "00000000-0000-0000-0000-000000000000",
+              assigned_to_employee_number: empNum,
+              assigned_to: targetUserId,
               status: (row.status as any) || "Assigned",
             },
             { onConflict: "audit_code" }
           );
+
+          if (upsertErr) {
+            const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", row.audit_code).maybeSingle();
+            if (existing) {
+              await supabase.from("audit_assignments").update({
+                title: row.title,
+                audit_type: (row.audit_type as any) || "Product",
+                area: row.area || "General",
+                month: row.month || 1,
+                year: row.year || 2026,
+                due_date: row.due_date || "2026-08-27",
+                assigned_to_employee_number: empNum,
+                assigned_to: targetUserId,
+                status: (row.status as any) || "Assigned",
+              }).eq("audit_code", row.audit_code);
+            } else {
+              await supabase.from("audit_assignments").insert({
+                audit_code: row.audit_code,
+                title: row.title,
+                audit_type: (row.audit_type as any) || "Product",
+                area: row.area || "General",
+                month: row.month || 1,
+                year: row.year || 2026,
+                due_date: row.due_date || "2026-08-27",
+                assigned_to_employee_number: empNum,
+                assigned_to: targetUserId,
+                status: (row.status as any) || "Assigned",
+              });
+            }
+          }
         }
       } catch (dbErr) {
         console.warn("Supabase task sync notice:", dbErr);

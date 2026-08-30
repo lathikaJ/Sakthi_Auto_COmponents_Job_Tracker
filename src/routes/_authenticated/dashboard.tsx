@@ -236,9 +236,11 @@ export function DashboardPage() {
     };
   }, []);
 
-  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks(
-    (localExcelTasks.length > 0 ? localExcelTasks : dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS) as Assignment[]
-  );
+  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks([
+    ...(dbRows.length > 0 ? dbRows : DEFAULT_OFFICIAL_AUDITS),
+    ...localExcelTasks,
+  ] as Assignment[]);
+
   const currentEmpNumber = profile?.employee_number;
   const currentEmpName = profile?.full_name?.toLowerCase();
 
@@ -271,7 +273,6 @@ export function DashboardPage() {
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
-  // Helper matching Audit Type to Category
   const matchesCategory = (type: string, cat: "Product Audit" | "Revalidation Audit" | "Dock Audit") => {
     if (cat === "Product Audit") return type === "Product" || type === "Product Audit";
     if (cat === "Revalidation Audit") return type === "Revalidation" || type === "Revalidation Audit";
@@ -279,19 +280,16 @@ export function DashboardPage() {
     return false;
   };
 
-  // Filter tasks by selected audit category
   const categoryTasks = useMemo(() => {
     return allTaskRows.filter((r) => matchesCategory(r.audit_type, selectedCategory));
   }, [allTaskRows, selectedCategory]);
 
-  // Filter helper for Plan Sub-Views (One Year Plan, As-on-Month Plan, Current Month Plan)
   const filterByPlanSubView = (r: { month?: number }) => {
     if (selectedPlanSubView === "As-on-Month Plan") return r.month === selectedMonth;
     if (selectedPlanSubView === "Current Month Plan") return r.month === new Date().getMonth() + 1;
     return true; // One Year Plan
   };
 
-  // Counts for 6 status option cards under the selected category
   const planTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "Planned" || r.status === "Assigned" || r.status === "Pending");
   }, [categoryTasks]);
@@ -306,6 +304,10 @@ export function DashboardPage() {
 
   const completedTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "Completed" || r.status === "Approved");
+  }, [categoryTasks]);
+
+  const submittedTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "Submitted" || r.status === "Under Review" || r.status === "Completed" || r.status === "Deviation");
   }, [categoryTasks]);
 
   const deviationTasks = useMemo(() => {
@@ -528,8 +530,7 @@ export function DashboardPage() {
     toast.success(`Attached Excel sheet: ${file.name}`);
   };
 
-  // Admin Actions
-  const handleSaveAuditRecord = (updated: Assignment) => {
+  const handleSaveAuditRecord = async (updated: Assignment) => {
     if (!updated.title.trim() || !updated.audit_code.trim()) {
       toast.error("Please enter Part Name and Part Number.");
       return;
@@ -543,22 +544,89 @@ export function DashboardPage() {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
+
+    try {
+      const empNum = String(updated.assigned_to_employee_number || profile?.employee_number || "688079");
+      const { data: profs } = await supabase.from("profiles").select("id").eq("employee_number", empNum).maybeSingle();
+      const targetUserId = profs?.id || profile?.id || "00000000-0000-0000-0000-000000000000";
+
+      let { error: upsertErr } = await supabase.from("audit_assignments").upsert(
+        {
+          audit_code: updated.audit_code,
+          title: updated.title,
+          audit_type: (updated.audit_type as any) || "Product",
+          area: updated.area || "General",
+          month: updated.month || 1,
+          year: updated.year || 2026,
+          due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+          assigned_to_employee_number: empNum,
+          assigned_to: targetUserId,
+          status: (updated.status as any) || "Assigned",
+        },
+        { onConflict: "audit_code" }
+      );
+
+      if (upsertErr) {
+        const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", updated.audit_code).maybeSingle();
+        if (existing) {
+          await supabase.from("audit_assignments").update({
+            title: updated.title,
+            audit_type: (updated.audit_type as any) || "Product",
+            area: updated.area || "General",
+            month: updated.month || 1,
+            year: updated.year || 2026,
+            due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+            assigned_to_employee_number: empNum,
+            assigned_to: targetUserId,
+            status: (updated.status as any) || "Assigned",
+          }).eq("audit_code", updated.audit_code);
+        } else {
+          await supabase.from("audit_assignments").insert({
+            audit_code: updated.audit_code,
+            title: updated.title,
+            audit_type: (updated.audit_type as any) || "Product",
+            area: updated.area || "General",
+            month: updated.month || 1,
+            year: updated.year || 2026,
+            due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+            assigned_to_employee_number: empNum,
+            assigned_to: targetUserId,
+            status: (updated.status as any) || "Assigned",
+          });
+        }
+      }
+      assignmentsQuery.refetch();
+    } catch (err) {
+      console.warn("Error upserting audit_assignments on save:", err);
+    }
+
     toast.success(`Audit plan for ${updated.title} added successfully! Visible in Audit Plan & Ongoing Audit.`);
     setIsEditModalOpen(false);
     setIsAddPlanModalOpen(false);
   };
 
-  const handleDeleteAuditRecord = (id: string) => {
+  const handleDeleteAuditRecord = async (id: string) => {
     if (!isAdmin) {
       toast.error("Only authorized Admin can remove audit plans.");
       return;
     }
+    const targetItem = rawTaskRows.find((t) => t.id === id);
     const updated = rawTaskRows.filter((t) => t.id !== id);
     setLocalExcelTasks(updated);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
+
+    if (targetItem?.audit_code) {
+      try {
+        await supabase.from("audit_assignments").delete().eq("audit_code", targetItem.audit_code);
+        assignmentsQuery.refetch();
+      } catch (err) {
+        console.warn("Error deleting audit_assignments:", err);
+      }
+    }
+
     toast.info("Audit plan record removed by Admin.");
   };
 

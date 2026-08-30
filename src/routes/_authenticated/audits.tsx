@@ -71,9 +71,10 @@ function AuditsPage() {
     }
   }, []);
 
-  const activeDataSet = mergeAndDeduplicateTasks(
-    localTasks.length > 0 ? localTasks : data.length > 0 ? data : DEFAULT_OFFICIAL_AUDITS
-  );
+  const activeDataSet = mergeAndDeduplicateTasks([
+    ...(data.length > 0 ? data : DEFAULT_OFFICIAL_AUDITS),
+    ...localTasks,
+  ]);
 
   const rows = activeDataSet.filter((r) => {
     if (filter === "all") return true;
