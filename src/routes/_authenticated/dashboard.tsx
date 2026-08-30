@@ -294,8 +294,8 @@ export function DashboardPage() {
     if (isAdmin) return rawTaskRows;
     return rawTaskRows.filter((r) => {
       if (!currentEmpNumber) return true;
-      const safeAssignedNum = String(r.assigned_to_employee_number || "");
-      const safeCurrentNum = String(currentEmpNumber);
+      const safeAssignedNum = String(r.assigned_to_employee_number || "").trim();
+      const safeCurrentNum = String(currentEmpNumber).trim();
       
       const empIdMatch = safeAssignedNum === safeCurrentNum;
       const empNameMatch = Boolean(currentEmpName && r.auditor_name?.toLowerCase().includes(currentEmpName));

@@ -411,10 +411,10 @@ export function ExcelTaskGrid({
         const importedRows: ExcelTaskRow[] = data.map((item, idx) => ({
           id: `imported-${Date.now()}-${idx}`,
           audit_code: item["Audit Code"] || item["Code"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
-          title: item["Task Title"] || item["Title"] || item["Task"] || "Imported Task",
+          title: String(item["Task Title"] || item["Title"] || item["Task"] || "Imported Task").trim(),
           audit_type: AUDIT_TYPES.includes(item["Audit Type"]) ? item["Audit Type"] : "Product",
           area: item["Area"] || item["Department"] || "General",
-          assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || "688079"),
+          assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || "688079").trim(),
           month: Number(item["Month"]) || new Date().getMonth() + 1,
           year: Number(item["Year"]) || new Date().getFullYear(),
           due_date: String(item["Due Date"] || new Date().toISOString().split("T")[0]),
