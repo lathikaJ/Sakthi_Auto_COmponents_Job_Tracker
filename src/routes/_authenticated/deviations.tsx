@@ -2068,159 +2068,204 @@ function DeviationsPage() {
               </div>
 
               {/* 2-PAGE PRINTABLE VIEW (EXACT IMAGE 1 & IMAGE 2 REPLICAS) */}
-              <div className="space-y-8 font-sans">
-                {/* ── PAGE 1: DEVIATION REPORT (IMAGE 1 FORMAT) ── */}
+              <div className="space-y-8 font-sans print:space-y-4">
+                {/* ── PAGE 1: DEVIATION REPORT (EXACT IMAGE 1 FORMAT — QF/08/CQA-55) ── */}
                 <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
-                  {/* Top Header Block */}
-                  <div className="grid grid-cols-4 border-b-2 border-slate-900 font-black text-center text-sm uppercase">
-                    <div className="p-3 border-r-2 border-slate-900 flex items-center justify-center">
-                      SAKTHI AUTO
+
+                  {/* ── TOP HEADER: Logo | Title | Date ── */}
+                  <div className="grid border-b-2 border-slate-900 font-black text-center text-sm uppercase" style={{gridTemplateColumns:"1fr 2fr 1fr"}}>
+                    {/* Sakthi Auto Logo / Trident */}
+                    <div className="p-3 border-r-2 border-slate-900 flex flex-col items-center justify-center gap-1">
+                      <svg viewBox="0 0 36 48" className="h-10 w-8 text-slate-900" fill="currentColor">
+                        <path d="M18 0 L18 48 M10 4 L10 24 M26 4 L26 24 M10 4 Q18 0 26 4 M10 24 Q18 28 26 24 M6 4 L14 4 M22 4 L30 4 M6 24 L14 24 M22 24 L30 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                        <ellipse cx="18" cy="4" rx="8" ry="4" fill="none" stroke="currentColor" strokeWidth="2"/>
+                        <ellipse cx="18" cy="24" rx="8" ry="4" fill="none" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
+                      <div className="text-[11px] font-black tracking-widest leading-tight text-center">
+                        <div>SAKTHI</div><div>AUTO</div>
+                      </div>
                     </div>
-                    <div className="p-3 col-span-2 border-r-2 border-slate-900 flex items-center justify-center text-base">
+                    {/* Title */}
+                    <div className="p-3 border-r-2 border-slate-900 flex items-center justify-center text-base tracking-widest">
                       DEVIATION REPORT
                     </div>
-                    <div className="p-3 text-left font-mono text-xs flex flex-col justify-center">
-                      <span>DATE: {viewReportDev.report_date || viewReportDev.created_at}</span>
+                    {/* Date */}
+                    <div className="p-3 text-left font-mono text-xs flex flex-col justify-center gap-1">
+                      <span className="font-black text-slate-700 text-[10px] uppercase">DATE:</span>
+                      <span className="font-black text-slate-900">{viewReportDev.report_date || viewReportDev.created_at}</span>
                     </div>
                   </div>
 
-                  {/* Header Sub-row 1: FROM / TO */}
-                  <div className="grid grid-cols-2 border-b border-slate-900 font-bold uppercase">
+                  {/* ── FROM / TO ROW ── */}
+                  <div className="grid grid-cols-2 border-b border-slate-900">
                     <div className="p-2 border-r border-slate-900 flex items-center gap-2">
-                      <span className="font-black text-slate-900 w-16">FROM</span>
-                      <span>{viewReportDev.from_dept || "QUALITY ASSURANCE"}</span>
+                      <span className="font-black text-slate-900 w-20 text-[11px] uppercase">FROM :</span>
+                      <span className="font-bold text-xs text-slate-900">{viewReportDev.from_dept || "QUALITY ASSURANCE"}</span>
                     </div>
                     <div className="p-2 flex items-center gap-2">
-                      <span className="font-black text-slate-900 w-16">TO:</span>
-                      <span>{viewReportDev.to_dept || "PRODUCTION & MANUFACTURING"}</span>
+                      <span className="font-black text-slate-900 w-14 text-[11px] uppercase">TO:</span>
+                      <span className="font-bold text-xs text-slate-900">{viewReportDev.to_dept || "PRODUCTION"}</span>
                     </div>
                   </div>
 
-                  {/* Header Sub-row 2: PART NAME */}
-                  <div className="border-b border-slate-900 p-2 flex items-center gap-2 font-bold uppercase">
-                    <span className="font-black text-slate-900 w-32">PART NAME</span>
-                    <span className="text-sm font-black">{viewReportDev.part_name || viewReportDev.description}</span>
+                  {/* ── PART NAME ROW ── */}
+                  <div className="border-b border-slate-900 p-2 flex items-center gap-2">
+                    <span className="font-black text-slate-900 w-32 text-[11px] uppercase">PART NAME :</span>
+                    <span className="font-bold text-sm text-slate-900">{viewReportDev.part_name || viewReportDev.description}</span>
                   </div>
 
-                  {/* Header Sub-row 3: PART NUMBER & STAGE */}
-                  <div className="grid grid-cols-3 border-b-2 border-slate-900 font-bold uppercase">
-                    <div className="p-2 col-span-2 border-r border-slate-900 flex items-center gap-2">
-                      <span className="font-black text-slate-900 w-32">PART NUMBER</span>
-                      <span className="text-sm font-black font-mono">{viewReportDev.part_number || "45110-M86R00"}</span>
+                  {/* ── PART NUMBER + STAGE ROW ── */}
+                  <div className="grid border-b-2 border-slate-900" style={{gridTemplateColumns:"1fr 1fr"}}>
+                    <div className="p-2 border-r border-slate-900 flex items-center gap-2">
+                      <span className="font-black text-slate-900 w-32 text-[11px] uppercase">PART NUMBER :</span>
+                      <span className="font-bold text-sm font-mono text-slate-900">{viewReportDev.part_number || "N/A"}</span>
                     </div>
-                    <div className="p-2 flex items-center justify-between text-[10px] font-black">
-                      <span className={viewReportDev.stage === "INPROCESS" ? "underline font-extrabold text-brand" : "text-slate-400"}>
-                        {viewReportDev.stage === "INPROCESS" ? "☑ INPROCESS" : "☐ INPROCESS"}
-                      </span>
-                      <span className={viewReportDev.stage === "FINISHED" ? "underline font-extrabold text-brand" : "text-slate-400"}>
-                        {viewReportDev.stage === "FINISHED" ? "☑ FINISHED" : "☐ FINISHED"}
-                      </span>
-                      <span className={viewReportDev.stage === "DEVELOPMENT" ? "underline font-extrabold text-brand" : "text-slate-400"}>
-                        {viewReportDev.stage === "DEVELOPMENT" ? "☑ DEVELOPMENT" : "☐ DEVELOPMENT"}
-                      </span>
+                    <div className="p-2 flex items-center justify-around text-[11px] font-black uppercase">
+                      <span className={viewReportDev.stage === "INPROCESS" ? "text-slate-900 underline" : "text-slate-400"}>INPROCESS</span>
+                      <span className="text-slate-400">/</span>
+                      <span className={viewReportDev.stage === "FINISHED" ? "text-slate-900 underline" : "text-slate-400"}>FINISHED</span>
+                      <span className="text-slate-400">/</span>
+                      <span className={viewReportDev.stage === "DEVELOPMENT" ? "text-slate-900 underline" : "text-slate-400"}>DEVELOPMENT</span>
                     </div>
                   </div>
 
-                  {/* OBSERVATION TABLE (IMAGE 1) */}
-                  <div className="border-b-2 border-slate-900">
-                    <table className="w-full border-collapse text-left text-xs">
+                  {/* ── OBSERVATION TABLE — exactly matching Image 1 ── */}
+                  <div className="border-b-2 border-slate-900 overflow-x-auto">
+                    <table className="w-full border-collapse text-[11px]" style={{tableLayout:"fixed"}}>
+                      <colgroup>
+                        <col style={{width:"38px"}} />
+                        <col />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"44px"}} />
+                        <col style={{width:"130px"}} />
+                      </colgroup>
                       <thead>
-                        <tr className="border-b border-slate-900 font-black text-[11px] text-center uppercase bg-slate-100">
-                          <th className="p-2 w-12 border-r border-slate-900">SL. NO.</th>
-                          <th className="p-2 min-w-[200px] border-r border-slate-900">SPECIFICATION</th>
-                          <th colSpan={6} className="p-1 border-r border-slate-900 bg-slate-200">
-                            OBSERVATION
+                        {/* Row 1: merged OBSERVATION header */}
+                        <tr className="border-b border-slate-900 font-black text-center uppercase bg-slate-50">
+                          <th rowSpan={2} className="border-r border-slate-900 p-1 align-middle">SL.<br/>NO.</th>
+                          <th rowSpan={2} className="border-r border-slate-900 p-1 text-left align-middle pl-2">SPECIFICATION</th>
+                          <th colSpan={6} className="border-r border-slate-900 p-1">OBSERVATION</th>
+                          <th rowSpan={2} className="p-1 text-left align-middle pl-2">
+                            <div>REMARKS</div>
+                            <div className="text-[9px] font-bold text-slate-500 mt-0.5">NOTE :</div>
                           </th>
-                          <th className="p-2 min-w-[140px]">REMARKS</th>
                         </tr>
-                        <tr className="border-b border-slate-900 font-black text-[10px] text-center uppercase bg-slate-50">
-                          <th className="border-r border-slate-900"></th>
-                          <th className="border-r border-slate-900"></th>
-                          <th className="p-1 w-10 border-r border-slate-900">1</th>
-                          <th className="p-1 w-10 border-r border-slate-900">2</th>
-                          <th className="p-1 w-10 border-r border-slate-900">3</th>
-                          <th className="p-1 w-10 border-r border-slate-900">4</th>
-                          <th className="p-1 w-10 border-r border-slate-900">5</th>
-                          <th className="p-1 w-10 border-r border-slate-900">6</th>
-                          <th></th>
+                        {/* Row 2: sample numbers 1-6 */}
+                        <tr className="border-b border-slate-900 font-black text-center uppercase bg-slate-50">
+                          {[1,2,3,4,5,6].map(n => (
+                            <th key={n} className="border-r border-slate-900 p-1">{n}</th>
+                          ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-900 text-[11px]">
+                      <tbody>
+                        {/* Data rows */}
                         {(viewReportDev.observations && viewReportDev.observations.length > 0
                           ? viewReportDev.observations
                           : DEFAULT_OBSERVATIONS
                         ).map((obs, idx) => (
-                          <tr key={idx}>
-                            <td className="p-2 font-bold text-center border-r border-slate-900">{obs.sl_no}</td>
-                            <td className="p-2 font-medium border-r border-slate-900">{obs.specification}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs1}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs2}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs3}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs4}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs5}</td>
-                            <td className="p-1 text-center font-mono border-r border-slate-900">{obs.obs6}</td>
-                            <td className="p-2 font-medium">{obs.remarks}</td>
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="p-1 text-center font-bold border-r border-slate-300">{obs.sl_no}</td>
+                            <td className="p-1 border-r border-slate-300 text-[10px]">{obs.specification}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs1}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs2}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs3}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs4}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs5}</td>
+                            <td className="p-1 text-center font-mono border-r border-slate-300">{obs.obs6}</td>
+                            <td className="p-1 text-[10px]">{obs.remarks}</td>
+                          </tr>
+                        ))}
+                        {/* Extra blank rows to fill page like physical form */}
+                        {Array.from({length: Math.max(0, 8 - (viewReportDev.observations?.length || DEFAULT_OBSERVATIONS.length))}).map((_, i) => (
+                          <tr key={`blank-${i}`} className="border-b border-slate-200" style={{height:"28px"}}>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td className="border-r border-slate-200"></td>
+                            <td></td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* CC Row */}
-                  <div className="p-2 border-b-2 border-slate-900 font-bold flex items-center gap-2">
-                    <span className="font-black text-slate-900">CC :</span>
-                    <span>{viewReportDev.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"}</span>
+                  {/* ── CC ROW ── */}
+                  <div className="border-b border-slate-900 p-2">
+                    <div className="flex items-start gap-2">
+                      <span className="font-black text-slate-900 text-[11px] uppercase w-12 shrink-0">CC :</span>
+                      <span className="font-medium text-xs text-slate-900">{viewReportDev.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"}</span>
+                    </div>
+                    {/* Blank ruled lines like the physical form */}
+                    <div className="mt-2 space-y-1.5">
+                      <div className="border-b border-slate-200 h-4"></div>
+                      <div className="border-b border-slate-200 h-4"></div>
+                    </div>
                   </div>
 
-                  {/* Bottom Footer (Image 1 Bottom Left & Bottom Right) */}
-                  <div className="grid grid-cols-3 font-bold">
-                    <div className="p-3 border-r-2 border-slate-900 font-mono text-[10px] flex flex-col justify-end space-y-1">
-                      <span>{viewReportDev.doc_code || "QF/08/CQA-55"}</span>
-                      <span>{viewReportDev.doc_date || "25.12.2015"}</span>
+                  {/* ── FOOTER: Doc code | INSPECTED BY | APPROVED BY ── */}
+                  <div className="grid border-t border-slate-900" style={{gridTemplateColumns:"1fr 1fr 1fr"}}>
+                    {/* Doc code bottom-left */}
+                    <div className="p-3 border-r-2 border-slate-900 font-mono text-[10px] flex flex-col justify-end space-y-0.5 min-h-[72px]">
+                      <span className="font-black">{viewReportDev.doc_code || "QF/08/CQA-55"}</span>
+                      <span>{viewReportDev.doc_date || "29.12.2016"}</span>
                     </div>
-
-                    <div className="p-3 border-r-2 border-slate-900 space-y-1">
+                    {/* INSPECTED BY */}
+                    <div className="p-3 border-r-2 border-slate-900 space-y-2 min-h-[72px]">
                       <p className="font-black uppercase text-[10px] text-slate-900">INSPECTED BY</p>
-                      <p className="font-bold text-xs">{viewReportDev.inspected_by || viewReportDev.segregated_by}</p>
+                      <p className="font-bold text-[11px] text-slate-800">{viewReportDev.inspected_by || viewReportDev.segregated_by || "—"}</p>
                       {viewReportDev.inspected_by_signature ? (
-                        <img src={viewReportDev.inspected_by_signature} alt="Inspected Signature" className="h-8 max-w-[120px] object-contain border p-1" />
+                        <img src={viewReportDev.inspected_by_signature} alt="Inspected Signature" className="h-8 max-w-[120px] object-contain border p-0.5" />
                       ) : (
-                        <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                        <div className="h-8 border-b border-dashed border-slate-300"></div>
                       )}
                     </div>
-
-                    <div className="p-3 space-y-1">
+                    {/* APPROVED BY */}
+                    <div className="p-3 space-y-2 min-h-[72px]">
                       <p className="font-black uppercase text-[10px] text-slate-900">APPROVED BY</p>
-                      <p className="font-bold text-xs">{viewReportDev.approved_by || "KARTHIKEYAN C (690867)"}</p>
+                      <p className="font-bold text-[11px] text-slate-800">{viewReportDev.approved_by || "KARTHIKEYAN C (690867)"}</p>
                       {viewReportDev.approved_by_signature ? (
-                        <img src={viewReportDev.approved_by_signature} alt="Approved Signature" className="h-8 max-w-[120px] object-contain border p-1" />
+                        <img src={viewReportDev.approved_by_signature} alt="Approved Signature" className="h-8 max-w-[120px] object-contain border p-0.5" />
                       ) : (
-                        <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                        <div className="h-8 border-b border-dashed border-slate-300"></div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* ── PAGE 2: ROOT CAUSE, CAPA & QUARANTINE DETAILS (IMAGE 2 FORMAT) ── */}
+                {/* ── PAGE 2: ROOT CAUSE, CAPA & QUARANTINE DETAILS (EXACT IMAGE 2 FORMAT) ── */}
                 <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
-                  <div className="bg-slate-100 p-2 border-b-2 border-slate-900 text-center font-black text-xs uppercase tracking-wider">
-                    PAGE 2: ROOT CAUSE, CORRECTIVE ACTION & QUARANTINE DETAILS
-                  </div>
 
-                  {/* CAPA TABLE (IMAGE 2 TOP TABLE) */}
+                  {/* ── CAPA TABLE — exactly matching Image 2 top section ── */}
                   <div className="border-b-2 border-slate-900 overflow-x-auto">
-                    <table className="w-full border-collapse text-left text-xs">
+                    <table className="w-full border-collapse text-[11px]" style={{tableLayout:"fixed"}}>
+                      <colgroup>
+                        <col style={{width:"72px"}} />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                      </colgroup>
                       <thead>
-                        <tr className="border-b border-slate-900 font-black text-[11px] text-center uppercase bg-slate-100">
-                          <th className="p-2 w-24 border-r border-slate-900">DATE</th>
-                          <th className="p-2 w-32 border-r border-slate-900">PART NAME</th>
-                          <th className="p-2 w-28 border-r border-slate-900">PART NO.</th>
-                          <th className="p-2 min-w-[150px] border-r border-slate-900">NON CONFORMANCE DETAILS</th>
-                          <th className="p-2 min-w-[150px] border-r border-slate-900">ROOT CAUSE</th>
-                          <th className="p-2 min-w-[180px]">CORRECTIVE ACTION</th>
+                        <tr className="border-b border-slate-900 font-black text-[10px] text-center uppercase bg-slate-50">
+                          <th className="p-2 border-r border-slate-900 align-middle">DATE</th>
+                          <th className="p-2 border-r border-slate-900 align-middle">PART NAME</th>
+                          <th className="p-2 border-r border-slate-900 align-middle">PART NO.</th>
+                          <th className="p-2 border-r border-slate-900 align-middle">NON CONFORMANCE DETAILS</th>
+                          <th className="p-2 border-r border-slate-900 align-middle">ROOT CAUSE</th>
+                          <th className="p-2 align-middle">CORRECTIVE ACTION</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-900 text-[11px]">
+                      <tbody>
+                        {/* Data rows */}
                         {(viewReportDev.capa_items && viewReportDev.capa_items.length > 0
                           ? viewReportDev.capa_items
                           : [
@@ -2234,74 +2279,84 @@ function DeviationsPage() {
                               },
                             ]
                         ).map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="p-2 font-mono font-bold text-center border-r border-slate-900">{item.date}</td>
-                            <td className="p-2 font-bold border-r border-slate-900">{item.part_name}</td>
-                            <td className="p-2 font-mono font-bold border-r border-slate-900">{item.part_no}</td>
-                            <td className="p-2 font-medium border-r border-slate-900">{item.non_conformance}</td>
-                            <td className="p-2 font-medium border-r border-slate-900">{item.root_cause}</td>
-                            <td className="p-2 font-medium">{item.corrective_action}</td>
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="p-1.5 font-mono text-[10px] border-r border-slate-300 align-top">{item.date}</td>
+                            <td className="p-1.5 font-bold border-r border-slate-300 align-top text-[10px]">{item.part_name}</td>
+                            <td className="p-1.5 font-mono border-r border-slate-300 align-top text-[10px]">{item.part_no}</td>
+                            <td className="p-1.5 border-r border-slate-300 align-top text-[10px]">{item.non_conformance}</td>
+                            <td className="p-1.5 border-r border-slate-300 align-top text-[10px]">{item.root_cause}</td>
+                            <td className="p-1.5 align-top text-[10px]">{item.corrective_action}</td>
+                          </tr>
+                        ))}
+                        {/* Extra blank rows to fill the form */}
+                        {Array.from({length: Math.max(0, 8 - (viewReportDev.capa_items?.length || 1))}).map((_, i) => (
+                          <tr key={`blank2-${i}`} className="border-b border-slate-100" style={{height:"32px"}}>
+                            <td className="border-r border-slate-100"></td>
+                            <td className="border-r border-slate-100"></td>
+                            <td className="border-r border-slate-100"></td>
+                            <td className="border-r border-slate-100"></td>
+                            <td className="border-r border-slate-100"></td>
+                            <td></td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* QUARANTINE DETAILS SECTION (IMAGE 2 BOTTOM SECTION) */}
+                  {/* ── QUARANTINE DETAILS — exactly matching Image 2 bottom section ── */}
                   <div>
-                    <div className="p-2 font-black uppercase text-slate-900 border-b border-slate-900 tracking-wider">
+                    <div className="p-2 font-black uppercase text-slate-900 border-b-2 border-slate-900 tracking-wider text-[11px]">
                       QUARANTINE DETAILS :
                     </div>
 
-                    {/* Quantities Row */}
-                    <div className="grid grid-cols-3 border-b border-slate-900 font-bold uppercase text-center">
-                      <div className="p-2 border-r border-slate-900">
-                        <span className="font-black text-slate-700 mr-2">SEGREGATED QTY:</span>
-                        <span className="font-mono font-black text-sm text-slate-900">
-                          {viewReportDev.quarantine_segregated_qty || viewReportDev.segregated_qty || "100"}
+                    {/* Quantities row: SEGREGATED QTY | OK QTY | NOT OK QTY */}
+                    <div className="grid border-b-2 border-slate-900" style={{gridTemplateColumns:"1fr 1fr 1fr"}}>
+                      <div className="p-3 border-r border-slate-900 flex flex-col gap-1">
+                        <span className="font-black text-slate-700 text-[10px] uppercase">SEGGREGATED QTY:</span>
+                        <span className="font-mono font-black text-base text-slate-900">
+                          {viewReportDev.quarantine_segregated_qty || viewReportDev.segregated_qty || "—"}
                         </span>
                       </div>
-                      <div className="p-2 border-r border-slate-900">
-                        <span className="font-black text-emerald-800 mr-2">OK QTY:</span>
-                        <span className="font-mono font-black text-sm text-emerald-900">
-                          {viewReportDev.quarantine_ok_qty || viewReportDev.ok_qty || "95"}
+                      <div className="p-3 border-r border-slate-900 flex flex-col gap-1">
+                        <span className="font-black text-emerald-800 text-[10px] uppercase">OK QTY:</span>
+                        <span className="font-mono font-black text-base text-emerald-900">
+                          {viewReportDev.quarantine_ok_qty || viewReportDev.ok_qty || "—"}
                         </span>
                       </div>
-                      <div className="p-2">
-                        <span className="font-black text-rose-800 mr-2">NOT OK QTY:</span>
-                        <span className="font-mono font-black text-sm text-rose-900">
-                          {viewReportDev.quarantine_not_ok_qty || viewReportDev.ng_qty || "5"}
+                      <div className="p-3 flex flex-col gap-1">
+                        <span className="font-black text-rose-800 text-[10px] uppercase">NOT OK QTY:</span>
+                        <span className="font-mono font-black text-base text-rose-900">
+                          {viewReportDev.quarantine_not_ok_qty || viewReportDev.ng_qty || "—"}
                         </span>
                       </div>
                     </div>
 
-                    {/* Quarantine Signatures Row (Image 2 Bottom) */}
-                    <div className="grid grid-cols-2 font-bold uppercase">
-                      <div className="p-3 border-r border-slate-900 space-y-1">
-                        <p className="font-black text-[10px] text-slate-900">SEGREGATED BY</p>
-                        <p className="font-bold text-xs">{viewReportDev.quarantine_segregated_by || viewReportDev.segregated_by}</p>
+                    {/* Signatures row: SEGREGATED BY | APPROVED BY */}
+                    <div className="grid" style={{gridTemplateColumns:"1fr 1fr"}}>
+                      <div className="p-4 border-r border-slate-900 space-y-2 min-h-[80px]">
+                        <p className="font-black uppercase text-[10px] text-slate-900">SEGGREGATED BY</p>
+                        <p className="font-bold text-[11px] text-slate-800">{viewReportDev.quarantine_segregated_by || viewReportDev.segregated_by || "—"}</p>
                         {viewReportDev.quarantine_segregated_by_signature || viewReportDev.employee_signature ? (
                           <img
                             src={viewReportDev.quarantine_segregated_by_signature || viewReportDev.employee_signature}
                             alt="Segregated Signature"
-                            className="h-8 max-w-[120px] object-contain border p-1"
+                            className="h-10 max-w-[140px] object-contain border p-0.5"
                           />
                         ) : (
-                          <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                          <div className="h-10 border-b border-dashed border-slate-300 w-3/4"></div>
                         )}
                       </div>
-
-                      <div className="p-3 space-y-1">
-                        <p className="font-black text-[10px] text-slate-900">APPROVED BY</p>
-                        <p className="font-bold text-xs">{viewReportDev.quarantine_approved_by || viewReportDev.approved_by}</p>
+                      <div className="p-4 space-y-2 min-h-[80px]">
+                        <p className="font-black uppercase text-[10px] text-slate-900">APPROVED BY</p>
+                        <p className="font-bold text-[11px] text-slate-800">{viewReportDev.quarantine_approved_by || viewReportDev.approved_by || "—"}</p>
                         {viewReportDev.quarantine_approved_by_signature || viewReportDev.approved_by_signature ? (
                           <img
                             src={viewReportDev.quarantine_approved_by_signature || viewReportDev.approved_by_signature}
                             alt="Approved Signature"
-                            className="h-8 max-w-[120px] object-contain border p-1"
+                            className="h-10 max-w-[140px] object-contain border p-0.5"
                           />
                         ) : (
-                          <div className="h-6 border border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 italic">Signature</div>
+                          <div className="h-10 border-b border-dashed border-slate-300 w-3/4"></div>
                         )}
                       </div>
                     </div>
