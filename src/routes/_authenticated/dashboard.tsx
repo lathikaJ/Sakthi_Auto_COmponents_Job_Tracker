@@ -294,10 +294,14 @@ export function DashboardPage() {
     if (isAdmin) return rawTaskRows;
     return rawTaskRows.filter((r) => {
       if (!currentEmpNumber) return true;
-      const empIdMatch = r.assigned_to_employee_number === currentEmpNumber;
+      const safeAssignedNum = String(r.assigned_to_employee_number || "");
+      const safeCurrentNum = String(currentEmpNumber);
+      
+      const empIdMatch = safeAssignedNum === safeCurrentNum;
       const empNameMatch = Boolean(currentEmpName && r.auditor_name?.toLowerCase().includes(currentEmpName));
-      const auditorIdMatch = Boolean(r.auditor_name && r.auditor_name.includes(currentEmpNumber));
-      const empNumInAssigned = Boolean(r.assigned_to_employee_number && r.assigned_to_employee_number.includes(currentEmpNumber));
+      const auditorIdMatch = Boolean(r.auditor_name && String(r.auditor_name).includes(safeCurrentNum));
+      const empNumInAssigned = Boolean(safeAssignedNum && safeAssignedNum.includes(safeCurrentNum));
+      
       return empIdMatch || empNameMatch || auditorIdMatch || empNumInAssigned;
     });
   }, [isAdmin, rawTaskRows, currentEmpNumber, currentEmpName]);
@@ -544,8 +548,8 @@ export function DashboardPage() {
             year: new Date().getFullYear(),
             due_date: String(item["Planned Date"] || item["Due Date"] || today),
             status: String(item["Status"] || "Planned"),
-            assigned_to_employee_number: String(item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
-            auditor_name: String(item["Auditor"] || profile?.full_name || "Lead Auditor"),
+            assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
+            auditor_name: String(item["Auditor"] || item["Assigned Employee"] || profile?.full_name || "Lead Auditor"),
             attached_file_name: file.name,
           };
         });

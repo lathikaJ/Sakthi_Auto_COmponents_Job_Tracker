@@ -118,7 +118,7 @@ export function ExcelTaskGrid({
   // Filtered rows
   const filteredRows = rows.filter((r) => {
     if (activeSheetTab === "sheet2") {
-      if (currentEmployeeNumber && r.assigned_to_employee_number !== currentEmployeeNumber) {
+      if (currentEmployeeNumber && String(r.assigned_to_employee_number) !== String(currentEmployeeNumber)) {
         return false;
       }
     }
@@ -128,11 +128,11 @@ export function ExcelTaskGrid({
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        r.audit_code.toLowerCase().includes(q) ||
-        r.title.toLowerCase().includes(q) ||
-        r.area.toLowerCase().includes(q) ||
-        r.assigned_to_employee_number.toLowerCase().includes(q) ||
-        r.status.toLowerCase().includes(q)
+        String(r.audit_code).toLowerCase().includes(q) ||
+        String(r.title).toLowerCase().includes(q) ||
+        String(r.area).toLowerCase().includes(q) ||
+        String(r.assigned_to_employee_number).toLowerCase().includes(q) ||
+        String(r.status).toLowerCase().includes(q)
       );
     }
     return true;
@@ -406,7 +406,7 @@ export function ExcelTaskGrid({
           title: item["Task Title"] || item["Title"] || item["Task"] || "Imported Task",
           audit_type: AUDIT_TYPES.includes(item["Audit Type"]) ? item["Audit Type"] : "Product",
           area: item["Area"] || item["Department"] || "General",
-          assigned_to_employee_number: String(item["Assigned Employee"] || item["Employee ID"] || "688079"),
+          assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || "688079"),
           month: Number(item["Month"]) || new Date().getMonth() + 1,
           year: Number(item["Year"]) || new Date().getFullYear(),
           due_date: String(item["Due Date"] || new Date().toISOString().split("T")[0]),
@@ -475,6 +475,28 @@ export function ExcelTaskGrid({
                 title="Click to save and sync all task assignments to all registered employees across the plant"
               >
                 <Save className="h-4 w-4 text-slate-950" /> 💾 Save & Sync to All Employees
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  const cleanRows = mergeAndDeduplicateTasks(rows);
+                  setRows(cleanRows);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(cleanRows));
+                    window.dispatchEvent(new Event("excel_tasks_updated"));
+                  }
+                  setHasChanges(false);
+                  toast.success("Draft saved locally without syncing to the database.");
+                }}
+                className={`h-8 gap-1.5 font-bold text-xs cursor-pointer px-2.5 ${
+                  hasChanges
+                    ? "bg-sky-600 hover:bg-sky-700 text-white shadow-md ring-1 ring-sky-400"
+                    : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                }`}
+                title="Save changes locally as a draft without syncing to the entire plant database"
+              >
+                <Save className="h-3.5 w-3.5" /> Save Draft
               </Button>
 
               <Button
