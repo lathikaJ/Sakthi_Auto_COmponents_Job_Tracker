@@ -1788,58 +1788,27 @@ export function DashboardPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-white/5 text-slate-300 font-extrabold uppercase tracking-wider border-b border-white/10">
                     <tr>
-                      <th className="p-3 w-14 text-center">SL. NO.</th>
-                      <th className="p-3">PART NAME</th>
-                      <th className="p-3">PART NUMBER</th>
-                      <th className="p-3">AUDIT CATEGORY</th>
-                      <th className="p-3">DEPARTMENT</th>
-                      <th className="p-3">PLANNED DATE</th>
-                      <th className="p-3">ATTACHED EXCEL</th>
-                      <th className="p-3">AUDITOR</th>
-                      <th className="p-3">STATUS</th>
-                      <th className="p-3 text-right">ACTION</th>
+                      <th className="p-3">Audit Plan</th>
+                      <th className="p-3">Part Name</th>
+                      <th className="p-3">Planned Month</th>
+                      <th className="p-3">Attachment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10 text-slate-200">
-                    {assignedWorkTasks.map((task, idx) => (
-                      <tr key={task.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-3 text-center font-mono font-bold text-slate-400">
-                          {task.sl_no ?? idx + 1}
+                    {assignedWorkTasks.map((task) => (
+                      <tr key={task.id} className="hover:bg-white/5 transition-colors bg-white/5 border-l-4 border-l-transparent hover:border-l-indigo-500">
+                        <td className="p-3 font-mono font-bold text-slate-300">
+                          {task.audit_code}
                         </td>
-                        <td className="p-3 font-bold text-white max-w-xs">{task.title}</td>
-                        <td className="p-3 font-mono font-bold text-amber-400">{task.audit_code}</td>
-                        <td className="p-3 font-semibold text-sky-300">{task.audit_type}</td>
-                        <td className="p-3 font-medium text-slate-300">{task.area}</td>
-                        <td className="p-3 font-bold text-emerald-400">
-                          {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                        <td className="p-3 font-medium text-white max-w-xs">{task.title}</td>
+                        <td className="p-3 font-medium text-slate-400">
+                          {MONTHS[(task.month || 1) - 1]} {task.year || 2026}
                         </td>
                         <td className="p-3">
-                          {task.attached_file_name ? (
-                            <Link
-                              to="/audit/$auditId"
-                              params={{ auditId: task.id }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition-colors"
-                              title="Click to open attached Excel inspection checklist"
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
-                              <span className="truncate max-w-[130px]">{task.attached_file_name}</span>
-                            </Link>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 italic">
-                              <Paperclip className="h-3 w-3" /> No file
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 font-medium text-slate-300">
-                          {task.auditor_name ?? task.assigned_to_employee_number}
-                        </td>
-                        <td className="p-3">
-                          <StatusBadge status={task.status} />
-                        </td>
-                        <td className="p-3 text-right">
-                          <Button asChild size="sm" className="bg-amber-600 text-white font-bold hover:bg-amber-500 text-xs shadow-xs gap-1">
-                            <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                              Start Audit / Open Checklist <ChevronRight className="h-3.5 w-3.5" />
+                          <Button asChild size="sm" variant="outline" className="h-8 border-[#107c41] text-[#107c41] bg-[#107c41]/10 hover:bg-[#107c41] hover:text-white font-bold text-xs gap-1.5 transition-colors">
+                            <Link to="/audit/$auditId" params={{ auditId: task.id }} search={{ view: 'excel' }}>
+                              <FileSpreadsheet className="h-3.5 w-3.5" />
+                              Excel
                             </Link>
                           </Button>
                         </td>

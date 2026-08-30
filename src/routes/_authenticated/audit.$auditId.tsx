@@ -26,6 +26,7 @@ import * as XLSX from "xlsx";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { ExcelChecklistGrid } from "@/components/excel/ExcelChecklistGrid";
 
 import { recordSubmittedAudit } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
@@ -59,7 +60,11 @@ function AuditFormPage() {
   const [revNo, setRevNo] = useState("A");
   const [dateCode, setDateCode] = useState("DC-2026-08");
   const [traceability, setTraceability] = useState("OP-010 / OP-020");
-
+  
+  const [isExcelViewOpen, setIsExcelViewOpen] = useState(
+    typeof window !== 'undefined' ? window.location.search.includes('view=excel') : false
+  );
+  
   // Wizard Step State: 1 = Checkpoints, 2 = Notes & Photos, 3 = E-Signature & Submit
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
@@ -543,6 +548,24 @@ function AuditFormPage() {
   };
 
   const failedCheckpoints = checkpoints.filter((cp) => cp.status === "Fail");
+
+  if (isExcelViewOpen) {
+    return (
+      <ExcelChecklistGrid
+        auditCode={auditId}
+        partName={partName}
+        plannedMonth={format(new Date(), "MMMM yyyy")}
+        auditorName={profile?.full_name || "Employee"}
+        checkpoints={checkpoints as any}
+        onUpdateCheckpoint={(id, field, value) => {
+          if (field === "actual_value") handleValueChange(id, value);
+          else if (field === "status") handleToggleStatus(id, value as any);
+          else if (field === "remarks") handleRemarksChange(id, value);
+        }}
+        onClose={() => setIsExcelViewOpen(false)}
+      />
+    );
+  }
 
   return (
     <AppShell
