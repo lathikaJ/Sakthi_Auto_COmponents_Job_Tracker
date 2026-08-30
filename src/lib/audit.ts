@@ -245,14 +245,14 @@ export const DEFAULT_OFFICIAL_AUDITS = [
   {
     id: "aud-rev-003",
     audit_code: "REV-003",
-    title: "Steering Knuckle IFS LH/RH - (W501/3G ECO)",
+    title: "Steering Knuckle IFS LH/RH - (W501/3G ECO) - ASSIGNED TO 665773",
     audit_type: "Revalidation",
     area: "Machining Line 3",
-    assigned_to_employee_number: "663875",
+    assigned_to_employee_number: "665773",
     month: 5,
     year: 2026,
     due_date: "2026-05-31",
-    status: "Assigned",
+    status: "In Progress",
   },
   {
     id: "aud-rev-004",
