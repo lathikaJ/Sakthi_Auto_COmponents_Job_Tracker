@@ -293,24 +293,31 @@ export function ExcelTaskGrid({
         for (const row of cleanRows) {
           const empNum = String(row.assigned_to_employee_number || "688079");
           const targetUserId = profileMap.get(empNum) || authUser?.id || "00000000-0000-0000-0000-000000000000";
+          const validAuditTypes = ["Product", "Process", "Revalidation"];
+          const validStatuses = ["Planned", "Assigned", "In Progress", "Submitted", "Completed", "Deviation", "Overdue"];
+          
+          const dbAuditType = validAuditTypes.includes(row.audit_type as string) ? row.audit_type : "Product";
+          const dbStatus = validStatuses.includes(row.status as string) ? row.status : "Assigned";
+
           const rowPayload = {
             audit_code: row.audit_code,
             title: row.title,
-            audit_type: (row.audit_type as any) || "Product",
+            audit_type: dbAuditType as any,
             area: row.area || "General",
             month: row.month || 1,
             year: row.year || 2026,
             due_date: row.due_date || "2026-08-27",
             assigned_to_employee_number: empNum,
             assigned_to: targetUserId,
-            status: (row.status as any) || "Assigned",
+            status: dbStatus as any,
           };
 
           const codeUpper = String(row.audit_code).trim().toUpperCase();
 
           if (existingCodes.has(codeUpper)) {
             // Record exists in DB — UPDATE only, never insert
-            await supabase.from("audit_assignments").update(rowPayload).eq("audit_code", row.audit_code);
+            const { error: updateErr } = await supabase.from("audit_assignments").update(rowPayload).eq("audit_code", row.audit_code);
+            if (updateErr) throw new Error(`Update failed for ${row.audit_code}: ${updateErr.message}`);
           } else {
             // Record does NOT exist — try upsert first, then insert as last resort
             const { error: upsertErr } = await supabase.from("audit_assignments").upsert(
@@ -319,7 +326,8 @@ export function ExcelTaskGrid({
             );
             if (upsertErr) {
               // Upsert failed (e.g. missing unique constraint) — safe insert with duplicate guard
-              await supabase.from("audit_assignments").insert(rowPayload);
+              const { error: insertErr } = await supabase.from("audit_assignments").insert(rowPayload);
+              if (insertErr) throw new Error(`Insert failed for ${row.audit_code}: ${insertErr.message}`);
             }
             existingCodes.add(codeUpper); // Track newly inserted codes to prevent re-inserting in same batch
           }
