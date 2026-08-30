@@ -797,8 +797,8 @@ function DeviationsPage() {
     await saveDeviationsList(updatedDevs);
 
     if (dev.audit_id) {
-      updateSubmittedAuditStatus(dev.audit_id, "Completed", `Approved & Signed by Admin (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
-      supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", dev.audit_id).then(({ error }) => {
+      updateSubmittedAuditStatus(dev.audit_id, "Deviation", `Approved & Signed by Admin (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
+      supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", dev.audit_id).then(({ error }) => {
         if (error) console.warn("Supabase assignment update error:", error);
       });
     }
@@ -812,9 +812,9 @@ function DeviationsPage() {
             if (t.id === dev.audit_id || t.audit_code === dev.audit_id || t.audit_code === dev.dev_code.replace("DEV-", "AUD-")) {
               return {
                 ...t,
-                status: "Completed",
+                status: "Deviation",
                 completion_date: getTodayDateStr(),
-                final_result: "PASS / COMPLIANT (DEVIATION RESOLVED)",
+                final_result: "PASS / COMPLIANT (DEVIATION CLOSED)",
               };
             }
             return t;

@@ -76,8 +76,36 @@ function AuditFormPage() {
     },
   ]);
 
-  // Dynamic audit preset initialization based on auditId
+  // Dynamic audit preset initialization based on auditId, with Draft restoration
   React.useEffect(() => {
+    // 1. Try to load draft from localStorage (Step 4B of Workflow)
+    if (typeof window !== "undefined") {
+      const draftStr = localStorage.getItem(`sakthi_audit_draft_${auditId}`);
+      if (draftStr) {
+        try {
+          const draft = JSON.parse(draftStr);
+          setCheckpoints(draft.checkpoints || []);
+          if (draft.inspectorNotes) setInspectorNotes(draft.inspectorNotes);
+          if (draft.imageFiles) setImageFiles(draft.imageFiles);
+          if (draft.signatureImage) setSignatureImage(draft.signatureImage);
+          if (draft.signedAt) setSignedAt(draft.signedAt);
+          
+          // Re-establish customer/part context based on ID since draft doesn't store it
+          if (auditId.includes("STELL") || auditId.includes("DOC")) {
+            setCustomer("STELLANTIS"); setPartNo("9845800980 & 9845801180"); setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH");
+          } else if (auditId.includes("VOL") || auditId.includes("LAY")) {
+            setCustomer("VOLVO"); setPartNo("23407840 / P03"); setPartName("FAN BRACKET LOW FAN HUB");
+          } else {
+            setCustomer("MSIL"); setPartNo("45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)"); setPartName("KNUCKLE STEERING R/L - YTA / YTB");
+          }
+          return; // Stop here if draft was loaded successfully
+        } catch (e) {
+          console.warn("Failed to parse audit draft, loading preset instead.");
+        }
+      }
+    }
+
+    // 2. Load Preset Defaults if no draft exists
     if (auditId.includes("STELL") || auditId.includes("DOC")) {
       setCustomer("STELLANTIS");
       setPartNo("9845800980 & 9845801180");
@@ -481,6 +509,8 @@ function AuditFormPage() {
       assigned_emp: profile?.employee_number || "688079",
       segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
     };
+
+    handleSaveDraft();
 
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_deviation_prefill", JSON.stringify(prefill));
