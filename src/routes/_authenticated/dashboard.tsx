@@ -291,20 +291,9 @@ export function DashboardPage() {
   const currentEmpName = profile?.full_name?.toLowerCase();
 
   const allTaskRows = useMemo(() => {
-    if (isAdmin) return rawTaskRows;
-    return rawTaskRows.filter((r) => {
-      if (!currentEmpNumber) return true;
-      const safeAssignedNum = String(r.assigned_to_employee_number || "").trim();
-      const safeCurrentNum = String(currentEmpNumber).trim();
-      
-      const empIdMatch = safeAssignedNum === safeCurrentNum;
-      const empNameMatch = Boolean(currentEmpName && r.auditor_name?.toLowerCase().includes(currentEmpName));
-      const auditorIdMatch = Boolean(r.auditor_name && String(r.auditor_name).includes(safeCurrentNum));
-      const empNumInAssigned = Boolean(safeAssignedNum && safeAssignedNum.includes(safeCurrentNum));
-      
-      return empIdMatch || empNameMatch || auditorIdMatch || empNumInAssigned;
-    });
-  }, [isAdmin, rawTaskRows, currentEmpNumber, currentEmpName]);
+    // Client requested: All audits should be visible to all employees, regardless of assignment.
+    return rawTaskRows;
+  }, [rawTaskRows]);
 
   const assignedWorkTasks = useMemo(() => {
     return allTaskRows.filter((task) => {
