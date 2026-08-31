@@ -443,34 +443,34 @@ export function ExcelTaskGrid({
   const selectedValue = currentRowObj && selectedCell ? String(currentRowObj[selectedCell.colKey] ?? "") : "";
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-[#f8f9fa] text-slate-900 shadow-md font-sans">
-      {/* ── 1. MICROSOFT EXCEL / GOOGLE SHEETS GREEN WINDOW TITLE BAR ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-2 text-white shadow-xs">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-white text-slate-900 shadow-md font-sans">
+      {/* ── 1. MASTER TASK MATRIX HEADER BAR ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-3 text-white shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
-            X
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
+            <FileSpreadsheet className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+            <h3 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
               {title}
               {hasChanges ? (
                 <span className="rounded bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-900 shadow-xs">
                   • UNSAVED EDITS
                 </span>
               ) : (
-                <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100">
+                <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100 border border-emerald-600">
                   ✓ SAVED TO CLOUD
                 </span>
               )}
             </h3>
             <p className="text-[11px] text-emerald-100 font-medium">
-              Official Excel Task Management Register · Auto-Save Enabled
+              Master Audit Task Register · Click 'Open / Download in MS Excel' to edit in Microsoft Excel directly.
             </p>
           </div>
         </div>
 
-        {/* Action Buttons in Top Title Bar */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons in Top Header Bar */}
+        <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <>
               <Button
@@ -488,35 +488,11 @@ export function ExcelTaskGrid({
 
               <Button
                 size="sm"
-                onClick={() => {
-                  const cleanRows = mergeAndDeduplicateTasks(rows);
-                  setRows(cleanRows);
-                  if (typeof window !== "undefined") {
-                    localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(cleanRows));
-                    window.dispatchEvent(new Event("excel_tasks_updated"));
-                  }
-                  setHasChanges(false);
-                  toast.success("Draft saved locally without syncing to the database.");
-                }}
-                className={`h-8 gap-1.5 font-bold text-xs cursor-pointer px-2.5 ${
-                  hasChanges
-                    ? "bg-sky-600 hover:bg-sky-700 text-white shadow-md ring-1 ring-sky-400"
-                    : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
-                }`}
-                title="Save changes locally as a draft without syncing to the entire plant database"
-              >
-                <Save className="h-3.5 w-3.5" /> Save Draft
-              </Button>
-
-              <Button
-                size="sm"
                 onClick={handleAddRow}
                 className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" /> + Insert Row
               </Button>
-
-
 
               <Button
                 variant="outline"
@@ -533,117 +509,25 @@ export function ExcelTaskGrid({
                 variant="outline"
                 size="sm"
                 onClick={handleExportExcel}
-                className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
-                title="Download standard MS Excel file (.xlsx)"
+                className="h-8 gap-1.5 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold border border-white cursor-pointer shadow-xs"
+                title="Generate and download standard .xlsx file to open directly in Microsoft Excel"
               >
-                <Download className="h-3.5 w-3.5" /> Download MS Excel (.xlsx)
+                <Download className="h-3.5 w-3.5 text-emerald-700" /> Open / Download in MS Excel (.xlsx)
               </Button>
             </>
           )}
         </div>
       </div>
 
-      {/* ── 2. CLASSIC EXCEL / GOOGLE SHEETS MENU BAR ── */}
-      <div className="flex items-center gap-4 bg-[#f3f4f6] px-4 py-1 border-b border-slate-300 text-xs font-medium text-slate-700 select-none">
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer font-bold text-slate-900">File</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Edit</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">View</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Insert</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Format</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Data</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Tools</span>
-        <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Help</span>
-      </div>
-
-      {/* ── 3. EXCEL TOOLBAR / FORMATTING RIBBON (BOLD, ALIGNMENT, COLOR) ── */}
-      <div className="flex flex-wrap items-center gap-2 bg-[#f8f9fa] border-b border-slate-300 px-4 py-1.5 text-xs text-slate-800">
-        {/* Formatting Tools */}
-        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
-          <button
-            type="button"
-            onClick={toggleBold}
-            disabled={!isAdmin}
-            className={`p-1.5 rounded hover:bg-slate-200 font-extrabold cursor-pointer ${isBold ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
-            title="Bold (Ctrl+B)"
-          >
-            <Bold className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={toggleItalic}
-            disabled={!isAdmin}
-            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${isItalic ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
-            title="Italic (Ctrl+I)"
-          >
-            <Italic className="h-4 w-4" />
-          </button>
+      {/* Search & Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 px-4 py-2.5 border-b border-slate-200 text-xs">
+        <div className="flex items-center gap-2 text-slate-700 font-semibold">
+          <Filter className="h-4 w-4 text-emerald-700 shrink-0" />
+          <span>Filter & Search Master Task Register</span>
         </div>
 
-        {/* Alignment */}
-        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
-          <button
-            type="button"
-            onClick={() => changeAlign("left")}
-            disabled={!isAdmin}
-            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "left" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
-            title="Align Left"
-          >
-            <AlignLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => changeAlign("center")}
-            disabled={!isAdmin}
-            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "center" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
-            title="Align Center"
-          >
-            <AlignCenter className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => changeAlign("right")}
-            disabled={!isAdmin}
-            className={`p-1.5 rounded hover:bg-slate-200 cursor-pointer ${alignMode === "right" ? "bg-slate-300 text-slate-950" : "text-slate-700"}`}
-            title="Align Right"
-          >
-            <AlignRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Fill Background Color Palette */}
-        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
-          <PaintBucket className="h-4 w-4 text-slate-600" />
-          <button
-            type="button"
-            onClick={() => applyBgColor("#fef08a")}
-            className="h-4 w-4 rounded-full bg-yellow-200 border border-slate-300 hover:scale-110 cursor-pointer"
-            title="Yellow Fill"
-          />
-          <button
-            type="button"
-            onClick={() => applyBgColor("#bbf7d0")}
-            className="h-4 w-4 rounded-full bg-emerald-200 border border-slate-300 hover:scale-110 cursor-pointer"
-            title="Green Fill"
-          />
-          <button
-            type="button"
-            onClick={() => applyBgColor("#bae6fd")}
-            className="h-4 w-4 rounded-full bg-sky-200 border border-slate-300 hover:scale-110 cursor-pointer"
-            title="Blue Fill"
-          />
-          <button
-            type="button"
-            onClick={() => applyBgColor("transparent")}
-            className="h-4 w-4 rounded-full bg-white border border-slate-300 hover:scale-110 cursor-pointer flex items-center justify-center text-[8px] font-bold"
-            title="Clear Fill"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Search & Filter Inputs */}
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="relative min-w-[160px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative min-w-[180px]">
             <Search className="absolute left-2.5 top-1.5 h-3.5 w-3.5 text-slate-400" />
             <Input
               placeholder="Search Sheet..."
@@ -716,55 +600,7 @@ export function ExcelTaskGrid({
         </div>
       </div>
 
-      {/* ── 4. CLASSIC EXCEL FORMULA BAR (fx) ── */}
-      <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800">
-        {/* Active Cell Reference Name Box (e.g. A1, B3) */}
-        <div className="flex h-7 w-16 items-center justify-center rounded border border-slate-300 bg-slate-100 font-mono font-bold text-emerald-800 shadow-2xs">
-          {activeCellRef}
-        </div>
 
-        {/* Formula Icon */}
-        <div className="flex h-7 w-7 items-center justify-center font-serif italic text-emerald-700 font-black text-sm select-none">
-          fx
-        </div>
-
-        {/* Formula Input Line */}
-        <div className="flex flex-1 items-center rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-2xs focus-within:ring-2 focus-within:ring-emerald-600">
-          <input
-            value={selectedValue}
-            readOnly={!isAdmin}
-            onChange={(e) => {
-              if (selectedCell && currentRowObj) {
-                handleCellChange(currentRowObj.id, selectedCell.colKey, e.target.value);
-              }
-            }}
-            placeholder="Select a cell to view or enter cell data/formula..."
-            className="w-full bg-transparent font-mono text-xs text-slate-900 font-medium outline-none disabled:opacity-80"
-          />
-        </div>
-
-        {/* Quick Cell Erase & Batch Operations */}
-        {isAdmin && selectedCell && (
-          <button
-            type="button"
-            onClick={handleEraseCell}
-            className="flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-200 cursor-pointer"
-            title="Clear active cell content"
-          >
-            <Eraser className="h-3 w-3 text-amber-700" /> Erase Cell
-          </button>
-        )}
-
-        {isAdmin && selectedRowIds.size > 0 && (
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            className="flex items-center gap-1 rounded bg-rose-100 border border-rose-300 px-2 py-1 text-[11px] font-bold text-rose-900 hover:bg-rose-200 cursor-pointer"
-          >
-            <Trash2 className="h-3 w-3 text-rose-700" /> Delete Selected ({selectedRowIds.size})
-          </button>
-        )}
-      </div>
 
       {/* ── 5. AUTHENTIC EXCEL GRID TABLE WITH CRISP GRIDLINES & GREEN ACTIVE BORDER ── */}
       <div className="overflow-x-auto max-h-[520px] bg-white border-b border-slate-300">
@@ -1104,12 +940,11 @@ export function ExcelTaskGrid({
           )}
         </div>
 
-        {/* Excel Status Bar Summary */}
+        {/* Status Bar Summary */}
         <div className="flex items-center gap-4 text-[11px] font-mono text-slate-700 font-bold">
           <span className="text-emerald-800">READY</span>
           <span>COUNT: {filteredRows.length} Tasks</span>
-          <span>SELECTED: {activeCellRef}</span>
-          <span className="hidden sm:inline">MODE: Standard Excel Grid (100%)</span>
+          <span className="hidden sm:inline">OFFICIAL SAKTHI AUTO TASK MATRIX · MS EXCEL COMPATIBLE</span>
         </div>
       </div>
     </div>

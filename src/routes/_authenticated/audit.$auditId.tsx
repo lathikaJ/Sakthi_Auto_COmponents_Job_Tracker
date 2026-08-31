@@ -586,24 +586,6 @@ function AuditFormPage() {
 
   const failedCheckpoints = checkpoints.filter((cp) => cp.status === "Fail");
 
-  if (isExcelViewOpen) {
-    return (
-      <ExcelChecklistGrid
-        auditCode={auditId}
-        partName={partName}
-        plannedMonth={format(new Date(), "MMMM yyyy")}
-        auditorName={profile?.full_name || "Employee"}
-        checkpoints={checkpoints as any}
-        onUpdateCheckpoint={(id, field, value) => {
-          if (field === "actual_value") handleValueChange(id, value);
-          else if (field === "status") handleToggleStatus(id, value as any);
-          else if (field === "remarks") handleRemarksChange(id, value);
-        }}
-        onClose={() => setIsExcelViewOpen(false)}
-      />
-    );
-  }
-
   return (
     <AppShell
       title={`Audit Inspection Execution (ID: ${auditId})`}
@@ -847,28 +829,28 @@ function AuditFormPage() {
               </div>
             </div>
 
-            {/* ── MICROSOFT EXCEL SHEET FORMAT FOR QUALITY CHARACTERISTICS & INSPECTION CHECKPOINTS ── */}
-            <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-[#f8f9fa] text-slate-900 shadow-md font-sans">
-              {/* 1. GREEN MICROSOFT EXCEL WINDOW TITLE BAR */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-2.5 text-white shadow-xs">
+            {/* ── QUALITY CHARACTERISTICS & INSPECTION CHECKPOINTS MATRIX ── */}
+            <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-white text-slate-900 shadow-md font-sans">
+              {/* Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-3 text-white shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
-                    X
+                  <div className="flex h-8 w-8 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
+                    <FileSpreadsheet className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-                      Quality Characteristics & Specifications — MS Excel (.xlsx)
+                    <h3 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
+                      Quality Characteristics & Inspection Checkpoints
                       <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100 border border-emerald-600">
-                        ✓ EXCEL CHECKPOINTS MATRIX
+                        ✓ MS EXCEL COMPATIBLE
                       </span>
                     </h3>
                     <p className="text-[11px] text-emerald-100 font-medium">
-                      Official Sakthi Auto Audit Inspection Report Checkpoints · Microsoft Excel Compatible
+                      Official Sakthi Auto Inspection Parameters · Click 'Open / Download in MS Excel' to work in Microsoft Excel directly.
                     </p>
                   </div>
                 </div>
 
-                {/* Top Action Buttons */}
+                {/* Direct Action Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     size="sm"
@@ -876,7 +858,7 @@ function AuditFormPage() {
                     onClick={addCheckpointRow}
                     className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer shadow-xs"
                   >
-                    <Plus className="h-3.5 w-3.5" /> + Insert Checkpoint Row
+                    <Plus className="h-3.5 w-3.5" /> + Insert Row
                   </Button>
 
                   <Button
@@ -885,7 +867,7 @@ function AuditFormPage() {
                     type="button"
                     onClick={() => checkpointFileInputRef.current?.click()}
                     className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer shadow-xs"
-                    title="Upload & import Quality Characteristics from an MS Excel file (.xlsx)"
+                    title="Upload & import Quality Characteristics from a Microsoft Excel file (.xlsx)"
                   >
                     <Upload className="h-3.5 w-3.5" /> Import MS Excel (.xlsx)
                   </Button>
@@ -902,76 +884,18 @@ function AuditFormPage() {
                     size="sm"
                     type="button"
                     onClick={handleExportCheckpointsExcel}
-                    className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer shadow-xs"
-                    title="Download current inspection checkpoints as an MS Excel file (.xlsx)"
+                    className="h-8 gap-1.5 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold border border-white cursor-pointer shadow-xs"
+                    title="Generate and download standard .xlsx file to open directly in Microsoft Excel"
                   >
-                    <Download className="h-3.5 w-3.5" /> Download MS Excel (.xlsx)
+                    <Download className="h-3.5 w-3.5 text-emerald-700" /> Open / Download in MS Excel (.xlsx)
                   </Button>
                 </div>
               </div>
 
-              {/* 2. CLASSIC EXCEL MENU BAR */}
-              <div className="flex items-center gap-4 bg-[#f3f4f6] px-4 py-1 border-b border-slate-300 text-xs font-medium text-slate-700 select-none">
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer font-bold text-slate-900">File</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Edit</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">View</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Insert</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Format</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Data</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Tools</span>
-                <span className="hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer">Help</span>
-              </div>
-
-              {/* 3. EXCEL USER HELPER BANNER */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 px-4 py-2 border-b border-emerald-200 text-xs">
-                <div className="flex items-center gap-2 text-emerald-900 font-semibold">
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-700 shrink-0" />
-                  <span>
-                    <strong>Microsoft Excel Inspection Format:</strong> Enter characteristics & measurements below or click <strong>'Import MS Excel (.xlsx)'</strong> to upload your checklist sheet!
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    type="button"
-                    onClick={handleExportCheckpointsExcel}
-                    className="h-7 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white gap-1 cursor-pointer shadow-2xs"
-                  >
-                    <Download className="h-3 w-3" /> Download MS Excel (.xlsx)
-                  </Button>
-                </div>
-              </div>
-
-              {/* 4. CLASSIC EXCEL FORMULA BAR (fx) */}
-              <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800">
-                <div className="flex h-7 w-16 items-center justify-center rounded border border-slate-300 bg-slate-100 font-mono font-bold text-emerald-800 shadow-2xs">
-                  A1
-                </div>
-                <div className="flex h-7 w-7 items-center justify-center font-serif italic text-emerald-700 font-black text-sm select-none">
-                  fx
-                </div>
-                <div className="flex flex-1 items-center rounded border border-slate-300 bg-white px-3 py-1 text-slate-900 shadow-2xs">
-                  <span className="font-mono text-xs text-slate-600 truncate">
-                    {checkpoints[0]?.parameter || "HARDNESS (MSIL QF/08/CQA-09)"}
-                  </span>
-                </div>
-              </div>
-
-              {/* 5. MS EXCEL WORKSHEET TABLE GRID */}
+              {/* TABLE GRID */}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-xs font-sans border border-slate-300 bg-white">
                   <thead>
-                    {/* Excel Column Letters Header */}
-                    <tr className="bg-slate-200 border-b border-slate-300 text-slate-700 font-mono text-[11px] text-center font-bold">
-                      <th className="p-1 w-12 border-r border-slate-300 bg-slate-300 text-slate-800">#</th>
-                      <th className="p-1 border-r border-slate-300">A</th>
-                      <th className="p-1 border-r border-slate-300">B</th>
-                      <th className="p-1 border-r border-slate-300">C</th>
-                      <th className="p-1 border-r border-slate-300">D</th>
-                      <th className="p-1 border-r border-slate-300">E</th>
-                      <th className="p-1 border-r border-slate-300">F</th>
-                      <th className="p-1 w-10">G</th>
-                    </tr>
                     {/* Official Inspection Column Header */}
                     <tr className="border-b border-slate-300 bg-[#107c41] text-white font-mono text-[11px] uppercase tracking-wider">
                       <th className="p-2.5 w-12 text-center border-r border-emerald-700">SL. NO.</th>
@@ -1099,13 +1023,13 @@ function AuditFormPage() {
                 </table>
               </div>
 
-              {/* Excel Bottom Status Footer Bar */}
-              <div className="flex items-center justify-between bg-[#f3f4f6] px-4 py-1.5 border-t border-slate-300 text-[11px] font-mono text-slate-600 select-none">
+              {/* Inspection Matrix Footer Bar */}
+              <div className="flex items-center justify-between bg-slate-100 px-4 py-2 border-t border-slate-300 text-[11px] font-mono text-slate-600 select-none">
                 <span className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                   READY · TOTAL CHECKPOINTS: <strong>{checkpoints.length}</strong>
                 </span>
-                <span>MODE: Standard Excel Inspection Grid (100%)</span>
+                <span>OFFICIAL SAKTHI AUTO QUALITY MATRIX · MS EXCEL COMPATIBLE</span>
               </div>
             </div>
 
