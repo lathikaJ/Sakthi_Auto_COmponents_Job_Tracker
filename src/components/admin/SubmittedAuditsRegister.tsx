@@ -12,16 +12,20 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
+  Trash2,
 } from "lucide-react";
 import {
   getSubmittedAudits,
+  deleteSubmittedAudit,
   type SubmittedAuditItem,
 } from "@/lib/submittedAudits";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 export function SubmittedAuditsRegister() {
+  const { isAdmin } = useAuth();
   const [submittedList, setSubmittedList] = useState<SubmittedAuditItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -187,6 +191,7 @@ export function SubmittedAuditsRegister() {
                 <th className="p-3 font-bold w-44">Submitted Date & Time</th>
                 <th className="p-3 font-bold w-28">Audit Code</th>
                 <th className="p-3 font-bold w-28">Status</th>
+                {isAdmin && <th className="p-3 font-bold w-16 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -241,6 +246,24 @@ export function SubmittedAuditsRegister() {
                     <td className="p-3">
                       <StatusBadge status={item.status} />
                     </td>
+
+                    {/* Action (Admin Only) */}
+                    {isAdmin && (
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deleteSubmittedAudit(item.id);
+                            loadAudits();
+                            toast.info(`Submitted audit ${item.audit_code} removed by Admin.`);
+                          }}
+                          className="rounded border border-slate-200 bg-white p-1 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          title="Delete Audit Record (Admin Only)"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

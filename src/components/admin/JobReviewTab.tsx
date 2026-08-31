@@ -14,10 +14,12 @@ import {
   X,
   Eye,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import {
   getSubmittedAudits,
   updateSubmittedAuditStatus,
+  deleteSubmittedAudit,
   type SubmittedAuditItem,
 } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
@@ -44,6 +46,15 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       window.removeEventListener("sakthi_submitted_audits_updated", handleUpdate);
     };
   }, []);
+
+  const handleDeleteSubmittedAudit = (item: SubmittedAuditItem) => {
+    if (!isAdmin) {
+      toast.error("Access Denied: Only authorized Admins can delete audit records.");
+      return;
+    }
+    deleteSubmittedAudit(item.id);
+    toast.info(`Audit record ${item.audit_code} deleted by Admin.`);
+  };
 
   const handleMoveToCompleted = (item: SubmittedAuditItem) => {
     if (!isAdmin) {
@@ -495,6 +506,17 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                           <X className="h-3.5 w-3.5" />
                           Deviation
                         </button>
+
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubmittedAudit(item)}
+                            className="flex items-center gap-1 rounded-lg p-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
+                            title="Delete Audit Record (Admin Only)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

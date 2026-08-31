@@ -150,3 +150,15 @@ export function updateSubmittedAuditStatus(
     console.error("Failed to update submitted audit status", err);
   }
 }
+
+export function deleteSubmittedAudit(idOrCode: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getSubmittedAudits();
+    const updated = existing.filter((item) => item.id !== idOrCode && item.audit_code !== idOrCode);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
+  } catch (err) {
+    console.error("Failed to delete submitted audit", err);
+  }
+}

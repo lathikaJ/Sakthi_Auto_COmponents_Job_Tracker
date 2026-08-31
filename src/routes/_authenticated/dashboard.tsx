@@ -658,6 +658,20 @@ export function DashboardPage() {
     toast.info("Audit plan record removed by Admin.");
   };
 
+  const handleDeleteDeviationRecord = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only authorized Admin can delete deviation records.");
+      return;
+    }
+    const updated = localDeviations.filter((d) => d.id !== id && d.dev_code !== id && d.audit_id !== id);
+    setLocalDeviations(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_deviations", JSON.stringify(updated));
+      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+    }
+    toast.info("Deviation record removed by Admin.");
+  };
+
   const handleAddDocument = () => {
     if (!selectedDocAudit) return;
     if (!docNameInput || !docFileUrlInput) {
@@ -1397,20 +1411,33 @@ export function DashboardPage() {
                             <StatusBadge status={task.status} />
                           </td>
                           <td className="p-3 text-right">
-                            {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status) ? (
-                              <span
-                                className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
-                                title="Audit submitted — Inspection form locked"
-                              >
-                                <Lock className="h-3.5 w-3.5 text-slate-400" /> Submitted (Locked)
-                              </span>
-                            ) : (
-                              <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
-                                <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                  Open Checklist
-                                </Link>
-                              </Button>
-                            )}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status) ? (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
+                                  title="Audit submitted — Inspection form locked"
+                                >
+                                  <Lock className="h-3.5 w-3.5 text-slate-400" /> Submitted (Locked)
+                                </span>
+                              ) : (
+                                <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                    Open Checklist
+                                  </Link>
+                                </Button>
+                              )}
+
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAuditRecord(task.id)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                  title="Delete Record (Admin Only)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1625,11 +1652,24 @@ export function DashboardPage() {
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            <Button asChild size="sm" variant="outline" className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50 text-xs">
-                              <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                View Signed Report
-                              </Link>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button asChild size="sm" variant="outline" className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50 text-xs">
+                                <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                  View Signed Report
+                                </Link>
+                              </Button>
+
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAuditRecord(task.id)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                  title="Delete Record (Admin Only)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1653,6 +1693,7 @@ export function DashboardPage() {
                         <th className="p-3">Corrective Action</th>
                         <th className="p-3">Due Date</th>
                         <th className="p-3">Closure Status</th>
+                        {isAdmin && <th className="p-3 text-right">ACTION</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1673,6 +1714,18 @@ export function DashboardPage() {
                           <td className="p-3">
                             <StatusBadge status={dev.closure_status ?? dev.status} />
                           </td>
+                          {isAdmin && (
+                            <td className="p-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDeviationRecord(dev.id)}
+                                className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                title="Delete Deviation Record (Admin Only)"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
