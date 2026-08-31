@@ -450,7 +450,7 @@ function AuditFormPage() {
     toast.success("Audit checkpoint draft saved!");
   };
 
-  // Submit Completed Audit
+  // Submit Completed Audit (Inspector -> Under Review, Admin -> Audit Completed)
   const handleSubmitAudit = () => {
     if (!signatureImage) {
       toast.error("Please upload your e-signature before submitting.");
@@ -458,13 +458,16 @@ function AuditFormPage() {
     }
     const hasFailures = checkpoints.some((cp) => cp.status === "Fail");
     if (hasFailures) {
-      toast.warning("Audit has failing checkpoints — please raise a deviation before submitting.");
+      toast.warning("Audit has failing checkpoints — please click NOT OK (Raise 2-Page Deviation).");
       return;
     }
 
-    // Record submitted audit metadata for admin review (Part No, Part Name, Employee Name, Submission Date)
+    // Record submitted audit metadata for admin review or direct completion
     const now = new Date();
     const formattedDate = format(now, "dd MMM yyyy, hh:mm a");
+    const targetStatus = isAdmin ? "Completed" : "Under Review";
+    const todayStr = now.toISOString().split("T")[0];
+
     recordSubmittedAudit({
       audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
       part_no: partNo || "PN-88402-A",
@@ -474,7 +477,7 @@ function AuditFormPage() {
       department: profile?.department || "Machining Line 1",
       submitted_date: now.toISOString(),
       formatted_submitted_date: formattedDate,
-      status: "Under Review",
+      status: targetStatus as any,
       checkpoints_count: checkpoints.length,
       failing_count: checkpoints.filter((cp) => cp.status === "Fail").length,
     });
@@ -486,7 +489,11 @@ function AuditFormPage() {
       tasks = tasks.map((t: any) => {
         if (t.id === auditId || t.audit_code === auditId) {
           found = true;
-          return { ...t, status: "Under Review" };
+          return {
+            ...t,
+            status: targetStatus,
+            ...(isAdmin ? { completion_date: todayStr, final_result: "PASS / COMPLIANT" } : {}),
+          };
         }
         return t;
       });
@@ -500,8 +507,9 @@ function AuditFormPage() {
           assigned_to_employee_number: profile?.employee_number || "688079",
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
-          due_date: new Date().toISOString().split("T")[0],
-          status: "Under Review",
+          due_date: todayStr,
+          status: targetStatus,
+          ...(isAdmin ? { completion_date: todayStr, final_result: "PASS / COMPLIANT" } : {}),
         });
       }
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
@@ -510,11 +518,16 @@ function AuditFormPage() {
 
     // Sync to Supabase DB
     const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
-    supabase.from("audit_assignments").update({ status: "Submitted" as any }).eq("audit_code", cleanAuditCode).then(({ error }) => {
+    supabase.from("audit_assignments").update({ status: targetStatus as any }).eq("audit_code", cleanAuditCode).then(({ error }) => {
       if (error) console.warn("Supabase assignment status update notice:", error);
     });
 
-    toast.success("Audit inspection report saved & submitted for Admin Review! Status updated to Under Review.");
+    if (isAdmin) {
+      toast.success(`Audit ${cleanAuditCode} approved & marked Audit Completed!`);
+    } else {
+      toast.success("Audit inspection report saved & submitted for Admin Review! Status updated to Under Review.");
+    }
+
     setTimeout(() => {
       navigate({ to: "/dashboard" });
     }, 1200);
@@ -1369,6 +1382,7 @@ function AuditFormPage() {
                   variant="outline"
                   onClick={handleRaiseDeviation}
                   className="gap-1.5 border-rose-300 bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 text-xs shadow-xs"
+                  title="Mark NOT OK and open 2-Page Deviation Report"
                 >
                   <AlertTriangle className="h-4 w-4 text-rose-600" /> NOT OK (Raise 2-Page Deviation)
                 </Button>
@@ -1381,9 +1395,20 @@ function AuditFormPage() {
                       ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                       : "bg-emerald-600 text-white hover:bg-emerald-700"
                   }`}
-                  title={isAuditSubmitted && !isAdmin ? "Audit submitted — Cannot re-submit" : "Submit for Admin Review"}
+                  title={
+                    isAuditSubmitted && !isAdmin
+                      ? "Audit submitted — Cannot re-submit"
+                      : isAdmin
+                      ? "Submit & Approve to Audit Completed"
+                      : "Submit for Admin Review"
+                  }
                 >
-                  <CheckCircle2 className="h-4 w-4" /> {isAuditSubmitted && !isAdmin ? "Already Submitted (Locked)" : "OK (Submit for Admin Review)"}
+                  <CheckCircle2 className="h-4 w-4" />{" "}
+                  {isAuditSubmitted && !isAdmin
+                    ? "Already Submitted (Locked)"
+                    : isAdmin
+                    ? "OK (Submit to Audit Completed)"
+                    : "OK (Submit for Admin Review)"}
                 </Button>
               </div>
             </div>

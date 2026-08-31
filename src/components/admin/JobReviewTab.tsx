@@ -484,10 +484,10 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                               ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                               : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
                           }`}
-                          title={!isAdmin ? "Admin access required" : "Move to Audit Completed"}
+                          title={!isAdmin ? "Admin access required" : "OK: Move to Audit Completed"}
                         >
                           <Check className="h-3.5 w-3.5" />
-                          Completed
+                          OK (Audit Completed)
                         </button>
 
                         <button
@@ -501,10 +501,10 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                               ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                               : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
                           }`}
-                          title={!isAdmin ? "Admin access required" : "Move to Deviations"}
+                          title={!isAdmin ? "Admin access required" : "NOT OK: Move to Deviation"}
                         >
                           <X className="h-3.5 w-3.5" />
-                          Deviation
+                          NOT OK (Deviation)
                         </button>
 
                         {isAdmin && (
@@ -600,7 +600,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
             {/* Admin Action Verification Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded-xl">
               <span className="text-xs font-bold text-slate-600">
-                Decision for {selectedJobForReview.audit_code}:
+                Admin Decision for {selectedJobForReview.audit_code}:
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setSelectedJobForReview(null)}>
@@ -616,7 +616,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                   disabled={!isAdmin || selectedJobForReview.status === "Deviation"}
                   className="bg-rose-600 text-white font-bold hover:bg-rose-700 gap-1.5 shadow-xs"
                 >
-                  <X className="h-4 w-4" /> Move to Deviations
+                  <X className="h-4 w-4" /> NOT OK (Move to Deviation)
                 </Button>
 
                 <Button
@@ -628,7 +628,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                   disabled={!isAdmin || selectedJobForReview.status === "Completed" || selectedJobForReview.status === "Approved"}
                   className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 gap-1.5 shadow-xs"
                 >
-                  <Check className="h-4 w-4" /> Move to Completed
+                  <Check className="h-4 w-4" /> OK (Submit to Audit Completed)
                 </Button>
               </div>
             </div>
