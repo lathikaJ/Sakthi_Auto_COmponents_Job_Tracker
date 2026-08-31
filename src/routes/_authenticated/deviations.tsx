@@ -313,6 +313,22 @@ function DeviationsPage() {
                     },
                   ];
 
+              const rawStatus = (d.status || "").toString().toLowerCase();
+              const normalizedStatus =
+                rawStatus === "open"
+                  ? "open"
+                  : rawStatus === "page1_submitted"
+                  ? "page1_submitted"
+                  : rawStatus === "page1_approved"
+                  ? "page1_approved"
+                  : rawStatus === "page2_submitted"
+                  ? "page2_submitted"
+                  : rawStatus === "under_review"
+                  ? "under_review"
+                  : rawStatus === "closed"
+                  ? "closed"
+                  : "page1_submitted";
+
               return {
                 id: String(d.id || `dev-${Date.now()}`),
                 audit_id: d.audit_id || "",
@@ -322,7 +338,7 @@ function DeviationsPage() {
                 location_operation: String(d.location_operation || d.department || "Machine Shop - Line 1"),
                 employee_number: String(d.employee_number || "688079"),
                 severity: (d.severity || "High") as "Low" | "Medium" | "High" | "Critical",
-                status: (d.status || "page1_submitted") as any,
+                status: normalizedStatus as any,
                 is_draft: Boolean(d.is_draft),
                 created_at: String(d.created_at || today),
 

@@ -180,17 +180,34 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       let devs = storedDevs ? JSON.parse(storedDevs) : [];
       const newDevCode = item.audit_code.replace("AUD-", "DEV-").replace("REV-", "DEV-");
       if (!devs.some((d: any) => d.dev_code === newDevCode || d.audit_id === item.id)) {
+        const todayStr = new Date().toISOString().split("T")[0];
         devs.unshift({
           id: `dev-${Date.now()}`,
           audit_id: item.id,
           dev_code: newDevCode.startsWith("DEV-") ? newDevCode : `DEV-${newDevCode}`,
           description: `Deviation identified during Admin Audit Review for ${item.part_name} (${item.part_no})`,
-          observed_condition: `Quality issue identified by Admin during verification of audit ${item.audit_code}`,
+          observed_condition: `Quality non-conformance identified during verification of audit ${item.audit_code}`,
           location_operation: item.department,
           employee_number: item.employee_number,
           severity: "High",
-          status: "Open",
-          created_at: new Date().toISOString().split("T")[0],
+          status: "page1_submitted",
+          created_at: todayStr,
+          report_date: todayStr,
+          from_dept: item.department || "QUALITY ASSURANCE",
+          to_dept: "PRODUCTION & MANUFACTURING",
+          part_name: item.part_name,
+          part_number: item.part_no,
+          stage: "INPROCESS",
+          cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
+          doc_code: "QF/08/CQA-55",
+          doc_date: "25.12.2015",
+          inspected_by: item.employee_name ? `${item.employee_name} (${item.employee_number})` : "SILAMBARASAN S (688079)",
+          approved_by: "KARTHIKEYAN C (690867)",
+          quarantine_segregated_qty: "100",
+          quarantine_ok_qty: "95",
+          quarantine_not_ok_qty: "5",
+          quarantine_segregated_by: item.employee_name ? `${item.employee_name} (${item.employee_number})` : "SILAMBARASAN S (688079)",
+          quarantine_approved_by: "KARTHIKEYAN C (690867)",
           responsible_person: item.employee_number,
           department: item.department,
           corrective_action: "Action Assigned to QA / Maintenance Team",
@@ -499,7 +516,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       {/* ── Admin Audit Quality Evidence & E-Signature Verification Modal ── */}
       {selectedJobForReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in duration-200">
             {/* Header Bar */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
               <div>
@@ -523,65 +540,37 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
               </Button>
             </div>
 
-            {/* Grid: 2 Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Column 1: Inspector Credentials & Signature */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                  <User className="h-4 w-4 text-indigo-600" /> Inspector Identification
-                </h4>
-                <div className="space-y-1.5 text-xs">
-                  <p className="font-extrabold text-slate-900 text-sm">{selectedJobForReview.employee_name}</p>
-                  <p className="font-mono text-slate-600 font-bold">Employee ID: #{selectedJobForReview.employee_number}</p>
-                  <p className="text-slate-500 font-medium">{selectedJobForReview.department}</p>
-                  <p className="text-slate-400 font-mono text-[11px] pt-1">
-                    Submitted: {selectedJobForReview.formatted_submitted_date}
-                  </p>
-                </div>
-
-                <div className="border-t border-slate-200 pt-3">
-                  <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
-                    <span>Authenticated E-Signature</span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                      ✓ Verified Digital Sign
-                    </span>
-                  </h4>
-                  <div className="rounded-lg border border-slate-300 bg-white p-3 flex items-center justify-center min-h-[110px] shadow-2xs">
-                    {authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url ? (
-                      <img
-                        src={authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url}
-                        alt="Inspector E-Signature"
-                        className="max-h-24 max-w-full object-contain filter drop-shadow-xs"
-                      />
-                    ) : (
-                      <span className="text-xs text-slate-400 font-mono">No Signature On File</span>
-                    )}
-                  </div>
-                </div>
+            {/* Inspector Credentials & Signature */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                <User className="h-4 w-4 text-indigo-600" /> Inspector Identification
+              </h4>
+              <div className="space-y-1.5 text-xs">
+                <p className="font-extrabold text-slate-900 text-sm">{selectedJobForReview.employee_name}</p>
+                <p className="font-mono text-slate-600 font-bold">Employee ID: #{selectedJobForReview.employee_number}</p>
+                <p className="text-slate-500 font-medium">{selectedJobForReview.department}</p>
+                <p className="text-slate-400 font-mono text-[11px] pt-1">
+                  Submitted: {selectedJobForReview.formatted_submitted_date}
+                </p>
               </div>
 
-              {/* Column 2: Checkpoint Parameters & Evidences */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                  <FileCheck2 className="h-4 w-4 text-sky-600" /> Submitted Parameter Checkpoints
+              <div className="border-t border-slate-200 pt-3">
+                <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                  <span>Authenticated E-Signature</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                    ✓ Verified Digital Sign
+                  </span>
                 </h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
-                    <span className="font-semibold text-slate-700">Hardness Test (HRC)</span>
-                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">62 HRC (OK)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
-                    <span className="font-semibold text-slate-700">Surface Roughness (Ra)</span>
-                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">0.8 µm (OK)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
-                    <span className="font-semibold text-slate-700">Bore Internal Diameter</span>
-                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">45.02 mm (OK)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 shadow-2xs">
-                    <span className="font-semibold text-slate-700">Visual Defect & Crack Test</span>
-                    <span className="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Pass / Zero Porosity</span>
-                  </div>
+                <div className="rounded-lg border border-slate-300 bg-white p-3 flex items-center justify-center min-h-[110px] shadow-2xs">
+                  {authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url ? (
+                    <img
+                      src={authenticateAndGetSignature(selectedJobForReview.employee_number)?.signature_url}
+                      alt="Inspector E-Signature"
+                      className="max-h-24 max-w-full object-contain filter drop-shadow-xs"
+                    />
+                  ) : (
+                    <span className="text-xs text-slate-400 font-mono">No Signature On File</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -589,7 +578,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
             {/* Admin Action Verification Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 bg-slate-50 p-4 rounded-xl">
               <span className="text-xs font-bold text-slate-600">
-                Admin Verification Decision for {selectedJobForReview.audit_code}:
+                Decision for {selectedJobForReview.audit_code}:
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setSelectedJobForReview(null)}>
