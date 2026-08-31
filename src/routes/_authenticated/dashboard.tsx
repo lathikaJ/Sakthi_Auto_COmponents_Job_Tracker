@@ -221,8 +221,7 @@ export function DashboardPage() {
   const [localLowProd, setLocalLowProd] = useState<LowProductionRecord[]>(DEFAULT_LOW_PRODUCTION_DATA);
   const [documentsMap, setDocumentsMap] = useState<Record<string, AuditDocument[]>>({});
 
-  // Employee Dashboard filter state for Assigned Work / Ongoing Audit section
-  const [empWorkFilter, setEmpWorkFilter] = useState<"all" | "ongoing" | "plan" | "review_completed">("all");
+
 
   useEffect(() => {
     const loadStored = () => {
@@ -295,20 +294,7 @@ export function DashboardPage() {
     return rawTaskRows;
   }, [rawTaskRows]);
 
-  const assignedWorkTasks = useMemo(() => {
-    return allTaskRows.filter((task) => {
-      if (empWorkFilter === "ongoing") {
-        return ["In Progress", "Ongoing", "Assigned", "Planned"].includes(task.status);
-      }
-      if (empWorkFilter === "plan") {
-        return ["Planned", "Assigned", "Pending"].includes(task.status);
-      }
-      if (empWorkFilter === "review_completed") {
-        return ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status);
-      }
-      return true;
-    });
-  }, [allTaskRows, empWorkFilter]);
+
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
@@ -1710,121 +1696,7 @@ export function DashboardPage() {
               )}
             </div>
 
-            {/* ── DEDICATED ASSIGNED WORK / ONGOING AUDIT SECTION (MOVED TO BOTTOM OF ALL AUDITS) ── */}
-            <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-lg space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-xl bg-amber-500/20 p-2 text-amber-400 border border-amber-500/30">
-                      <ClipboardList className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
-                        Assigned Work / Ongoing Audit
-                        <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-extrabold text-white">
-                          {allTaskRows.length} {allTaskRows.length === 1 ? "Task" : "Tasks"}
-                        </span>
-                      </h2>
-                      <p className="text-xs text-slate-300 font-medium">
-                        {isAdmin
-                          ? "All Admin-assigned audit tasks synchronized in real-time across the plant."
-                          : `All work assigned to ${profile?.full_name ?? "Employee"} (${profile?.employee_number}) by Admin.`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Sub-Filter Tabs for Assigned Work */}
-                <div className="flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setEmpWorkFilter("all")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                      empWorkFilter === "all"
-                        ? "bg-amber-500 text-white shadow-xs"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    All Assigned ({allTaskRows.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEmpWorkFilter("ongoing")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                      empWorkFilter === "ongoing"
-                        ? "bg-amber-600 text-white shadow-xs"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Ongoing / In Progress ({allTaskRows.filter((t) => ["In Progress", "Ongoing", "Assigned", "Planned"].includes(t.status)).length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEmpWorkFilter("plan")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                      empWorkFilter === "plan"
-                        ? "bg-sky-600 text-white shadow-xs"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Audit Plan ({allTaskRows.filter((t) => ["Planned", "Assigned", "Pending"].includes(t.status)).length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEmpWorkFilter("review_completed")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                      empWorkFilter === "review_completed"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Reviewed & Completed ({allTaskRows.filter((t) => ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(t.status)).length})
-                  </button>
-                </div>
-              </div>
-
-              {/* Table of Admin-Assigned Work */}
-              <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/90 backdrop-blur-md">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-white/5 text-slate-300 font-extrabold uppercase tracking-wider border-b border-white/10">
-                    <tr>
-                      <th className="p-3">Audit Plan</th>
-                      <th className="p-3">Part Name</th>
-                      <th className="p-3">Planned Month</th>
-                      <th className="p-3">Attachment</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10 text-slate-200">
-                    {assignedWorkTasks.map((task) => (
-                      <tr key={task.id} className="hover:bg-white/5 transition-colors bg-white/5 border-l-4 border-l-transparent hover:border-l-indigo-500">
-                        <td className="p-3 font-mono font-bold text-slate-300">
-                          {task.audit_code}
-                        </td>
-                        <td className="p-3 font-medium text-white max-w-xs">{task.title}</td>
-                        <td className="p-3 font-medium text-slate-400">
-                          {MONTHS[(task.month || 1) - 1]} {task.year || 2026}
-                        </td>
-                        <td className="p-3">
-                          <Button asChild size="sm" variant="outline" className="h-8 border-[#107c41] text-[#107c41] bg-[#107c41]/10 hover:bg-[#107c41] hover:text-white font-bold text-xs gap-1.5 transition-colors">
-                            <Link to="/audit/$auditId" params={{ auditId: task.id }} search={{ view: 'excel' }}>
-                              <FileSpreadsheet className="h-3.5 w-3.5" />
-                              Excel
-                            </Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                    {assignedWorkTasks.length === 0 && (
-                      <tr>
-                        <td colSpan={10} className="p-8 text-center text-xs font-semibold text-slate-400 italic">
-                          No Admin-assigned work matching the selected filter.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
         )}
       </div>
