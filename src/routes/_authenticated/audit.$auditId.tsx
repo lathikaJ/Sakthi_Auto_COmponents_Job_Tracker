@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   Download,
   Plus,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -51,7 +52,7 @@ type CheckpointItem = {
 function AuditFormPage() {
   const { auditId } = useParams({ from: Route.id });
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
 
   // Part & Inspection metadata states (Matching Industrial PDF Form)
   const [customer, setCustomer] = useState("MSIL");
@@ -153,6 +154,29 @@ function AuditFormPage() {
         { id: "cp-7", parameter: "PAINTING (OP-010 RECEIVING INSPECTION)", specification: "1. Ensure Black dip painting 2. No paint peel off, no paint overflow & damages (Applicable Part: 45111/45151-55T00)", check_method: "Visual Dip Inspection", actual_value: "Black Dip Uniform, No Peel Off", status: "Pass", remarks: "Dip finish OK" },
       ]);
     }
+  }, [auditId]);
+
+  const isAuditSubmitted = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+    if (stored) {
+      try {
+        const tasks = JSON.parse(stored);
+        const match = tasks.find((t: any) => t.id === auditId || t.audit_code === auditId || t.audit_code === `AUD-${auditId}`);
+        if (match && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(match.status)) {
+          return true;
+        }
+      } catch {}
+    }
+    const submittedRaw = localStorage.getItem("sakthi_submitted_audits_v2");
+    if (submittedRaw) {
+      try {
+        const list = JSON.parse(submittedRaw);
+        const match = list.find((s: any) => s.id === auditId || s.audit_code === auditId || s.audit_code === `AUD-${auditId}`);
+        if (match) return true;
+      } catch {}
+    }
+    return false;
   }, [auditId]);
 
   // Notes & Photos State
@@ -585,6 +609,19 @@ function AuditFormPage() {
             <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Ready
           </span>
         </div>
+
+        {/* Submitted Locked Banner for Non-Admin */}
+        {isAuditSubmitted && !isAdmin && (
+          <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Audit Submitted — Inspection form is locked in Read-Only mode for employees.</span>
+            </div>
+            <span className="rounded bg-amber-200 px-2.5 py-0.5 text-[11px] font-extrabold uppercase text-amber-900 border border-amber-300 shrink-0">
+              Read-Only Mode
+            </span>
+          </div>
+        )}
 
         {/* ── STEP-BY-STEP PROGRESS WIZARD BAR ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -1338,9 +1375,15 @@ function AuditFormPage() {
 
                 <Button
                   onClick={handleSubmitAudit}
-                  className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs"
+                  disabled={isAuditSubmitted && !isAdmin}
+                  className={`gap-2 font-bold text-xs shadow-sm ${
+                    isAuditSubmitted && !isAdmin
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  }`}
+                  title={isAuditSubmitted && !isAdmin ? "Audit submitted — Cannot re-submit" : "Submit for Admin Review"}
                 >
-                  <CheckCircle2 className="h-4 w-4" /> OK (Submit for Admin Review)
+                  <CheckCircle2 className="h-4 w-4" /> {isAuditSubmitted && !isAdmin ? "Already Submitted (Locked)" : "OK (Submit for Admin Review)"}
                 </Button>
               </div>
             </div>

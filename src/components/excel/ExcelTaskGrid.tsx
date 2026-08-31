@@ -23,6 +23,7 @@ import {
   Printer,
   Grid,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -1007,17 +1008,23 @@ export function ExcelTaskGrid({
                   {/* Actions Column */}
                   <td className="p-1 text-center border-slate-300">
                     <div className="flex items-center justify-center gap-1">
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                        title="Open Audit Execution Form"
-                      >
-                        <Link to="/audit/$auditId" params={{ auditId: r.id.startsWith("temp-") ? "demo" : r.id }}>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
-                      </Button>
+                      {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(r.status) ? (
+                        <span className="p-1 text-slate-400 cursor-not-allowed" title="Audit submitted — Execution form locked">
+                          <Lock className="h-3.5 w-3.5" />
+                        </span>
+                      ) : (
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                          title="Open Audit Execution Form"
+                        >
+                          <Link to="/audit/$auditId" params={{ auditId: r.id.startsWith("temp-") ? "demo" : r.id }}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
 
                       {isAdmin && (
                         <>

@@ -30,6 +30,7 @@ import {
   X,
   FileSpreadsheet,
   Paperclip,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -684,6 +685,21 @@ export function DashboardPage() {
     setDocNameInput("");
     setDocFileUrlInput("");
     toast.success("Audit document attached successfully!");
+  };
+
+  const handleDeleteDocument = (auditId: string, docId: string) => {
+    if (!isAdmin) {
+      toast.error("Access Denied: File deletion option is restricted to Admin only.");
+      return;
+    }
+    const updatedMap = { ...documentsMap };
+    const docArr = (updatedMap[auditId] ?? []).filter((d) => d.id !== docId);
+    updatedMap[auditId] = docArr;
+    setDocumentsMap(updatedMap);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_audit_docs", JSON.stringify(updatedMap));
+    }
+    toast.info("Attached document file removed by Admin.");
   };
 
   if (loading) {
@@ -1381,11 +1397,20 @@ export function DashboardPage() {
                             <StatusBadge status={task.status} />
                           </td>
                           <td className="p-3 text-right">
-                            <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
-                              <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                Open Checklist
-                              </Link>
-                            </Button>
+                            {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status) ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
+                                title="Audit submitted — Inspection form locked"
+                              >
+                                <Lock className="h-3.5 w-3.5 text-slate-400" /> Submitted (Locked)
+                              </span>
+                            ) : (
+                              <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                                <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                  Open Checklist
+                                </Link>
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1734,9 +1759,21 @@ export function DashboardPage() {
                           Uploaded by {doc.uploaded_by} on {doc.uploaded_at}
                         </p>
                       </div>
-                      <a href={doc.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-sky-600 hover:underline">
-                        <ExternalLink className="h-3 w-3" /> View
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a href={doc.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-sky-600 hover:underline">
+                          <ExternalLink className="h-3 w-3" /> View
+                        </a>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(selectedDocAudit.id, doc.id)}
+                            className="rounded p-1 text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Delete file (Admin Only)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

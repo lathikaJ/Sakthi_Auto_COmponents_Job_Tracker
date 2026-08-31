@@ -17,6 +17,7 @@ import {
   getSubmittedAudits,
   type SubmittedAuditItem,
 } from "@/lib/submittedAudits";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -238,10 +239,7 @@ export function SubmittedAuditsRegister() {
 
                     {/* Status */}
                     <td className="p-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                        {item.status}
-                      </span>
+                      <StatusBadge status={item.status} />
                     </td>
                   </tr>
                 );
