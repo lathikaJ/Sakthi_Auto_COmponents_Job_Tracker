@@ -1008,11 +1008,7 @@ export function ExcelTaskGrid({
                   {/* Actions Column */}
                   <td className="p-1 text-center border-slate-300">
                     <div className="flex items-center justify-center gap-1">
-                      {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(r.status) ? (
-                        <span className="p-1 text-slate-400 cursor-not-allowed" title="Audit submitted — Execution form locked">
-                          <Lock className="h-3.5 w-3.5" />
-                        </span>
-                      ) : (
+                      {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(r.status)) ? null : (
                         <Button
                           asChild
                           variant="ghost"

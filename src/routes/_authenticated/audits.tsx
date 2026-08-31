@@ -39,8 +39,11 @@ export const Route = createFileRoute("/_authenticated/audits")({
   component: AuditsPage,
 });
 
+import { useAuth } from "@/hooks/useAuth";
+
 function AuditsPage() {
   const { filter } = Route.useSearch();
+  const { isAdmin } = useAuth();
 
   const { data = [] } = useQuery({
     queryKey: ["assignments"],
@@ -126,9 +129,15 @@ function AuditsPage() {
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-border hover:bg-secondary/60">
                 <td className="px-4 py-3 font-medium text-brand">
-                  <Link to="/audit/$auditId" params={{ auditId: r.id }}>
-                    {r.audit_code}
-                  </Link>
+                  {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(r.status)) ? (
+                    <span className="text-slate-600 font-bold" title="Audit submitted — Inspection form locked">
+                      {r.audit_code}
+                    </span>
+                  ) : (
+                    <Link to="/audit/$auditId" params={{ auditId: r.id }}>
+                      {r.audit_code}
+                    </Link>
+                  )}
                 </td>
                 <td className="px-4 py-3">{r.title}</td>
                 <td className="px-4 py-3 text-muted-foreground">{r.audit_type}</td>

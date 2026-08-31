@@ -1293,15 +1293,25 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3">
                               {task.attached_file_name ? (
-                                <Link
-                                  to="/audit/$auditId"
-                                  params={{ auditId: task.id }}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                                  title="Click to open attached Excel inspection checklist"
-                                >
-                                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                  <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
-                                </Link>
+                                !isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status) ? (
+                                  <span
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
+                                    title="Audit submitted — Excel inspection checklist locked"
+                                  >
+                                    <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400" />
+                                    <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                  </span>
+                                ) : (
+                                  <Link
+                                    to="/audit/$auditId"
+                                    params={{ auditId: task.id }}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                                    title="Click to open attached Excel inspection checklist"
+                                  >
+                                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                  </Link>
+                                )
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
                                   <Paperclip className="h-3 w-3" /> No file attached
@@ -1314,11 +1324,13 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
-                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                    Open Inspection
-                                  </Link>
-                                </Button>
+                                {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status)) ? null : (
+                                  <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                                    <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                      Open Inspection
+                                    </Link>
+                                  </Button>
+                                )}
 
                                 {isAdmin && (
                                   <>
@@ -1412,14 +1424,7 @@ export function DashboardPage() {
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(task.status) ? (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
-                                  title="Audit submitted — Inspection form locked"
-                                >
-                                  <Lock className="h-3.5 w-3.5 text-slate-400" /> Submitted (Locked)
-                                </span>
-                              ) : (
+                              {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status)) ? null : (
                                 <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
                                   <Link to="/audit/$auditId" params={{ auditId: task.id }}>
                                     Open Checklist
