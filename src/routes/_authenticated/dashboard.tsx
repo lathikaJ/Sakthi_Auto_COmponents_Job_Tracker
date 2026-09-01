@@ -32,6 +32,8 @@ import {
   Paperclip,
   Lock,
 } from "lucide-react";
+import { createExcelUri } from "@/lib/excelUri";
+import { MasterLayout } from "./-master-layout";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -139,6 +141,25 @@ export function DashboardPage() {
 
   // Modals for Admin Functions
   const [isAddPlanModalOpen, setIsAddPlanModalOpen] = useState(false);
+  const [isAddMode, setIsAddMode] = useState(false);
+
+  const handleDirectExcelLaunch = (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/Checklist_Template.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success("Opening in Microsoft Excel Desktop...");
+    } catch {
+      toast.error("Failed to launch Excel protocol.");
+    }
+  };
+
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [selectedDocAudit, setSelectedDocAudit] = useState<Assignment | null>(null);
   const [docFileUrlInput, setDocFileUrlInput] = useState("");
@@ -1292,31 +1313,14 @@ export function DashboardPage() {
                               {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                             </td>
                             <td className="p-3">
-                              {task.attached_file_name ? (
-                                !isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status) ? (
-                                  <span
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-400 cursor-not-allowed"
-                                    title="Audit submitted — Excel inspection checklist locked"
-                                  >
-                                    <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="truncate max-w-[140px]">Excel</span>
-                                  </span>
-                                ) : (
-                                  <Link
-                                    to="/audit/$auditId"
-                                    params={{ auditId: task.id }}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                                    title="Click to open attached Excel inspection checklist"
-                                  >
-                                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="truncate max-w-[140px]">Excel</span>
-                                  </Link>
-                                )
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
-                                  <Paperclip className="h-3 w-3" /> No file attached
-                                </span>
-                              )}
+                              <button
+                                onClick={handleDirectExcelLaunch}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                                title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                              >
+                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="truncate max-w-[140px]">Excel</span>
+                              </button>
                             </td>
                             <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                             <td className="p-3">
@@ -1394,21 +1398,14 @@ export function DashboardPage() {
                             {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                           </td>
                           <td className="p-3">
-                            {task.attached_file_name ? (
-                              <Link
-                                to="/audit/$auditId"
-                                params={{ auditId: task.id }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                                title="Click to open attached Excel inspection checklist"
-                              >
-                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="truncate max-w-[140px]">Excel</span>
-                              </Link>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
-                                <Paperclip className="h-3 w-3" /> No file attached
-                              </span>
-                            )}
+                            <button
+                              onClick={handleDirectExcelLaunch}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                              title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="truncate max-w-[140px]">Excel</span>
+                            </button>
                           </td>
                           <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                           <td className="p-3">
