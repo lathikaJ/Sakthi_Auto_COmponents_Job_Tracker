@@ -882,19 +882,34 @@ export function ExcelTaskGrid({
                   {/* Actions Column */}
                   <td className="p-1 text-center border-slate-300">
                     <div className="flex items-center justify-center gap-1">
-                      {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(r.status)) ? null : (
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                          title="Open Audit Execution Form"
-                        >
-                          <Link to="/audit/$auditId" params={{ auditId: r.id.startsWith("temp-") ? "demo" : r.id }}>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
-                        </Button>
-                      )}
+                      {/* Web Form Navigation Link */}
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                        title={`Navigate to ${r.audit_code} Web Audit Form`}
+                      >
+                        <Link to="/audit/$auditId" params={{ auditId: encodeURIComponent(r.audit_code || r.id) }}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+
+                      {/* Direct MS Excel Desktop App Redirection Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                        title={`Open ${r.audit_code} directly in Microsoft Excel Desktop App (ms-excel:)`}
+                        onClick={() => {
+                          const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+                          const fileUrl = `${currentOrigin}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+                          openInExcelDesktop(fileUrl, "edit");
+                          toast.info(`Redirecting ${r.audit_code} to Microsoft Excel Desktop app...`);
+                        }}
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+                      </Button>
 
                       {isAdmin && (
                         <>

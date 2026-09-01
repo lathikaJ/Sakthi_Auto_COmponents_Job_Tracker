@@ -11,11 +11,13 @@ import { cn } from "@/lib/utils";
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/assignments", label: "Assignments" },
+  { to: "/audits", label: "Audit Register" },
   { to: "/review", label: "Review Queue" },
 ] as const;
 
 const EMPLOYEE_NAV = [
   { to: "/dashboard", label: "My Work Queue" },
+  { to: "/audits", label: "Audit Register" },
 ] as const;
 
 export function AppShell({
