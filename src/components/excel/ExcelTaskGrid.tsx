@@ -389,7 +389,7 @@ export function ExcelTaskGrid({
     // Try redirecting via Microsoft Office URI protocol handler if online URL exists or blob URL created
     try {
       const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      const onlineFileUrl = `${currentHost}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
       const excelUri = createExcelUri(onlineFileUrl, "edit");
       
       toast.success("Excel spreadsheet downloaded! Launching in MS Excel...", {
@@ -408,7 +408,7 @@ export function ExcelTaskGrid({
   const handleOpenDirectInExcelApp = () => {
     if (typeof window !== "undefined") {
       const currentOrigin = window.location.origin;
-      const fileUrl = `${currentOrigin}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+      const fileUrl = `${currentOrigin}/Sakthi_Auto_Task_Matrix.xlsx`;
       openInExcelDesktop(fileUrl, "edit");
       toast.info("Attempting to open file in Microsoft Excel Desktop app via ms-excel: protocol handler...");
     }
@@ -903,7 +903,7 @@ export function ExcelTaskGrid({
                         title={`Open ${r.audit_code} directly in Microsoft Excel Desktop App (ms-excel:)`}
                         onClick={() => {
                           const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-                          const fileUrl = `${currentOrigin}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+                          const fileUrl = `${currentOrigin}/Sakthi_Auto_Task_Matrix.xlsx`;
                           openInExcelDesktop(fileUrl, "edit");
                           toast.info(`Redirecting ${r.audit_code} to Microsoft Excel Desktop app...`);
                         }}
