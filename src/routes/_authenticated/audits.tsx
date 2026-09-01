@@ -94,6 +94,27 @@ function AuditsPage() {
       title="Audit Register"
       description="Every planned, active and completed audit in the current programme."
     >
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-emerald-900 text-white p-3.5 rounded-xl shadow-sm border border-emerald-700">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-emerald-800 text-white font-bold">
+            📊
+          </div>
+          <div>
+            <h4 className="text-sm font-extrabold text-white">All Audits — Microsoft Excel (.xlsx) Register</h4>
+            <p className="text-xs text-emerald-200">View, assign tasks, or redirect to MS Excel Desktop to manage plant audits.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/assignments"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg text-xs font-black shadow-xs transition-colors"
+          >
+            📋 Open Excel Assignment Matrix
+          </Link>
+        </div>
+      </div>
+
       <div className="mb-5 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Link

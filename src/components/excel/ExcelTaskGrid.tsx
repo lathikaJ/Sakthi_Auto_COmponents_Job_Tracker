@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { mergeAndDeduplicateTasks } from "@/lib/audit";
+import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
 
 export type ExcelTaskRow = {
   id: string;
@@ -350,7 +351,7 @@ export function ExcelTaskGrid({
     }
   };
 
-  // Excel Export
+  // Excel Export & Desktop Protocol Redirection
   const handleExportExcel = () => {
     const exportData = filteredRows.map((r, idx) => ({
       "Row #": idx + 1,
@@ -382,8 +383,35 @@ export function ExcelTaskGrid({
       { wch: 14 },
     ];
 
-    XLSX.writeFile(workbook, `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`);
-    toast.success("Excel spreadsheet (.xlsx) exported!");
+    const fileName = `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    // Try redirecting via Microsoft Office URI protocol handler if online URL exists or blob URL created
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "edit");
+      
+      toast.success("Excel spreadsheet downloaded! Launching in MS Excel...", {
+        action: {
+          label: "Open in MS Excel App 🚀",
+          onClick: () => {
+            window.location.href = excelUri;
+          },
+        },
+      });
+    } catch {
+      toast.success("Excel spreadsheet (.xlsx) generated!");
+    }
+  };
+
+  const handleOpenDirectInExcelApp = () => {
+    if (typeof window !== "undefined") {
+      const currentOrigin = window.location.origin;
+      const fileUrl = `${currentOrigin}/public/Sakthi_Auto_Task_Matrix.xlsx`;
+      openInExcelDesktop(fileUrl, "edit");
+      toast.info("Attempting to open file in Microsoft Excel Desktop app via ms-excel: protocol handler...");
+    }
   };
 
 
@@ -510,9 +538,19 @@ export function ExcelTaskGrid({
                 size="sm"
                 onClick={handleExportExcel}
                 className="h-8 gap-1.5 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold border border-white cursor-pointer shadow-xs"
-                title="Generate and download standard .xlsx file to open directly in Microsoft Excel"
+                title="Generate standard .xlsx spreadsheet & redirect to Microsoft Excel App"
               >
                 <Download className="h-3.5 w-3.5 text-emerald-700" /> Open / Download in MS Excel (.xlsx)
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenDirectInExcelApp}
+                className="h-8 gap-1.5 bg-emerald-950/40 text-emerald-100 hover:bg-emerald-900/60 text-xs font-bold border border-emerald-400/40 cursor-pointer"
+                title="Launch directly in Microsoft Excel Desktop using ms-excel: protocol"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-emerald-300" /> Launch MS Excel App
               </Button>
             </>
           )}
