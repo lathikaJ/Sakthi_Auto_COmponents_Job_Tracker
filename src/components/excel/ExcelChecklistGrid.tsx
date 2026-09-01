@@ -86,7 +86,22 @@ export function ExcelChecklistGrid({
       "REMARKS": cp.remarks || "",
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    let worksheet;
+    if (exportData.length === 0) {
+      worksheet = XLSX.utils.json_to_sheet([], {
+        header: [
+          "SL. NO.",
+          "CHARACTERISTICS / PARAMETER",
+          "SPECIFICATION",
+          "CHECK METHOD",
+          "OBSERVATION / VALUE",
+          "RESULT (OK / NOT OK)",
+          "REMARKS"
+        ]
+      });
+    } else {
+      worksheet = XLSX.utils.json_to_sheet(exportData);
+    }
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Checkpoints");
 

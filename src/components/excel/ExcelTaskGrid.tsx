@@ -378,7 +378,25 @@ export function ExcelTaskGrid({
       Status: r.status || "Assigned",
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    let worksheet;
+    if (exportData.length === 0) {
+      worksheet = XLSX.utils.json_to_sheet([], {
+        header: [
+          "Row #",
+          "Audit Code",
+          "Task Title",
+          "Audit Type",
+          "Area",
+          "Assigned Employee",
+          "Month",
+          "Year",
+          "Due Date",
+          "Status"
+        ]
+      });
+    } else {
+      worksheet = XLSX.utils.json_to_sheet(exportData);
+    }
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Master Task Register");
 
