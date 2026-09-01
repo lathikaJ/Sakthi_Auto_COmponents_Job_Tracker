@@ -1402,7 +1402,7 @@ export function DashboardPage() {
                                 title="Click to open attached Excel inspection checklist"
                               >
                                 <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                <span className="truncate max-w-[140px]">Excel</span>
                               </Link>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 italic">
