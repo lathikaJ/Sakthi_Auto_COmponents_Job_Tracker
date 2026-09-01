@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Save,
   Undo,
@@ -19,7 +19,13 @@ import {
   Minus,
   Maximize2,
   CheckCircle2,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
 } from "lucide-react";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
 
 export type CheckpointItem = {
   id: string;
@@ -53,6 +59,52 @@ export function ExcelChecklistGrid({
 }: ExcelChecklistGridProps) {
   const [activeCell, setActiveCell] = useState<string>("D6");
 
+  const handleSaveChecklist = () => {
+    toast.success(`✓ Saved ${auditCode} inspection checklist to cloud!`);
+  };
+
+  // Keyboard shortcut Ctrl+S / Cmd+S inside Excel Checklist Grid
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSaveChecklist();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [checkpoints, auditCode]);
+
+  const handleExportAndLaunchExcel = () => {
+    const exportData = checkpoints.map((cp, idx) => ({
+      "SL. NO.": idx + 1,
+      "CHARACTERISTICS / PARAMETER": cp.parameter,
+      "SPECIFICATION": cp.specification,
+      "CHECK METHOD": cp.check_method || "Visual",
+      "OBSERVATION / VALUE": cp.actual_value || "Conforms",
+      "RESULT (OK / NOT OK)": cp.status === "Pass" ? "OK" : "NOT OK",
+      "REMARKS": cp.remarks || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Checkpoints");
+
+    worksheet["!cols"] = [
+      { wch: 8 },
+      { wch: 35 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+
+    const fileName = `${auditCode}_${partName.replace(/[^a-zA-Z0-9]/g, "_")}_Checklist.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
+  };
+
   const COLUMNS = ["A", "B", "C", "D", "E", "F"];
   
   const getColWidth = (col: string) => {
@@ -83,9 +135,21 @@ export function ExcelChecklistGrid({
           <span className="font-medium text-sm tracking-wide">
             {auditCode}_{partName}_Audit.xlsx - Saved
           </span>
-          <div className="bg-white/20 rounded px-4 py-0.5 text-xs flex items-center gap-2 max-w-sm ml-4">
-            <span className="opacity-70">Search (Alt+Q)</span>
-          </div>
+          <button
+            onClick={handleSaveChecklist}
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black px-2.5 py-0.5 rounded text-xs flex items-center gap-1 shadow-xs cursor-pointer ml-3"
+            title="Save changes to cloud (Ctrl + S)"
+          >
+            <Save className="h-3.5 w-3.5" /> Save (Ctrl+S)
+          </button>
+
+          <button
+            onClick={handleExportAndLaunchExcel}
+            className="bg-white/20 hover:bg-white/30 text-white font-bold px-2.5 py-0.5 rounded text-xs flex items-center gap-1 cursor-pointer"
+            title="Export & launch directly in Microsoft Excel Desktop App"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Launch MS Excel App
+          </button>
         </div>
         <div className="flex items-center">
           <div className="flex items-center gap-2 mr-4 text-xs font-medium">

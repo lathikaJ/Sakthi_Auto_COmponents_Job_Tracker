@@ -450,6 +450,18 @@ function AuditFormPage() {
     toast.success("Audit checkpoint draft saved!");
   };
 
+  // Keyboard shortcut Ctrl+S / Cmd+S on audit form
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSaveDraft();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [checkpoints, imageFiles, inspectorNotes, signatureImage]);
+
   // Submit Completed Audit (Inspector -> Under Review, Admin -> Audit Completed)
   const handleSubmitAudit = () => {
     if (!signatureImage) {
