@@ -438,7 +438,20 @@ export function ExcelTaskGrid({
   };
 
   const handleOpenDirectInExcelApp = () => {
-    handleExportExcel();
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success("Launching in Microsoft Excel...");
+    } catch {
+      toast.error("Failed to launch Excel protocol.");
+    }
   };
 
 

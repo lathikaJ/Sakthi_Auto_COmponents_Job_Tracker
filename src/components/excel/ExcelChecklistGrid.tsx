@@ -76,48 +76,21 @@ export function ExcelChecklistGrid({
   }, [checkpoints, auditCode]);
 
   const handleExportAndLaunchExcel = () => {
-    const exportData = checkpoints.map((cp, idx) => ({
-      "SL. NO.": idx + 1,
-      "CHARACTERISTICS / PARAMETER": cp.parameter,
-      "SPECIFICATION": cp.specification,
-      "CHECK METHOD": cp.check_method || "Visual",
-      "OBSERVATION / VALUE": cp.actual_value || "Conforms",
-      "RESULT (OK / NOT OK)": cp.status === "Pass" ? "OK" : "NOT OK",
-      "REMARKS": cp.remarks || "",
-    }));
-
-    let worksheet;
-    if (exportData.length === 0) {
-      worksheet = XLSX.utils.json_to_sheet([], {
-        header: [
-          "SL. NO.",
-          "CHARACTERISTICS / PARAMETER",
-          "SPECIFICATION",
-          "CHECK METHOD",
-          "OBSERVATION / VALUE",
-          "RESULT (OK / NOT OK)",
-          "REMARKS"
-        ]
-      });
-    } else {
-      worksheet = XLSX.utils.json_to_sheet(exportData);
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      // Dummy hosted URL to satisfy ms-excel: protocol
+      const onlineFileUrl = `${currentHost}/Checklist_Template.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success(`Opening in Microsoft Excel Desktop...`);
+    } catch {
+      toast.error("Failed to launch Excel protocol.");
     }
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Checkpoints");
-
-    worksheet["!cols"] = [
-      { wch: 8 },
-      { wch: 35 },
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 18 },
-      { wch: 20 },
-    ];
-
-    const fileName = `${auditCode}_${partName.replace(/[^a-zA-Z0-9]/g, "_")}_Checklist.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
   };
 
   const COLUMNS = ["A", "B", "C", "D", "E", "F"];
