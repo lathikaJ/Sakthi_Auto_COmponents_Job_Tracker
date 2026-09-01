@@ -351,6 +351,18 @@ export function ExcelTaskGrid({
     }
   };
 
+  // Bind Ctrl + S / Cmd + S keyboard shortcut to handleSaveSync
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSaveSync();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [rows, isAdmin]);
+
   // Excel Export & Desktop Protocol Redirection
   const handleExportExcel = () => {
     const exportData = filteredRows.map((r, idx) => ({
