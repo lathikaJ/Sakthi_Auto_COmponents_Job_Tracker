@@ -1260,9 +1260,9 @@ export function DashboardPage() {
                       <tr>
                         <th className="p-3 w-14 text-center">SL. NO.</th>
                         <th className="p-3">PART NAME</th>
-                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">AUDIT PLAN</th>
                         <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">EXCEL ATTACHMENT</th>
+                        <th className="p-3">ATTACHMENT</th>
                         <th className="p-3">AUDITOR</th>
                         <th className="p-3">STATUS</th>
                         <th className="p-3 text-right">ACTION</th>
@@ -1299,7 +1299,7 @@ export function DashboardPage() {
                                     title="Audit submitted — Excel inspection checklist locked"
                                   >
                                     <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                    <span className="truncate max-w-[140px]">Excel</span>
                                   </span>
                                 ) : (
                                   <Link
@@ -1309,7 +1309,7 @@ export function DashboardPage() {
                                     title="Click to open attached Excel inspection checklist"
                                   >
                                     <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="truncate max-w-[140px]">{task.attached_file_name}</span>
+                                    <span className="truncate max-w-[140px]">Excel</span>
                                   </Link>
                                 )
                               ) : (
@@ -1373,9 +1373,9 @@ export function DashboardPage() {
                       <tr>
                         <th className="p-3 w-14 text-center">SL. NO.</th>
                         <th className="p-3">PART NAME</th>
-                        <th className="p-3">PART NUMBER</th>
+                        <th className="p-3">AUDIT PLAN</th>
                         <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">ATTACHED EXCEL</th>
+                        <th className="p-3">ATTACHMENT</th>
                         <th className="p-3">AUDITOR</th>
                         <th className="p-3">PROGRESS</th>
                         <th className="p-3">STATUS</th>
