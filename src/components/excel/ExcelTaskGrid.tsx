@@ -384,34 +384,31 @@ export function ExcelTaskGrid({
     ];
 
     const fileName = `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`;
+    
+    // 1. Instantly trigger file download for Microsoft Excel
     XLSX.writeFile(workbook, fileName);
 
-    // Try redirecting via Microsoft Office URI protocol handler if online URL exists or blob URL created
+    // 2. Try URI protocol handler with hosted URL fallback
     try {
       const currentHost = typeof window !== "undefined" ? window.location.origin : "";
       const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "edit");
+      const excelUri = createExcelUri(onlineFileUrl, "view");
       
-      toast.success("Excel spreadsheet downloaded! Launching in MS Excel...", {
-        action: {
-          label: "Open in MS Excel App 🚀",
-          onClick: () => {
-            window.location.href = excelUri;
-          },
-        },
-      });
+      // Attempt protocol redirection in background
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
     } catch {
-      toast.success("Excel spreadsheet (.xlsx) generated!");
+      // Fallback handled by direct download above
     }
+
+    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
   };
 
   const handleOpenDirectInExcelApp = () => {
-    if (typeof window !== "undefined") {
-      const currentOrigin = window.location.origin;
-      const fileUrl = `${currentOrigin}/Sakthi_Auto_Task_Matrix.xlsx`;
-      openInExcelDesktop(fileUrl, "edit");
-      toast.info("Attempting to open file in Microsoft Excel Desktop app via ms-excel: protocol handler...");
-    }
+    handleExportExcel();
   };
 
 
@@ -900,13 +897,8 @@ export function ExcelTaskGrid({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-emerald-800 hover:bg-emerald-100 cursor-pointer"
-                        title={`Open ${r.audit_code} directly in Microsoft Excel Desktop App (ms-excel:)`}
-                        onClick={() => {
-                          const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-                          const fileUrl = `${currentOrigin}/Sakthi_Auto_Task_Matrix.xlsx`;
-                          openInExcelDesktop(fileUrl, "edit");
-                          toast.info(`Redirecting ${r.audit_code} to Microsoft Excel Desktop app...`);
-                        }}
+                        title={`Export and open ${r.audit_code} in Microsoft Excel Desktop App`}
+                        onClick={handleExportExcel}
                       >
                         <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
                       </Button>
