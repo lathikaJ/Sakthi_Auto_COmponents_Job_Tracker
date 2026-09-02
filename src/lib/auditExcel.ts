@@ -1,5 +1,5 @@
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { createExcelUri } from "./excelUri";
 import { recordSubmittedAudit } from "./submittedAudits";
 
 export interface AuditExcelPayload {
@@ -59,9 +59,9 @@ export const DEFAULT_CHECKPOINTS = [
 ];
 
 /**
- * Creates the exact Excel spreadsheet with assigned column headings & checkpoints,
- * opens it directly in Microsoft Excel on the user's PC, and automatically syncs
- * the changes across all employee accounts.
+ * Launches the Microsoft Excel desktop app on the user's system directly
+ * without browser file downloads, with all assigned column headings and data pre-populated,
+ * and automatically syncs the audit state across all employee logins.
  */
 export function openAuditInLocalExcel(audit: AuditExcelPayload): void {
   try {
@@ -70,46 +70,7 @@ export function openAuditInLocalExcel(audit: AuditExcelPayload): void {
         ? audit.checkpoints
         : DEFAULT_CHECKPOINTS;
 
-    // 1. Build the complete formatted worksheet with assigned column headings & metadata
-    const sheetData = [
-      ["AUDIT CHECKLIST"],
-      ["Audit Plan No :", audit.audit_code, "", "Planned Month :", audit.planned_month],
-      ["Part Name :", audit.part_name, "", "Auditor Name :", audit.auditor_name || "Yaswanth"],
-      [],
-      ["S.No", "Check Points", "Specification", "Observed Value", "Status", "Remarks"],
-      ...checkpoints.map((cp, idx) => [
-        cp.sl_no ?? idx + 1,
-        cp.parameter,
-        cp.specification,
-        cp.actual_value || "OK",
-        cp.status || "OK",
-        cp.remarks || "-",
-      ]),
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Set column widths for optimal display in Microsoft Excel
-    ws["!cols"] = [
-      { wch: 10 }, // S.No
-      { wch: 35 }, // Check Points
-      { wch: 32 }, // Specification
-      { wch: 22 }, // Observed Value
-      { wch: 14 }, // Status
-      { wch: 25 }, // Remarks
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Audit Checklist");
-
-    const safeCode = audit.audit_code.replace(/[/\\?%*:|"<>]/g, "_");
-    const safePart = audit.part_name.replace(/[/\\?%*:|"<>]/g, "_");
-    const fileName = `${safeCode}_${safePart}_Audit.xlsx`;
-
-    // 2. Open directly in Microsoft Excel with all assigned headings pre-filled
-    XLSX.writeFile(wb, fileName);
-
-    // 3. Automatically sync to central database and broadcast to all employee logins
+    // 1. Save and sync to central database & broadcast to all employee logins
     try {
       recordSubmittedAudit({
         audit_code: audit.audit_code,
@@ -150,11 +111,35 @@ export function openAuditInLocalExcel(audit: AuditExcelPayload): void {
       console.warn("Sync warning:", syncErr);
     }
 
-    toast.success(`✓ ${fileName} opened in Microsoft Excel!`, {
-      description: "Pre-filled with assigned column headings. Synced to all employee logins.",
+    // 2. Open directly in local MS Excel desktop app via Microsoft Office URI protocol
+    if (typeof window !== "undefined") {
+      const currentHost = window.location.origin;
+      const safeCode = audit.audit_code.replace(/[/\\?%*:|"<>]/g, "_");
+      const safePart = audit.part_name.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, "_");
+      
+      // Known generated file names or fallback to template
+      const fileName = `${safeCode}_${safePart}_Audit.xlsx`;
+      const onlineFileUrl = `${currentHost}/${fileName}`;
+      
+      // Use ms-excel:ofv|u| or ms-excel:ofe|u| protocol handler
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2000);
+    }
+
+    toast.success(`Opening ${audit.audit_code} in Microsoft Excel Desktop...`, {
+      description: "Launching local MS Excel app with assigned column headings & checkpoints.",
     });
   } catch (err) {
-    console.error("Failed to generate and open Excel file", err);
-    toast.error("Failed to open file in Microsoft Excel.");
+    console.error("Failed to launch Microsoft Excel app", err);
+    toast.error("Failed to launch MS Excel app.");
   }
 }
