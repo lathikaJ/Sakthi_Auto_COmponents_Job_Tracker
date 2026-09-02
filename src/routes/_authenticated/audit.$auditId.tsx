@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/audit/$auditId")({
+  ssr: false,
   component: AuditFormPage,
 });
 
