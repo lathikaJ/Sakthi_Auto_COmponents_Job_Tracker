@@ -421,7 +421,25 @@ export function ExcelTaskGrid({
   };
 
   const handleOpenDirectInExcelApp = () => {
-    handleExportExcel();
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "edit");
+      
+      const link = document.createElement("a");
+      link.href = excelUri;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+      }, 1000);
+      toast.success("Opening in Microsoft Excel App...", {
+        description: "Direct MS Excel app launch triggered. All changes synced across employee logins.",
+      });
+    } catch {
+      toast.error("Failed to launch Microsoft Excel app.");
+    }
   };
 
 

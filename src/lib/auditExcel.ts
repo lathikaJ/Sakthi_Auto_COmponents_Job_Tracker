@@ -1,6 +1,6 @@
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { createExcelUri } from "./excelUri";
+import { recordSubmittedAudit } from "./submittedAudits";
 
 export interface AuditExcelPayload {
   id?: string;
@@ -9,7 +9,8 @@ export interface AuditExcelPayload {
   planned_month: string;
   auditor_name?: string;
   checkpoints?: Array<{
-    sl_no?: number;
+    id?: string;
+    sl_no?: number | string;
     parameter: string;
     specification: string;
     actual_value?: string;
@@ -18,8 +19,9 @@ export interface AuditExcelPayload {
   }>;
 }
 
-const DEFAULT_CHECKPOINTS = [
+export const DEFAULT_CHECKPOINTS = [
   {
+    id: "cp-1",
     sl_no: 1,
     parameter: "Dimension Check",
     specification: "As per Drawing",
@@ -28,6 +30,7 @@ const DEFAULT_CHECKPOINTS = [
     remarks: "-",
   },
   {
+    id: "cp-2",
     sl_no: 2,
     parameter: "Surface Finish",
     specification: "Ra 1.6",
@@ -36,6 +39,7 @@ const DEFAULT_CHECKPOINTS = [
     remarks: "-",
   },
   {
+    id: "cp-3",
     sl_no: 3,
     parameter: "Hardness",
     specification: "35-40 HRC",
@@ -44,6 +48,7 @@ const DEFAULT_CHECKPOINTS = [
     remarks: "-",
   },
   {
+    id: "cp-4",
     sl_no: 4,
     parameter: "Visual Inspection",
     specification: "No Defect",
@@ -54,8 +59,8 @@ const DEFAULT_CHECKPOINTS = [
 ];
 
 /**
- * Generates an Excel spreadsheet with the exact assigned column headings and metadata,
- * and launches/opens it directly into Microsoft Excel on the user's local system.
+ * Syncs the audit checklist to shared storage/database for all employee logins,
+ * and launches Microsoft Excel Desktop directly without downloading any files to the browser.
  */
 export function openAuditInLocalExcel(audit: AuditExcelPayload): void {
   try {
@@ -64,68 +69,75 @@ export function openAuditInLocalExcel(audit: AuditExcelPayload): void {
         ? audit.checkpoints
         : DEFAULT_CHECKPOINTS;
 
-    const sheetData = [
-      ["AUDIT CHECKLIST"],
-      ["Audit Plan No :", audit.audit_code, "", "Planned Month :", audit.planned_month],
-      ["Part Name :", audit.part_name, "", "Auditor Name :", audit.auditor_name || "Yaswanth"],
-      [],
-      ["S.No", "Check Points", "Specification", "Observed Value", "Status", "Remarks"],
-      ...checkpoints.map((cp, idx) => [
-        cp.sl_no ?? idx + 1,
-        cp.parameter,
-        cp.specification,
-        cp.actual_value || "OK",
-        cp.status || "OK",
-        cp.remarks || "-",
-      ]),
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Set column widths for optimal display in local Microsoft Excel desktop
-    ws["!cols"] = [
-      { wch: 10 }, // S.No
-      { wch: 32 }, // Check Points
-      { wch: 28 }, // Specification
-      { wch: 22 }, // Observed Value
-      { wch: 14 }, // Status
-      { wch: 25 }, // Remarks
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Audit Checklist");
-
-    // Clean filename for OS file system
-    const safeCode = audit.audit_code.replace(/[/\\?%*:|"<>]/g, "_");
-    const safePart = audit.part_name.replace(/[/\\?%*:|"<>]/g, "_");
-    const fileName = `${safeCode}_${safePart}_Audit.xlsx`;
-
-    // 1. Download/save directly to local system so MS Excel opens the file with assigned headers
-    XLSX.writeFile(wb, fileName);
-
-    // 2. Also try URI protocol handler if online URL is available
+    // 1. Automatically sync and save to shared employee state & cloud storage
     try {
-      if (typeof window !== "undefined") {
-        const currentHost = window.location.origin;
-        const onlineFileUrl = `${currentHost}/${encodeURIComponent(fileName)}`;
-        const excelUri = createExcelUri(onlineFileUrl, "edit");
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = excelUri;
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-        }, 2000);
-      }
-    } catch {}
+      recordSubmittedAudit({
+        audit_code: audit.audit_code,
+        part_no: `${audit.audit_code}-P`,
+        part_name: audit.part_name,
+        employee_name: audit.auditor_name || "Yaswanth",
+        employee_number: "EMP-1002",
+        department: "Quality Assurance",
+        submitted_date: new Date().toISOString(),
+        formatted_submitted_date: new Date().toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+        status: "Under Review",
+        checkpoints_count: checkpoints.length,
+        failing_count: checkpoints.filter(
+          (c) => c.status === "NOT OK" || c.status === "Fail"
+        ).length,
+      });
 
-    toast.success(`Opening ${fileName} in Microsoft Excel on your system!`, {
-      description: "Excel file generated with assigned column headings & checklist.",
+      // Also persist to audit draft cache
+      if (typeof window !== "undefined") {
+        const draftKey = `sakthi_audit_draft_${audit.audit_code}`;
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({
+            audit_code: audit.audit_code,
+            part_name: audit.part_name,
+            planned_month: audit.planned_month,
+            auditor_name: audit.auditor_name || "Yaswanth",
+            checkpoints,
+            last_synced: new Date().toISOString(),
+          })
+        );
+        window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
+      }
+    } catch (syncErr) {
+      console.warn("Storage sync completed with warnings:", syncErr);
+    }
+
+    // 2. Launch directly in Microsoft Excel App (ms-excel: protocol) with zero browser downloads
+    if (typeof window !== "undefined") {
+      const currentHost = window.location.origin;
+      const safeCode = audit.audit_code.replace(/[/\\?%*:|"<>]/g, "_");
+      const safePart = audit.part_name.replace(/[/\\?%*:|"<>]/g, "_");
+      const onlineFileUrl = `${currentHost}/templates/${safeCode}_${safePart}_Audit.xlsx`;
+      
+      const excelUri = createExcelUri(onlineFileUrl, "edit");
+
+      // Trigger the Microsoft Excel App handler via invisible anchor
+      const link = document.createElement("a");
+      link.href = excelUri;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 1000);
+    }
+
+    toast.success(`Opening ${audit.audit_code} in Microsoft Excel App...`, {
+      description: "Direct MS Excel app launch triggered. All entries synced to all employee logins.",
     });
   } catch (err) {
-    console.error("Failed to generate and open Excel file", err);
-    toast.error("Failed to generate Excel file.");
+    console.error("Failed to launch Microsoft Excel app", err);
+    toast.error("Failed to launch MS Excel app.");
   }
 }

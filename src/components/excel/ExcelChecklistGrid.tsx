@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
+import { openAuditInLocalExcel } from "@/lib/auditExcel";
 
 export type CheckpointItem = {
   id: string;
@@ -76,31 +77,20 @@ export function ExcelChecklistGrid({
   }, [checkpoints, auditCode]);
 
   const handleExportXlsx = () => {
-    try {
-      const exportData = [
-        ["AUDIT CHECKLIST"],
-        ["Audit Plan No :", auditCode, "", "Planned Month :", plannedMonth],
-        ["Part Name :", partName, "", "Auditor Name :", auditorName],
-        [],
-        ["S.No", "Check Points", "Specification", "Observed Value", "Status", "Remarks"],
-        ...checkpoints.map((cp, idx) => [
-          cp.sl_no ?? idx + 1,
-          cp.parameter,
-          cp.specification,
-          cp.actual_value,
-          cp.status === "Pass" ? "OK" : cp.status === "Fail" ? "NOT OK" : "-",
-          cp.remarks || "",
-        ]),
-      ];
-
-      const ws = XLSX.utils.aoa_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Audit Checklist");
-      XLSX.writeFile(wb, `${auditCode}_${partName}_Audit.xlsx`);
-      toast.success(`Exported ${auditCode}_${partName}_Audit.xlsx`);
-    } catch {
-      toast.error("Failed to export Excel file.");
-    }
+    openAuditInLocalExcel({
+      audit_code: auditCode,
+      part_name: partName,
+      planned_month: plannedMonth,
+      auditor_name: auditorName,
+      checkpoints: checkpoints.map((cp, idx) => ({
+        sl_no: cp.sl_no ?? idx + 1,
+        parameter: cp.parameter,
+        specification: cp.specification,
+        actual_value: cp.actual_value,
+        status: cp.status === "Pass" ? "OK" : cp.status === "Fail" ? "NOT OK" : "OK",
+        remarks: cp.remarks || "-",
+      })),
+    });
   };
 
   const COLUMNS = ["A", "B", "C", "D", "E", "F"];
