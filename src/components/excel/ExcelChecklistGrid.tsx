@@ -209,9 +209,27 @@ export function ExcelChecklistGrid({
     try {
       const wb = generateOfficialExcelWorkbook();
       const fileName = auditCode + "_" + ((partName || "Audit_Inspection").replace(/[^a-zA-Z0-9]/g, "_")) + ".xlsx";
+      
+      // 1. Generate and save the formatted .xlsx file
       XLSX.writeFile(wb, fileName);
+
+      // 2. Trigger MS Excel Desktop URI Protocol Handler
+      if (typeof window !== "undefined") {
+        const origin = window.location.origin;
+        const excelProtocolUri = "ms-excel:ofe|u|" + origin + "/Checklist_Template.xlsx";
+        
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = excelProtocolUri;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 2000);
+      }
+
       toast.success("Opening " + fileName + " in Microsoft Excel Desktop...", {
-        description: "Exact Sakthi Auto QF/08/CQA-09 format with multi-column observation samples.",
+        description: "Click the downloaded file or accept the browser prompt to launch desktop Excel.",
+        duration: 5000,
       });
     } catch (_) {
       toast.error("Failed to generate Excel file.");
