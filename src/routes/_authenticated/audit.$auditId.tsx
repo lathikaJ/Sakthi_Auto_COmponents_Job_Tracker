@@ -52,7 +52,7 @@ type CheckpointItem = {
 
 function AuditFormPage() {
   const params = useParams({ strict: false }) as any;
-  const auditId = params?.auditId || "aud-msil-01";
+  const auditId = String(params?.auditId || "aud-msil-01");
   const navigate = useNavigate();
   const { profile, isAdmin } = useAuth();
 
@@ -64,9 +64,7 @@ function AuditFormPage() {
   const [dateCode, setDateCode] = useState("DC-2026-08");
   const [traceability, setTraceability] = useState("OP-010 / OP-020");
   
-  const [isExcelViewOpen, setIsExcelViewOpen] = useState(
-    typeof window !== 'undefined' ? window.location.search.includes('view=excel') : false
-  );
+  const [isExcelViewOpen, setIsExcelViewOpen] = useState(false);
   
   // Wizard Step State: 1 = Checkpoints, 2 = Notes & Photos, 3 = E-Signature & Submit
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -74,90 +72,137 @@ function AuditFormPage() {
   // Checkpoints State
   const [checkpoints, setCheckpoints] = useState<CheckpointItem[]>([
     {
-      id: `cp-${Date.now()}`,
-      parameter: "",
-      specification: "",
-      check_method: "Visual",
-      actual_value: "",
+      id: "cp-1",
+      sl_no: 1,
+      parameter: "HARDNESS (MSIL QF/08/CQA-09)",
+      specification: "164 ~ 188 BHN / 85 ~ 91HRB",
+      check_method: "Brinell Hardness Tester",
+      actual_value: "176 BHN",
       status: "Pass",
-      remarks: "",
+      remarks: "Conforms",
+    },
+    {
+      id: "cp-2",
+      sl_no: 2,
+      parameter: "MICROSTRUCTURE SPHEROIDIZATION & PEARLITE",
+      specification: "% OF SPHEROIDIZATION 80% MIN | % OF PEARLITE 10-40% MAX | NODULE COUNT >=70 PCS/mm² MIN",
+      check_method: "Metallurgical Microscope",
+      actual_value: "Spheroidization 85%, Pearlite 25%",
+      status: "Pass",
+      remarks: "Nodule 82 PCS/mm²",
+    },
+    {
+      id: "cp-3",
+      sl_no: 3,
+      parameter: "TENSILE STRENGTH",
+      specification: "500 MPa MIN",
+      check_method: "Universal Testing Machine",
+      actual_value: "525 MPa",
+      status: "Pass",
+      remarks: "Exceeds min",
+    },
+    {
+      id: "cp-4",
+      sl_no: 4,
+      parameter: "YIELD STRENGTH @ 0.2% & 0.5%",
+      specification: "YIELD STRENGTH @ 0.2%: 320 MPa MIN | YIELD STRENGTH @ 0.5%: 340 MPa MIN",
+      check_method: "UTM Extensometer",
+      actual_value: "@0.2%: 338 MPa | @0.5%: 355 MPa",
+      status: "Pass",
+      remarks: "Pass",
+    },
+    {
+      id: "cp-5",
+      sl_no: 5,
+      parameter: "ELONGATION & IMPACT STRENGTH",
+      specification: "ELONGATION 10% MIN | IMPACT STRENGTH - 8J/cm² MIN",
+      check_method: "Charpy Impact & Tensile Tester",
+      actual_value: "Elongation 12%, Impact 9.5 J/cm²",
+      status: "Pass",
+      remarks: "Pass",
+    },
+    {
+      id: "cp-6",
+      sl_no: 6,
+      section: "OP - 010 : RECEIVING INSPECTION ROUGH CASTING",
+      parameter: "APPEARANCE",
+      specification: "1. Free of crack/flaw/harmful blow hole\n2. Over grinding & rust free\n3. Legible casting letters\n4. Surface per CFT-16\n5. Hardness mark at OP20\n6. 'X' mark for X-ray completion at OP20",
+      check_method: "Visual & Gauge Inspection",
+      actual_value: "All 6 Points Verified OK",
+      status: "Pass",
+      remarks: "Legible markings",
+    },
+    {
+      id: "cp-7",
+      sl_no: 7,
+      parameter: "PAINTING",
+      specification: "1. Ensure Black dip painting\n2. No paint peel off, no paint overflow & damages (Applicable Part: 45111/45151-55T00)",
+      check_method: "Visual Dip Inspection",
+      actual_value: "Black Dip Uniform, No Peel Off",
+      status: "Pass",
+      remarks: "Dip finish OK",
     },
   ]);
 
+  // Notes & Photos State (DECLARED AT TOP)
+  const [inspectorNotes, setInspectorNotes] = useState("");
+  const [imageFiles, setImageFiles] = useState<(string | null)[]>([null, null, null]);
+  const fileInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
+
+  // E-Signature Image Upload & Employee ID Authentication State (DECLARED AT TOP)
+  const [authEmpId, setAuthEmpId] = useState(profile?.employee_number || "688079");
+  // sig state
+  // signed state
+  const [sigDragOver, setSigDragOver] = useState(false);
+  const sigInputRef = useRef<HTMLInputElement>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignatureDialogOpen, setIsSignatureDialogOpen] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
   // Dynamic audit preset initialization based on auditId, with Draft restoration
   React.useEffect(() => {
-    // 1. Try to load draft from localStorage (Step 4B of Workflow)
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    try {
       const draftStr = localStorage.getItem(`sakthi_audit_draft_${auditId}`);
       if (draftStr) {
-        try {
-          const draft = JSON.parse(draftStr);
-          setCheckpoints(draft.checkpoints || []);
-          if (draft.inspectorNotes) setInspectorNotes(draft.inspectorNotes);
-          if (draft.imageFiles) setImageFiles(draft.imageFiles);
-          if (draft.signatureImage) setSignatureImage(draft.signatureImage);
-          if (draft.signedAt) setSignedAt(draft.signedAt);
-          
-          // Re-establish customer/part context based on ID since draft doesn't store it
-          if (auditId.includes("STELL") || auditId.includes("DOC")) {
-            setCustomer("STELLANTIS"); setPartNo("9845800980 & 9845801180"); setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH");
-          } else if (auditId.includes("VOL") || auditId.includes("LAY")) {
-            setCustomer("VOLVO"); setPartNo("23407840 / P03"); setPartName("FAN BRACKET LOW FAN HUB");
-          } else {
-            setCustomer("MSIL"); setPartNo("45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)"); setPartName("KNUCKLE STEERING R/L - YTA / YTB");
-          }
-          return; // Stop here if draft was loaded successfully
-        } catch (e) {
-          console.warn("Failed to parse audit draft, loading preset instead.");
-        }
+        const draft = JSON.parse(draftStr);
+        if (draft.checkpoints && draft.checkpoints.length > 0) setCheckpoints(draft.checkpoints);
+        if (draft.inspectorNotes) setInspectorNotes(draft.inspectorNotes);
+        if (draft.imageFiles) setImageFiles(draft.imageFiles);
+        if (draft.signatureImage) setSignatureImage(draft.signatureImage);
+        if (draft.signedAt) setSignedAt(draft.signedAt);
+        return;
       }
-    }
+    } catch (_) {}
 
-    // 2. Load Preset Defaults if no draft exists
     if (auditId.includes("STELL") || auditId.includes("DOC")) {
       setCustomer("STELLANTIS");
       setPartNo("9845800980 & 9845801180");
       setPartName("PIVOT SUSPENSION GOA CC21 ( D78 ) LH / RH");
       setCheckpoints([
-        { id: "cp-1", parameter: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, profile, milling)", check_method: "Visual Comparison", actual_value: "Conforms to Master", status: "Pass", remarks: "All profiles OK" },
-        { id: "cp-2", parameter: "APPEARANCE 10-POINT CHECK", specification: "No blow hole, pin hole, wall thickness variation, sharp edge, dent/damage, flaws, rust, paint peel off", check_method: "10-Point Visual Check", actual_value: "OK (10/10)", status: "Pass", remarks: "Clean surface" },
-        { id: "cp-3", parameter: "RP OIL CONDITION VERIFICATION", specification: "No excess oil, no dust/burr/scrap, no foreign particles", check_method: "Visual & Wipe Check", actual_value: "Verified OK", status: "Pass", remarks: "No foreign scrap" },
-        { id: "cp-4", parameter: "PACKING BOX & VCI COVER CONDITION", specification: "Proper center pad/foam, no box damage, VCI cover clean", check_method: "Visual Inspection", actual_value: "Good Condition", status: "Pass", remarks: "VCI Sealed" },
-        { id: "cp-5", parameter: "PACKING OF PARTS VERIFICATION", specification: "Qty per layer = 24, Qty per box = 144, labeling info verified", check_method: "Count & Label Verification", actual_value: "144 NOS (24x6)", status: "Pass", remarks: "Box Tag OK" },
-        { id: "cp-6", parameter: "PART MIXUP PREVENTION", specification: "Ensure no part mixup", check_method: "Visual & Part Stamp", actual_value: "Verified No Mixup", status: "Pass", remarks: "Match Stamp" },
-        { id: "cp-7", parameter: "AVAILABILITY OF COMMITMENT MARK", specification: "Ensure availability of commitment mark if any", check_method: "Visual Inspection", actual_value: "Present", status: "Pass", remarks: "Green Dot Marked" },
-        { id: "cp-8", parameter: "FOREIGN PARTICLES IN BOX", specification: "Ensure no foreign particles in the box", check_method: "Visual Cleanliness", actual_value: "Clean Box", status: "Pass", remarks: "Pass" },
-        { id: "cp-9", parameter: "PACKING LABEL & STATUS", specification: "Packing label pasted on box with correct part name/number (9845800980/1180)", check_method: "Barcode Scanner & Visual", actual_value: "Label Attached", status: "Pass", remarks: "Scanned OK" },
+        { id: "cp-1", sl_no: 1, parameter: "MASTER SAMPLE COMPARISON (QF/08/CQA-37)", specification: "Should be compared with master sample (All radius, chamfer, profile, milling)", check_method: "Visual Comparison", actual_value: "Conforms to Master", status: "Pass", remarks: "All profiles OK" },
+        { id: "cp-2", sl_no: 2, parameter: "APPEARANCE 10-POINT CHECK", specification: "No blow hole, pin hole, wall thickness variation, sharp edge, dent/damage, flaws, rust, paint peel off", check_method: "10-Point Visual Check", actual_value: "OK (10/10)", status: "Pass", remarks: "Clean surface" },
+        { id: "cp-3", sl_no: 3, parameter: "RP OIL CONDITION VERIFICATION", specification: "No excess oil, no dust/burr/scrap, no foreign particles", check_method: "Visual & Wipe Check", actual_value: "Verified OK", status: "Pass", remarks: "No foreign scrap" },
+        { id: "cp-4", sl_no: 4, parameter: "PACKING BOX & VCI COVER CONDITION", specification: "Proper center pad/foam, no box damage, VCI cover clean", check_method: "Visual Inspection", actual_value: "Good Condition", status: "Pass", remarks: "VCI Sealed" },
+        { id: "cp-5", sl_no: 5, parameter: "PACKING OF PARTS VERIFICATION", specification: "Qty per layer = 24, Qty per box = 144, labeling info verified", check_method: "Count & Label Verification", actual_value: "144 NOS (24x6)", status: "Pass", remarks: "Box Tag OK" },
       ]);
     } else if (auditId.includes("VOL") || auditId.includes("LAY")) {
       setCustomer("VOLVO");
       setPartNo("23407840 / P03");
       setPartName("FAN BRACKET LOW FAN HUB");
       setCheckpoints([
-        { id: "cp-1", parameter: "DISTANCE M", specification: "4 x 47.7±0.2 (CMM / Height Vernier & Scriber)", check_method: "CMM / Height Vernier", actual_value: "47.72 mm", status: "Pass", remarks: "Within spec" },
-        { id: "cp-2", parameter: "THICKNESS M", specification: "4 x 22.5±0.3 (Micrometer)", check_method: "Digital Micrometer", actual_value: "22.51 mm", status: "Pass", remarks: "Within spec" },
-        { id: "cp-3", parameter: "ROUGHNESS ON DATUM 'A' OPPOSITE SIDE M", specification: "6.3 Ra (Surf Tester)", check_method: "Surface Roughness Tester", actual_value: "6.1 Ra", status: "Pass", remarks: "Smooth" },
-        { id: "cp-4", parameter: "PARALLELISM ON DATUM 'A' OPPOSITE SIDE - 4 PLACES M", specification: "4 x f/0.2/A (Height Vernier & Dial / CMM)", check_method: "Dial Gauge & CMM", actual_value: "0.14 mm", status: "Pass", remarks: "Parallel" },
-        { id: "cp-5", parameter: "HOLE CHAMFER (As per RTS) M", specification: "0.5 ±0.1 (Height Vernier Scriber)", check_method: "Height Vernier Scriber", actual_value: "0.52 mm", status: "Pass", remarks: "OK" },
-        { id: "cp-6", parameter: "HOLE CHAMFER (As per RTS) M", specification: "45° ±2° (Bevel Protractor)", check_method: "Bevel Protractor", actual_value: "45.1°", status: "Pass", remarks: "Angle verified" },
-        { id: "cp-7", parameter: "ROUGHNESS ON THREAD FACE M", specification: "Ra 6.3 (Surf Tester)", check_method: "Surface Tester", actual_value: "6.2 Ra", status: "Pass", remarks: "OK" },
-      ]);
-    } else {
-      setCustomer("MSIL");
-      setPartNo("45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)");
-      setPartName("KNUCKLE STEERING R/L - YTA / YTB");
-      setCheckpoints([
-        { id: "cp-1", parameter: "HARDNESS (MSIL QF/08/CQA-09)", specification: "164 ~ 188 BHN / 85 ~ 91HRB", check_method: "Brinell Hardness Tester", actual_value: "176 BHN", status: "Pass", remarks: "Conforms" },
-        { id: "cp-2", parameter: "MICROSTRUCTURE SPHEROIDIZATION & PEARLITE", specification: "% OF SPHEROIDIZATION 80% MIN | % OF PEARLITE 10-40% MAX | NODULE COUNT >=70 PCS/mm² MIN", check_method: "Metallurgical Microscope", actual_value: "Spheroidization 85%, Pearlite 25%", status: "Pass", remarks: "Nodule 82 PCS/mm²" },
-        { id: "cp-3", parameter: "TENSILE STRENGTH", specification: "500 MPa MIN", check_method: "Universal Testing Machine", actual_value: "525 MPa", status: "Pass", remarks: "Exceeds min" },
-        { id: "cp-4", parameter: "YIELD STRENGTH @ 0.2% & 0.5%", specification: "YIELD STRENGTH @ 0.2%: 320 MPa MIN | YIELD STRENGTH @ 0.5%: 340 MPa MIN", check_method: "UTM Extensometer", actual_value: "@0.2%: 338 MPa | @0.5%: 355 MPa", status: "Pass", remarks: "Pass" },
-        { id: "cp-5", parameter: "ELONGATION & IMPACT STRENGTH", specification: "ELONGATION 10% MIN | IMPACT STRENGTH - 8J/cm² MIN", check_method: "Charpy Impact & Tensile Tester", actual_value: "Elongation 12%, Impact 9.5 J/cm²", status: "Pass", remarks: "Pass" },
-        { id: "cp-6", parameter: "OP-010 : RECEIVING INSPECTION ROUGH CASTING (APPEARANCE)", specification: "1. Free of crack/flaw/harmful blow hole 2. Over grinding & rust free 3. Legible casting letters (mould lot, cavity) 4. Surface per CFT-16 5. Hardness mark at OP20 6. 'X' mark for X-ray completion at OP20", check_method: "Visual & Gauge Inspection", actual_value: "All 6 Points Verified OK", status: "Pass", remarks: "Legible markings" },
-        { id: "cp-7", parameter: "PAINTING (OP-010 RECEIVING INSPECTION)", specification: "1. Ensure Black dip painting 2. No paint peel off, no paint overflow & damages (Applicable Part: 45111/45151-55T00)", check_method: "Visual Dip Inspection", actual_value: "Black Dip Uniform, No Peel Off", status: "Pass", remarks: "Dip finish OK" },
+        { id: "cp-1", sl_no: 1, parameter: "DISTANCE M", specification: "4 x 47.7±0.2 (CMM / Height Vernier & Scriber)", check_method: "CMM / Height Vernier", actual_value: "47.72 mm", status: "Pass", remarks: "Within spec" },
+        { id: "cp-2", sl_no: 2, parameter: "THICKNESS M", specification: "4 x 22.5±0.3 (Micrometer)", check_method: "Digital Micrometer", actual_value: "22.51 mm", status: "Pass", remarks: "Within spec" },
+        { id: "cp-3", sl_no: 3, parameter: "ROUGHNESS ON DATUM 'A' OPPOSITE SIDE M", specification: "6.3 Ra (Surf Tester)", check_method: "Surface Roughness Tester", actual_value: "6.1 Ra", status: "Pass", remarks: "Smooth" },
       ]);
     }
   }, [auditId]);
-
+  
   const isAuditSubmitted = React.useMemo(() => {
     if (typeof window === "undefined") return false;
     const stored = localStorage.getItem("sakthi_excel_tasks_v8");
@@ -182,20 +227,16 @@ function AuditFormPage() {
   }, [auditId]);
 
   // Notes & Photos State
-  const [inspectorNotes, setInspectorNotes] = useState("");
-  const [imageFiles, setImageFiles] = useState<(string | null)[]>([null, null, null]);
-  const fileInputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
+  // notes state
+  // images state
+  // file refs
 
   // E-Signature Image Upload & Employee ID Authentication State
-  const [authEmpId, setAuthEmpId] = useState(profile?.employee_number || "688079");
+  // auth emp id
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [signedAt, setSignedAt] = useState<string | null>(null);
-  const [sigDragOver, setSigDragOver] = useState(false);
-  const sigInputRef = useRef<HTMLInputElement>(null);
+  // drag state
+  // sig ref
 
   // Authenticate Employee ID and auto-load ONLY their registered e-signature
   const handleAuthenticateSignature = useCallback((empIdToAuth: string) => {
