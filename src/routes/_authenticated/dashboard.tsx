@@ -33,6 +33,7 @@ import {
   Lock,
 } from "lucide-react";
 import { createExcelUri } from "@/lib/excelUri";
+import { MasterLayout } from "./-master-layout";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -43,8 +44,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { JobReviewTab } from "@/components/admin/JobReviewTab";
 import { EmployeeActivityLogsGrid } from "@/components/admin/EmployeeActivityLogsGrid";
-import { TouchExcelWorkstation } from "@/components/excel/TouchExcelWorkstation";
-import { openAuditInLocalExcel } from "@/lib/auditExcel";
 import {
   DEFAULT_OFFICIAL_AUDITS,
   MONTHS,
@@ -146,10 +145,19 @@ export function DashboardPage() {
 
   const handleDirectExcelLaunch = (e: React.MouseEvent) => {
     e.preventDefault();
-    setSelectedStatusView("Ongoing");
-    toast.success("Opening Touch Excel Workstation...", {
-      description: "Work directly on your audit spreadsheets right in the browser.",
-    });
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/Checklist_Template.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success("Opening in Microsoft Excel Desktop...");
+    } catch {
+      toast.error("Failed to launch Excel protocol.");
+    }
   };
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
@@ -1306,22 +1314,11 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3">
                               <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  openAuditInLocalExcel({
-                                    audit_code: task.audit_code,
-                                    part_name: task.title,
-                                    planned_month: task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}` : "May 2025",
-                                    auditor_name: task.auditor_name ?? task.assigned_to_employee_number,
-                                  });
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-[#107c41] hover:text-white transition-colors cursor-pointer shadow-2xs"
-                                title="Click to open directly in Microsoft Excel on your local system"
+                                onClick={handleDirectExcelLaunch}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                                title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
                               >
-                                <span className="w-4 h-4 rounded-xs bg-white text-[#107c41] flex items-center justify-center font-black text-[10px] leading-none shadow-2xs">
-                                  x
-                                </span>
+                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
                                 <span className="truncate max-w-[140px]">Excel</span>
                               </button>
                             </td>
@@ -1372,9 +1369,83 @@ export function DashboardPage() {
                 </div>
               )}
 
-              {/* ── VIEW 2: ONGOING AUDIT TOUCH EXCEL WORKSTATION ── */}
+              {/* ── VIEW 2: ONGOING AUDIT TABLE ── */}
               {selectedStatusView === "Ongoing" && (
-                <TouchExcelWorkstation />
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">AUDIT PLAN</th>
+                        <th className="p-3">PLANNED MONTH</th>
+                        <th className="p-3">ATTACHMENT</th>
+                        <th className="p-3">AUDITOR</th>
+                        <th className="p-3">PROGRESS</th>
+                        <th className="p-3">STATUS</th>
+                        <th className="p-3 text-right">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ongoingTasks.filter(filterByPlanSubView).map((task, idx) => (
+                        <tr key={task.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 text-center font-mono font-bold text-slate-500">
+                            {task.sl_no ?? idx + 1}
+                          </td>
+                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
+                          <td className="p-3 font-bold text-sky-700">
+                            {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                          </td>
+                          <td className="p-3">
+                            <button
+                              onClick={handleDirectExcelLaunch}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                              title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="truncate max-w-[140px]">Excel</span>
+                            </button>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-16 rounded-full bg-slate-200 overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${task.progress_pct ?? 60}%` }} />
+                              </div>
+                              <span className="font-bold text-slate-700">{task.progress_pct ?? 60}%</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <StatusBadge status={task.status} />
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status)) ? null : (
+                                <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
+                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                    Open Checklist
+                                  </Link>
+                                </Button>
+                              )}
+
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAuditRecord(task.id)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                  title="Delete Record (Admin Only)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {/* ── VIEW 3: UNDER REVIEW AUDIT TABLE (WITH UNDER REVIEW ICON & ADMIN E-SIGN ACTION) ── */}

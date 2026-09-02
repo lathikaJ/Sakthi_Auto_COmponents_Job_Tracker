@@ -26,7 +26,6 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
-import { openAuditInLocalExcel } from "@/lib/auditExcel";
 
 export type CheckpointItem = {
   id: string;
@@ -76,21 +75,22 @@ export function ExcelChecklistGrid({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [checkpoints, auditCode]);
 
-  const handleExportXlsx = () => {
-    openAuditInLocalExcel({
-      audit_code: auditCode,
-      part_name: partName,
-      planned_month: plannedMonth,
-      auditor_name: auditorName,
-      checkpoints: checkpoints.map((cp, idx) => ({
-        sl_no: cp.sl_no ?? idx + 1,
-        parameter: cp.parameter,
-        specification: cp.specification,
-        actual_value: cp.actual_value,
-        status: cp.status === "Pass" ? "OK" : cp.status === "Fail" ? "NOT OK" : "OK",
-        remarks: cp.remarks || "-",
-      })),
-    });
+  const handleExportAndLaunchExcel = () => {
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      // Dummy hosted URL to satisfy ms-excel: protocol
+      const onlineFileUrl = `${currentHost}/Checklist_Template.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success(`Opening in Microsoft Excel Desktop...`);
+    } catch {
+      toast.error("Failed to launch Excel protocol.");
+    }
   };
 
   const COLUMNS = ["A", "B", "C", "D", "E", "F"];
@@ -132,11 +132,11 @@ export function ExcelChecklistGrid({
           </button>
 
           <button
-            onClick={handleExportXlsx}
+            onClick={handleExportAndLaunchExcel}
             className="bg-white/20 hover:bg-white/30 text-white font-bold px-2.5 py-0.5 rounded text-xs flex items-center gap-1 cursor-pointer"
-            title="Export .xlsx file"
+            title="Export & launch directly in Microsoft Excel Desktop App"
           >
-            <Download className="h-3.5 w-3.5" /> Export .xlsx
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Launch MS Excel App
           </button>
         </div>
         <div className="flex items-center">

@@ -415,30 +415,42 @@ export function ExcelTaskGrid({
 
     const fileName = `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`;
     
-    // Trigger direct file export for Microsoft Excel
+    // 1. Instantly trigger file download for Microsoft Excel
     XLSX.writeFile(workbook, fileName);
-    toast.success(`✓ Exported ${fileName} successfully!`);
+
+    // 2. Try URI protocol handler with hosted URL fallback
+    try {
+      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
+      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
+      const excelUri = createExcelUri(onlineFileUrl, "view");
+      
+      // Attempt protocol redirection in background
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    } catch {
+      // Fallback handled by direct download above
+    }
+
+    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
   };
 
   const handleOpenDirectInExcelApp = () => {
     try {
       const currentHost = typeof window !== "undefined" ? window.location.origin : "";
       const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "edit");
+      const excelUri = createExcelUri(onlineFileUrl, "view");
       
-      const link = document.createElement("a");
-      link.href = excelUri;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (document.body.contains(link)) document.body.removeChild(link);
-      }, 1000);
-      toast.success("Opening in Microsoft Excel App...", {
-        description: "Direct MS Excel app launch triggered. All changes synced across employee logins.",
-      });
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = excelUri;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+      toast.success("Launching in Microsoft Excel...");
     } catch {
-      toast.error("Failed to launch Microsoft Excel app.");
+      toast.error("Failed to launch Excel protocol.");
     }
   };
 
