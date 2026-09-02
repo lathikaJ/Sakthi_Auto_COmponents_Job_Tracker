@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/hooks/useAuth";
 import { recordSubmittedAudit } from "@/lib/submittedAudits";
+import { openAuditInLocalExcel } from "@/lib/auditExcel";
 
 export interface AuditRecordItem {
   id: string;
@@ -649,13 +650,20 @@ export function TouchExcelWorkstation({
                               e.stopPropagation();
                               setSelectedAuditId(item.id);
                               if (onSelectAudit) onSelectAudit(item);
+                              openAuditInLocalExcel({
+                                audit_code: item.audit_code,
+                                part_name: item.part_name,
+                                planned_month: item.planned_month,
+                                auditor_name: item.auditor_name,
+                                checkpoints: item.checkpoints,
+                              });
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[11px] font-bold shadow-2xs transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-[#107c41] text-white border-[#0e6b37] ring-2 ring-[#107c41]/30"
                                 : "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-[#107c41] hover:text-white"
                             }`}
-                            title="Touch Excel File to work directly"
+                            title="Open directly in Microsoft Excel on your local system"
                           >
                             <span className="w-4 h-4 rounded-xs bg-white text-[#107c41] flex items-center justify-center font-black text-[10px] leading-none shadow-2xs">
                               x

@@ -44,6 +44,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { JobReviewTab } from "@/components/admin/JobReviewTab";
 import { EmployeeActivityLogsGrid } from "@/components/admin/EmployeeActivityLogsGrid";
 import { TouchExcelWorkstation } from "@/components/excel/TouchExcelWorkstation";
+import { openAuditInLocalExcel } from "@/lib/auditExcel";
 import {
   DEFAULT_OFFICIAL_AUDITS,
   MONTHS,
@@ -1305,11 +1306,22 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3">
                               <button
-                                onClick={handleDirectExcelLaunch}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                                title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  openAuditInLocalExcel({
+                                    audit_code: task.audit_code,
+                                    part_name: task.title,
+                                    planned_month: task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}` : "May 2025",
+                                    auditor_name: task.auditor_name ?? task.assigned_to_employee_number,
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-[#107c41] hover:text-white transition-colors cursor-pointer shadow-2xs"
+                                title="Click to open directly in Microsoft Excel on your local system"
                               >
-                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="w-4 h-4 rounded-xs bg-white text-[#107c41] flex items-center justify-center font-black text-[10px] leading-none shadow-2xs">
+                                  x
+                                </span>
                                 <span className="truncate max-w-[140px]">Excel</span>
                               </button>
                             </td>

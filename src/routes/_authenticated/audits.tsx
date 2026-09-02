@@ -40,8 +40,8 @@ export const Route = createFileRoute("/_authenticated/audits")({
 });
 
 import { useAuth } from "@/hooks/useAuth";
-
 import { TouchExcelWorkstation } from "@/components/excel/TouchExcelWorkstation";
+import { openAuditInLocalExcel } from "@/lib/auditExcel";
 
 function AuditsPage() {
   const { filter } = Route.useSearch();
@@ -169,6 +169,7 @@ function AuditsPage() {
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Area</th>
+              <th className="px-4 py-3 text-center">Attachment</th>
               <th className="px-4 py-3">Auditor</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Status</th>
@@ -191,6 +192,27 @@ function AuditsPage() {
                 <td className="px-4 py-3">{r.title}</td>
                 <td className="px-4 py-3 text-muted-foreground">{r.audit_type}</td>
                 <td className="px-4 py-3 text-muted-foreground">{r.area}</td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openAuditInLocalExcel({
+                        audit_code: r.audit_code,
+                        part_name: r.title,
+                        planned_month: r.due_date ? `Month ${r.month ?? 5}` : "May 2025",
+                        auditor_name: r.assigned_to_employee_number,
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-[11px] font-bold text-emerald-800 hover:bg-[#107c41] hover:text-white transition-colors cursor-pointer shadow-2xs"
+                    title="Open directly in Microsoft Excel on your local system"
+                  >
+                    <span className="w-3.5 h-3.5 rounded-xs bg-white text-[#107c41] flex items-center justify-center font-black text-[9px] leading-none shadow-2xs">
+                      x
+                    </span>
+                    <span>Excel</span>
+                  </button>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {r.assigned_to_employee_number}
                 </td>
@@ -202,7 +224,7 @@ function AuditsPage() {
             ))}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                   No audits match this filter.
                 </td>
               </tr>
