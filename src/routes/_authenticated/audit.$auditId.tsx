@@ -50,7 +50,8 @@ type CheckpointItem = {
 };
 
 function AuditFormPage() {
-  const { auditId } = useParams({ from: Route.id });
+  const params = useParams({ strict: false }) as any;
+  const auditId = params?.auditId || "aud-msil-01";
   const navigate = useNavigate();
   const { profile, isAdmin } = useAuth();
 
@@ -596,7 +597,7 @@ function AuditFormPage() {
     navigate({ to: "/deviations" });
   };
 
-  const failedCheckpoints = checkpoints.filter((cp) => cp.status === "Fail");
+  const failedCheckpoints = (checkpoints || []).filter((cp) => cp && cp.status === "Fail");
 
   return (
     <AppShell

@@ -33,54 +33,54 @@ export type CheckpointItem = {
 };
 
 interface ExcelChecklistGridProps {
-  auditCode: string;
-  customer: string;
-  setCustomer: (val: string) => void;
-  partName: string;
-  setPartName: (val: string) => void;
-  partNo: string;
-  setPartNo: (val: string) => void;
-  revNo: string;
-  setRevNo: (val: string) => void;
-  dateCode: string;
-  setDateCode: (val: string) => void;
-  traceability: string;
-  setTraceability: (val: string) => void;
-  auditorName: string;
+  auditCode?: string;
+  customer?: string;
+  setCustomer?: (val: string) => void;
+  partName?: string;
+  setPartName?: (val: string) => void;
+  partNo?: string;
+  setPartNo?: (val: string) => void;
+  revNo?: string;
+  setRevNo?: (val: string) => void;
+  dateCode?: string;
+  setDateCode?: (val: string) => void;
+  traceability?: string;
+  setTraceability?: (val: string) => void;
+  auditorName?: string;
   auditorEmpNumber?: string;
-  checkpoints: CheckpointItem[];
-  onUpdateCheckpoint: (
+  checkpoints?: CheckpointItem[];
+  onUpdateCheckpoint?: (
     id: string,
     field: string,
     value: string
   ) => void;
-  onAddCheckpoint: () => void;
-  onDeleteCheckpoint: (id: string) => void;
+  onAddCheckpoint?: () => void;
+  onDeleteCheckpoint?: (id: string) => void;
   onImportCheckpoints?: (newCheckpoints: CheckpointItem[]) => void;
   onSaveToCloud?: () => void;
   isSaving?: boolean;
 }
 
 export function ExcelChecklistGrid({
-  auditCode,
+  auditCode = "AUD-MSIL-01",
   customer = "MSIL",
-  setCustomer,
+  setCustomer = () => {},
   partName = "KNUCKLE STEERING R/L - YTA / YTB",
-  setPartName,
+  setPartName = () => {},
   partNo = "45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)",
-  setPartNo,
+  setPartNo = () => {},
   revNo = "A",
-  setRevNo,
+  setRevNo = () => {},
   dateCode = "02 Sep 2026",
-  setDateCode,
+  setDateCode = () => {},
   traceability = "OP-01 / OP-02B",
-  setTraceability,
-  auditorName,
+  setTraceability = () => {},
+  auditorName = "KARTHIKEYAN C",
   auditorEmpNumber = "690867",
-  checkpoints,
-  onUpdateCheckpoint,
-  onAddCheckpoint,
-  onDeleteCheckpoint,
+  checkpoints = [],
+  onUpdateCheckpoint = () => {},
+  onAddCheckpoint = () => {},
+  onDeleteCheckpoint = () => {},
   onImportCheckpoints,
   onSaveToCloud,
   isSaving = false,
@@ -88,6 +88,8 @@ export function ExcelChecklistGrid({
   const [activeCell, setActiveCell] = useState<string>("E8");
   const [activeCellValue, setActiveCellValue] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const safeCheckpoints = Array.isArray(checkpoints) ? checkpoints : [];
 
   // Keyboard shortcut Ctrl+S inside Excel Grid
   useEffect(() => {
@@ -99,30 +101,33 @@ export function ExcelChecklistGrid({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [checkpoints, customer, partName, partNo, revNo, dateCode, traceability, onSaveToCloud]);
+  }, [safeCheckpoints, customer, partName, partNo, revNo, dateCode, traceability, onSaveToCloud]);
 
   const handleSaveSync = () => {
     if (onSaveToCloud) {
       onSaveToCloud();
     } else {
-      toast.success(`Saved & synced ${auditCode} across all employee accounts!`);
+      toast.success("Saved & synced " + auditCode + " across all employee accounts!");
     }
   };
 
   // Generate the EXACT official Sakthi Auto Excel file matching the PDF layout 100%
   const generateOfficialExcelWorkbook = () => {
-    const todayDate = format(new Date(), "dd.MM.yyyy");
+    let todayDate = "02.09.2026";
+    try {
+      todayDate = format(new Date(), "dd.MM.yyyy");
+    } catch (_) {}
 
     const wsData: any[][] = [
       // Row 1: Top Brand & Title Bar
       ["SAKTHI AUTO", "", "", "AUDIT INSPECTION CHECK LIST CUM REPORT", "", "", "", "", "", "PAGE : 1 OF 10", ""],
-      ["", "", "", "(MACHINING)", "", "", "", "", "", `DATE : ${todayDate}`, ""],
+      ["", "", "", "(MACHINING)", "", "", "", "", "", "DATE : " + todayDate, ""],
       // Row 3: Customer
-      ["CUSTOMER", `: ${customer || "MSIL"}`, "", "", "", "", "", "", `DATE CODE : ${dateCode || "02 Sep 2026"}`, "", ""],
+      ["CUSTOMER", ": " + (customer || "MSIL"), "", "", "", "", "", "", "DATE CODE : " + (dateCode || "02 Sep 2026"), "", ""],
       // Row 4: Part Name
-      ["PART NAME", `: ${partName || "KNUCKLE STEERING R/L - YTA / YTB"}`, "", "", "", "", "", "", `MACHINING TRACEABILITY : ${traceability || "OP-01 / OP-02B"}`, "", ""],
+      ["PART NAME", ": " + (partName || "KNUCKLE STEERING R/L - YTA / YTB"), "", "", "", "", "", "", "MACHINING TRACEABILITY : " + (traceability || "OP-01 / OP-02B"), "", ""],
       // Row 5: Part No & Rev
-      ["PART NO.", `${partNo || "45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)"}`, "", "", "", "", "", `(${revNo || "A"})`, `AUDITOR : ${auditorName} (#${auditorEmpNumber})`, "", ""],
+      ["PART NO.", (partNo || "45111 M 55TA0 / 45151 M 55TA0 (ABS - NOPAINT)"), "", "", "", "", "", "(" + (revNo || "A") + ")", "AUDITOR : " + auditorName + " (#" + auditorEmpNumber + ")", "", ""],
       // Row 6: Empty spacer
       ["", "", "", "", "", "", "", "", "", "", ""],
       // Row 7: Main Table Column Header (Level 1)
@@ -133,8 +138,7 @@ export function ExcelChecklistGrid({
 
     // Data rows
     let currentSection = "";
-    checkpoints.forEach((cp, idx) => {
-      // If checkpoint has section header (e.g. OP - 010 : RECEIVING INSPECTION ROUGH CASTING)
+    safeCheckpoints.forEach((cp, idx) => {
       if (cp.section && cp.section !== currentSection) {
         currentSection = cp.section;
         wsData.push([currentSection, "", "", "", "", "", "", "", "", "", "", ""]);
@@ -145,8 +149,8 @@ export function ExcelChecklistGrid({
 
       wsData.push([
         cp.sl_no || idx + 1,
-        cp.parameter,
-        cp.specification,
+        cp.parameter || "",
+        cp.specification || "",
         cp.check_method || "Visual",
         cp.obs_1_lh || cp.actual_value || (isOk ? "✓" : ""),
         cp.obs_2_lh || (isOk ? "✓" : ""),
@@ -167,7 +171,6 @@ export function ExcelChecklistGrid({
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Precise column widths matching the PDF layout
     ws["!cols"] = [
       { wch: 8 },  // SL. NO.
       { wch: 36 }, // CHARACTERISTICS
@@ -184,42 +187,37 @@ export function ExcelChecklistGrid({
       { wch: 22 }, // REMARKS
     ];
 
-    // Merges for header boxes
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 1, c: 2 } }, // SAKTHI AUTO Logo box
-      { s: { r: 0, c: 3 }, e: { r: 0, c: 8 } }, // Title line 1
-      { s: { r: 1, c: 3 }, e: { r: 1, c: 8 } }, // Title line 2 (MACHINING)
-      { s: { r: 6, c: 4 }, e: { r: 6, c: 9 } }, // OBSERVATION merged across 6 sub-columns
-      { s: { r: 6, c: 0 }, e: { r: 7, c: 0 } }, // SL. NO.
-      { s: { r: 6, c: 1 }, e: { r: 7, c: 1 } }, // CHARACTERISTICS
-      { s: { r: 6, c: 2 }, e: { r: 7, c: 2 } }, // SPECIFICATION
-      { s: { r: 6, c: 3 }, e: { r: 7, c: 3 } }, // CHECK METHOD
-      { s: { r: 6, c: 10 }, e: { r: 7, c: 10 } }, // OK
-      { s: { r: 6, c: 11 }, e: { r: 7, c: 11 } }, // NOT OK
-      { s: { r: 6, c: 12 }, e: { r: 7, c: 12 } }, // REMARKS
+      { s: { r: 0, c: 0 }, e: { r: 1, c: 2 } },
+      { s: { r: 0, c: 3 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 3 }, e: { r: 1, c: 8 } },
+      { s: { r: 6, c: 4 }, e: { r: 6, c: 9 } },
+      { s: { r: 6, c: 0 }, e: { r: 7, c: 0 } },
+      { s: { r: 6, c: 1 }, e: { r: 7, c: 1 } },
+      { s: { r: 6, c: 2 }, e: { r: 7, c: 2 } },
+      { s: { r: 6, c: 3 }, e: { r: 7, c: 3 } },
+      { s: { r: 6, c: 10 }, e: { r: 7, c: 10 } },
+      { s: { r: 6, c: 11 }, e: { r: 7, c: 11 } },
+      { s: { r: 6, c: 12 }, e: { r: 7, c: 12 } },
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Audit Inspection");
     return wb;
   };
 
-  // Launch directly in Local MS Excel Desktop App
   const handleOpenInLocalMSExcel = () => {
     try {
       const wb = generateOfficialExcelWorkbook();
-      const fileName = `${auditCode}_${(partName || "Audit_Inspection").replace(/[^a-zA-Z0-9]/g, "_")}.xlsx`;
-      
+      const fileName = auditCode + "_" + ((partName || "Audit_Inspection").replace(/[^a-zA-Z0-9]/g, "_")) + ".xlsx";
       XLSX.writeFile(wb, fileName);
-      
-      toast.success(`Opening ${fileName} in Microsoft Excel Desktop...`, {
+      toast.success("Opening " + fileName + " in Microsoft Excel Desktop...", {
         description: "Exact Sakthi Auto QF/08/CQA-09 format with multi-column observation samples.",
       });
-    } catch (err) {
+    } catch (_) {
       toast.error("Failed to generate Excel file.");
     }
   };
 
-  // Import external Excel File (.xlsx)
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -254,7 +252,7 @@ export function ExcelChecklistGrid({
         const dataRows = rows.slice(headerRowIdx + 1).filter((r) => r.length > 0 && r.some((c) => c !== undefined && c !== ""));
 
         const parsedCheckpoints: CheckpointItem[] = dataRows.map((r, idx) => {
-          const param = String(r[1] || r[0] || `Checkpoint ${idx + 1}`);
+          const param = String(r[1] || r[0] || ("Checkpoint " + (idx + 1)));
           const spec = String(r[2] || "As per drawing");
           const method = String(r[3] || "Visual");
           const obs1 = String(r[4] || "");
@@ -263,7 +261,7 @@ export function ExcelChecklistGrid({
           const remarks = String(r[12] || r[6] || "OK");
 
           return {
-            id: `cp-import-${Date.now()}-${idx}`,
+            id: "cp-import-" + Date.now() + "-" + idx,
             sl_no: idx + 1,
             parameter: param,
             specification: spec,
@@ -279,7 +277,7 @@ export function ExcelChecklistGrid({
           if (onImportCheckpoints) {
             onImportCheckpoints(parsedCheckpoints);
           }
-          toast.success(`Successfully imported ${parsedCheckpoints.length} inspection rows from Excel!`);
+          toast.success("Successfully imported " + parsedCheckpoints.length + " inspection rows from Excel!");
         } else {
           toast.error("Could not detect checkpoint items in the uploaded Excel.");
         }
@@ -290,6 +288,11 @@ export function ExcelChecklistGrid({
     reader.readAsBinaryString(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  let displayDate = "02.09.2026";
+  try {
+    displayDate = format(new Date(), "dd.MM.yyyy");
+  } catch (_) {}
 
   return (
     <div className="flex flex-col w-full bg-[#f3f2f1] font-sans text-[12px] border-2 border-emerald-700 shadow-xl rounded-xl overflow-hidden">
@@ -421,7 +424,7 @@ export function ExcelChecklistGrid({
                 </div>
                 <div className="flex justify-between pt-1">
                   <span className="text-slate-500 font-bold font-sans text-[11px]">DATE :</span>
-                  <span className="text-slate-900 font-bold">{format(new Date(), "dd.MM.yyyy")}</span>
+                  <span className="text-slate-900 font-bold">{displayDate}</span>
                 </div>
               </div>
             </div>
@@ -532,12 +535,11 @@ export function ExcelChecklistGrid({
               </tr>
             </thead>
             <tbody>
-              {checkpoints.map((cp, idx) => {
+              {safeCheckpoints.map((cp, idx) => {
                 const isFail = cp.status === "Fail";
 
                 return (
                   <React.Fragment key={cp.id}>
-                    {/* Section banner (if row has group label) */}
                     {cp.section && (
                       <tr className="bg-slate-200 font-black text-slate-900 border-b-2 border-slate-900">
                         <td colSpan={14} className="px-3 py-1.5 text-xs font-black tracking-wider uppercase">
@@ -560,7 +562,7 @@ export function ExcelChecklistGrid({
                       <td className="border-r border-slate-300 p-1 font-bold text-slate-950">
                         <textarea
                           rows={2}
-                          value={cp.parameter}
+                          value={cp.parameter || ""}
                           onChange={(e) => onUpdateCheckpoint(cp.id, "parameter", e.target.value)}
                           className="w-full resize-none font-bold text-slate-950 outline-none bg-transparent text-xs p-1 focus:bg-white focus:ring-1 focus:ring-emerald-600 rounded"
                         />
@@ -570,7 +572,7 @@ export function ExcelChecklistGrid({
                       <td className="border-r border-slate-300 p-1 font-mono text-[11px] text-slate-800">
                         <textarea
                           rows={2}
-                          value={cp.specification}
+                          value={cp.specification || ""}
                           onChange={(e) => onUpdateCheckpoint(cp.id, "specification", e.target.value)}
                           className="w-full resize-none font-mono text-slate-900 outline-none bg-transparent text-[11px] p-1 focus:bg-white focus:ring-1 focus:ring-emerald-600 rounded"
                         />
@@ -723,9 +725,9 @@ export function ExcelChecklistGrid({
           <span className="font-bold text-slate-800 flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500"></span> Ready
           </span>
-          <span className="text-slate-500">Checkpoints: <strong className="text-slate-800">{checkpoints.length}</strong></span>
+          <span className="text-slate-500">Checkpoints: <strong className="text-slate-800">{safeCheckpoints.length}</strong></span>
           <span className="text-rose-600 font-bold">
-            Failed: {checkpoints.filter((c) => c.status === "Fail").length}
+            Failed: {safeCheckpoints.filter((c) => c.status === "Fail").length}
           </span>
         </div>
 
