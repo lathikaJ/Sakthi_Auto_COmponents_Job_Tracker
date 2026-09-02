@@ -75,21 +75,31 @@ export function ExcelChecklistGrid({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [checkpoints, auditCode]);
 
-  const handleExportAndLaunchExcel = () => {
+  const handleExportXlsx = () => {
     try {
-      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      // Dummy hosted URL to satisfy ms-excel: protocol
-      const onlineFileUrl = `${currentHost}/Checklist_Template.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "view");
-      
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = excelUri;
-      document.body.appendChild(iframe);
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-      toast.success(`Opening in Microsoft Excel Desktop...`);
+      const exportData = [
+        ["AUDIT CHECKLIST"],
+        ["Audit Plan No :", auditCode, "", "Planned Month :", plannedMonth],
+        ["Part Name :", partName, "", "Auditor Name :", auditorName],
+        [],
+        ["S.No", "Check Points", "Specification", "Observed Value", "Status", "Remarks"],
+        ...checkpoints.map((cp, idx) => [
+          cp.sl_no ?? idx + 1,
+          cp.parameter,
+          cp.specification,
+          cp.actual_value,
+          cp.status === "Pass" ? "OK" : cp.status === "Fail" ? "NOT OK" : "-",
+          cp.remarks || "",
+        ]),
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Audit Checklist");
+      XLSX.writeFile(wb, `${auditCode}_${partName}_Audit.xlsx`);
+      toast.success(`Exported ${auditCode}_${partName}_Audit.xlsx`);
     } catch {
-      toast.error("Failed to launch Excel protocol.");
+      toast.error("Failed to export Excel file.");
     }
   };
 
@@ -132,11 +142,11 @@ export function ExcelChecklistGrid({
           </button>
 
           <button
-            onClick={handleExportAndLaunchExcel}
+            onClick={handleExportXlsx}
             className="bg-white/20 hover:bg-white/30 text-white font-bold px-2.5 py-0.5 rounded text-xs flex items-center gap-1 cursor-pointer"
-            title="Export & launch directly in Microsoft Excel Desktop App"
+            title="Export .xlsx file"
           >
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Launch MS Excel App
+            <Download className="h-3.5 w-3.5" /> Export .xlsx
           </button>
         </div>
         <div className="flex items-center">

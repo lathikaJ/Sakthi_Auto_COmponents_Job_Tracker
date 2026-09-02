@@ -41,9 +41,12 @@ export const Route = createFileRoute("/_authenticated/audits")({
 
 import { useAuth } from "@/hooks/useAuth";
 
+import { TouchExcelWorkstation } from "@/components/excel/TouchExcelWorkstation";
+
 function AuditsPage() {
   const { filter } = Route.useSearch();
   const { isAdmin } = useAuth();
+  const [viewMode, setViewMode] = useState<"workstation" | "table">("workstation");
 
   const { data = [] } = useQuery({
     queryKey: ["assignments"],
@@ -91,47 +94,72 @@ function AuditsPage() {
 
   return (
     <AppShell
-      title="Audit Register"
-      description="Every planned, active and completed audit in the current programme."
+      title="Audit Register & Excel Workstation"
+      description="Touch any Excel audit file to start working immediately."
     >
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-emerald-900 text-white p-3.5 rounded-xl shadow-sm border border-emerald-700">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-emerald-800 text-white font-bold">
-            📊
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-[#0c2340] text-white p-4 rounded-2xl shadow-sm border border-slate-700">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#107c41] text-white font-black text-sm shadow-sm">
+            X
           </div>
           <div>
-            <h4 className="text-sm font-extrabold text-white">All Audits — Microsoft Excel (.xlsx) Register</h4>
-            <p className="text-xs text-emerald-200">View, assign tasks, or redirect to MS Excel Desktop to manage plant audits.</p>
+            <h4 className="text-sm font-extrabold text-white">Touch Excel File → Work Directly on That File</h4>
+            <p className="text-xs text-sky-200">Tap the Excel file and start working immediately without launching external software.</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex bg-slate-900/60 p-1 rounded-lg border border-slate-700 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode("workstation")}
+              className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                viewMode === "workstation" ? "bg-sky-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Touch Excel Workstation
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                viewMode === "table" ? "bg-sky-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Classic Register Table
+            </button>
+          </div>
+
           <Link
             to="/assignments"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg text-xs font-black shadow-xs transition-colors"
           >
-            📋 Open Excel Assignment Matrix
+            📋 Matrix View
           </Link>
         </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <Link
-            key={f.key}
-            to="/audits"
-            search={{ filter: f.key }}
-            className={cn(
-              "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
-              filter === f.key
-                ? "border-brand bg-brand text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:border-brand hover:text-brand",
-            )}
-          >
-            {f.label}
-          </Link>
-        ))}
-      </div>
+      {viewMode === "workstation" ? (
+        <TouchExcelWorkstation />
+      ) : (
+        <>
+          <div className="mb-5 flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <Link
+                key={f.key}
+                to="/audits"
+                search={{ filter: f.key }}
+                className={cn(
+                  "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                  filter === f.key
+                    ? "border-brand bg-brand text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-brand hover:text-brand",
+                )}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </div>
 
       <div className="card-elevated overflow-x-auto">
         <table className="w-full text-sm">
@@ -182,6 +210,8 @@ function AuditsPage() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </AppShell>
   );
 }

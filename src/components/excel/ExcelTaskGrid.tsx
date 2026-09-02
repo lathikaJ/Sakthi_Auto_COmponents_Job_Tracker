@@ -415,43 +415,13 @@ export function ExcelTaskGrid({
 
     const fileName = `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`;
     
-    // 1. Instantly trigger file download for Microsoft Excel
+    // Trigger direct file export for Microsoft Excel
     XLSX.writeFile(workbook, fileName);
-
-    // 2. Try URI protocol handler with hosted URL fallback
-    try {
-      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "view");
-      
-      // Attempt protocol redirection in background
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = excelUri;
-      document.body.appendChild(iframe);
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    } catch {
-      // Fallback handled by direct download above
-    }
-
-    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
+    toast.success(`✓ Exported ${fileName} successfully!`);
   };
 
   const handleOpenDirectInExcelApp = () => {
-    try {
-      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "view");
-      
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = excelUri;
-      document.body.appendChild(iframe);
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-      toast.success("Launching in Microsoft Excel...");
-    } catch {
-      toast.error("Failed to launch Excel protocol.");
-    }
+    handleExportExcel();
   };
 
 
