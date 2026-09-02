@@ -207,32 +207,19 @@ export function ExcelChecklistGrid({
 
   const handleOpenInLocalMSExcel = () => {
     try {
-      const wb = generateOfficialExcelWorkbook();
-      const fileName = auditCode + "_" + ((partName || "Audit_Inspection").replace(/[^a-zA-Z0-9]/g, "_")) + ".xlsx";
-      
-      // 1. Generate and save the formatted .xlsx file
-      XLSX.writeFile(wb, fileName);
-
-      // 2. Trigger MS Excel Desktop URI Protocol Handler
       if (typeof window !== "undefined") {
         const origin = window.location.origin;
-        const excelProtocolUri = "ms-excel:ofe|u|" + origin + "/Checklist_Template.xlsx";
-        
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = excelProtocolUri;
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-          if (document.body.contains(iframe)) document.body.removeChild(iframe);
-        }, 2000);
+        // ofv = Open for View/Local Edit mode (opens directly in desktop Excel without download or WebDAV lock error)
+        const excelProtocolUri = "ms-excel:ofv|u|" + origin + "/Checklist_Template.xlsx";
+        window.location.href = excelProtocolUri;
       }
 
-      toast.success("Opening " + fileName + " in Microsoft Excel Desktop...", {
-        description: "Click the downloaded file or accept the browser prompt to launch desktop Excel.",
-        duration: 5000,
+      toast.success("Opening in Microsoft Excel Desktop App...", {
+        description: "Official Sakthi Auto checklist launched directly in local MS Excel.",
+        duration: 4000,
       });
     } catch (_) {
-      toast.error("Failed to generate Excel file.");
+      toast.error("Failed to launch Microsoft Excel.");
     }
   };
 
