@@ -716,348 +716,81 @@ function AuditFormPage() {
         {/* ── STEP 1 CONTENT: CHECKPOINTS & MEASUREMENTS (OFFICIAL REPORT FORMAT) ── */}
         {currentStep === 1 && (
           <div className="space-y-5 animate-in fade-in duration-200">
-            {/* Official Sakthi Auto Report Header (Matching PDF Layout) */}
-            <div className="rounded-xl border border-slate-300 bg-white p-5 shadow-xs space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-600">
-                    <Package className="h-6 w-6" />
+            {/* Unified Single Excel Sheet: Header Report + Quality Checkpoints Matrix */}
+            <ExcelChecklistGrid
+              auditCode={auditId || "AUD-01"}
+              customer={customer}
+              setCustomer={setCustomer}
+              partName={partName}
+              setPartName={setPartName}
+              partNo={partNo}
+              setPartNo={setPartNo}
+              revNo={revNo}
+              setRevNo={setRevNo}
+              dateCode={dateCode}
+              setDateCode={setDateCode}
+              traceability={traceability}
+              setTraceability={setTraceability}
+              auditorName={profile?.full_name || "SILAMBARASAN S"}
+              auditorEmpNumber={profile?.employee_number || "688079"}
+              checkpoints={checkpoints}
+              onUpdateCheckpoint={(id, field, value) => {
+                setCheckpoints((prev) =>
+                  prev.map((cp) => (cp.id === id ? { ...cp, [field]: value } : cp))
+                );
+              }}
+              onAddCheckpoint={addCheckpointRow}
+              onDeleteCheckpoint={deleteCheckpointRow}
+              onImportCheckpoints={(newCps) => setCheckpoints(newCps)}
+              onSaveToCloud={handleSaveDraft}
+              isSaving={isSavingDraft}
+            />
+
+            {/* Failed Checkpoint Alert Banner */}
+            {failedCheckpoints.length > 0 && (
+              <div className="rounded-xl border-2 border-rose-300 bg-rose-50 p-4 shadow-xs">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-bold text-rose-800">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {failedCheckpoints.length} Checkpoint{failedCheckpoints.length > 1 ? "s" : ""} Failed — Deviation Required
+                    </div>
+                    <ul className="ml-6 list-disc space-y-0.5">
+                      {failedCheckpoints.map((cp) => (
+                        <li key={cp.id} className="text-xs font-semibold text-rose-700">
+                          <span className="font-bold">{cp.parameter || "Unnamed parameter"}</span>
+                          {cp.specification && <span className="text-rose-600"> · Spec: {cp.specification}</span>}
+                          {cp.actual_value && <span className="text-rose-600"> · Got: {cp.actual_value}</span>}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sakthi Auto Quality Assurance</span>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900">
-                      AUDIT INSPECTION CHECK LIST CUM REPORT (MACHINING)
-                    </h2>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="inline-block rounded-md bg-slate-100 px-3 py-1 font-mono text-xs font-bold text-slate-700 border border-slate-200">
-                    QF/08/CQA-09, Rev.No: 02 dt 12.06.2026
-                  </span>
-                  <p className="text-[10px] text-slate-500 font-medium mt-1">Audit Record ID: <strong className="font-mono text-slate-800">{auditId}</strong></p>
-                </div>
-              </div>
-
-              {/* Header Fields Grid (As in PDF Header) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    CUSTOMER
-                  </label>
-                  <input
-                    type="text"
-                    value={customer}
-                    onChange={(e) => setCustomer(e.target.value)}
-                    placeholder="e.g. MSIL / STELLANTIS"
-                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    PART NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={partName}
-                    onChange={(e) => setPartName(e.target.value)}
-                    placeholder="e.g. KNUCKLE STEERING R/L"
-                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    PART NO. & REV
-                  </label>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={partNo}
-                      onChange={(e) => setPartNo(e.target.value)}
-                      placeholder="e.g. 45111 M 55TA0"
-                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={revNo}
-                      onChange={(e) => setRevNo(e.target.value)}
-                      title="Revision Mark"
-                      className="w-12 text-center rounded-md border border-slate-300 bg-white px-1 py-1.5 text-xs font-mono font-black text-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    INSPECTOR / EMPLOYEE
-                  </label>
-                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 truncate">
-                    {profile?.full_name || "SILAMBARASAN S"} (#{profile?.employee_number || "688079"})
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    DATE CODE
-                  </label>
-                  <input
-                    type="text"
-                    value={dateCode}
-                    onChange={(e) => setDateCode(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    MACHINING TRACEABILITY
-                  </label>
-                  <input
-                    type="text"
-                    value={traceability}
-                    onChange={(e) => setTraceability(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    INSPECTION DATE
-                  </label>
-                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800">
-                    {format(new Date(), "dd MMM yyyy")}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    REPORT PAGE
-                  </label>
-                  <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 font-mono">
-                    PAGE 1 OF 1
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── QUALITY CHARACTERISTICS & INSPECTION CHECKPOINTS MATRIX ── */}
-            <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-white text-slate-900 shadow-md font-sans">
-              {/* Header Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#107c41] px-4 py-3 text-white shadow-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded bg-white/20 text-white font-black text-sm">
-                    <FileSpreadsheet className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-white tracking-wide flex items-center gap-2">
-                      Quality Characteristics & Inspection Checkpoints
-                      <span className="rounded bg-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-100 border border-emerald-600">
-                        ✓ MS EXCEL COMPATIBLE
-                      </span>
-                    </h3>
-                    <p className="text-[11px] text-emerald-100 font-medium">
-                      Official Sakthi Auto Inspection Parameters · Click 'Open / Download in MS Excel' to work in Microsoft Excel directly.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Direct Action Buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    size="sm"
+                  <button
                     type="button"
-                    onClick={addCheckpointRow}
-                    className="h-8 gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-600 cursor-pointer shadow-xs"
+                    onClick={handleRaiseDeviation}
+                    className="flex shrink-0 items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
                   >
-                    <Plus className="h-3.5 w-3.5" /> + Insert Row
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={() => checkpointFileInputRef.current?.click()}
-                    className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer shadow-xs"
-                    title="Upload & import Quality Characteristics from a Microsoft Excel file (.xlsx)"
-                  >
-                    <Upload className="h-3.5 w-3.5" /> Import MS Excel (.xlsx)
-                  </Button>
-                  <input
-                    type="file"
-                    ref={checkpointFileInputRef}
-                    onChange={handleCheckpointsFileUpload}
-                    accept=".xlsx, .xls, .csv"
-                    className="hidden"
-                  />
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={handleExportCheckpointsExcel}
-                    className="h-8 gap-1.5 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold border border-white cursor-pointer shadow-xs"
-                    title="Generate and download standard .xlsx file to open directly in Microsoft Excel"
-                  >
-                    <Download className="h-3.5 w-3.5 text-emerald-700" /> Open / Download in MS Excel (.xlsx)
-                  </Button>
+                    <AlertTriangle className="h-4 w-4" /> Raise Deviation for Failed Checkpoints
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* TABLE GRID */}
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs font-sans border border-slate-300 bg-white">
-                  <thead>
-                    {/* Official Inspection Column Header */}
-                    <tr className="border-b border-slate-300 bg-[#107c41] text-white font-mono text-[11px] uppercase tracking-wider">
-                      <th className="p-2.5 w-12 text-center border-r border-emerald-700">SL. NO.</th>
-                      <th className="p-2.5 min-w-[220px] border-r border-emerald-700">CHARACTERISTICS / PARAMETER</th>
-                      <th className="p-2.5 min-w-[200px] border-r border-emerald-700">SPECIFICATION</th>
-                      <th className="p-2.5 w-40 border-r border-emerald-700">CHECK METHOD</th>
-                      <th className="p-2.5 min-w-[180px] border-r border-emerald-700">OBSERVATION / VALUE</th>
-                      <th className="p-2.5 text-center w-36 border-r border-emerald-700">RESULT (OK / NOT OK)</th>
-                      <th className="p-2.5 w-36 border-r border-emerald-700">REMARKS</th>
-                      <th className="p-2.5 w-10 text-center"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-900 bg-white">
-                    {checkpoints.map((cp, idx) => (
-                      <tr key={cp.id} className="hover:bg-emerald-50/40 transition-colors">
-                        <td className="p-2 text-center font-mono font-bold text-slate-600 bg-slate-100 border-r border-slate-300">
-                          {idx + 1}
-                        </td>
-
-                        {/* CHARACTERISTICS / PARAMETER */}
-                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
-                          <textarea
-                            rows={2}
-                            value={cp.parameter}
-                            onChange={(e) => handleParamChange(cp.id, e.target.value)}
-                            placeholder="e.g. HARDNESS / MICROSTRUCTURE / APPEARANCE"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none"
-                          />
-                        </td>
-
-                        {/* SPECIFICATION */}
-                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
-                          <textarea
-                            rows={2}
-                            value={cp.specification}
-                            onChange={(e) => handleSpecChange(cp.id, e.target.value)}
-                            placeholder="e.g. 164 ~ 188 BHN / 500 MPa MIN"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none"
-                          />
-                        </td>
-
-                        {/* CHECK METHOD */}
-                        <td className="p-2 border-r border-slate-300">
-                          <input
-                            type="text"
-                            value={cp.check_method ?? "Visual"}
-                            onChange={(e) => handleCheckMethodChange(cp.id, e.target.value)}
-                            placeholder="e.g. Visual / Gauge / Hardness Tester"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-900 focus:border-emerald-600 focus:outline-none"
-                          />
-                        </td>
-
-                        {/* OBSERVATION / MEASURED VALUE */}
-                        <td className="p-2 border-r border-slate-300 focus-within:ring-2 focus-within:ring-emerald-600">
-                          <input
-                            type="text"
-                            value={cp.actual_value}
-                            onChange={(e) => handleValueChange(cp.id, e.target.value)}
-                            placeholder="e.g. 176 BHN / Conforms"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-bold text-slate-900 focus:border-emerald-600 focus:outline-none"
-                          />
-                        </td>
-
-                        {/* RESULT (OK / NOT OK) */}
-                        <td className="p-2 text-center border-r border-slate-300">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(cp.id, "Pass")}
-                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all cursor-pointer ${
-                                cp.status === "Pass"
-                                  ? "bg-emerald-600 text-white shadow-2xs ring-1 ring-emerald-700"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                              }`}
-                            >
-                              OK
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(cp.id, "Fail")}
-                              className={`rounded px-2.5 py-1 text-[11px] font-black transition-all cursor-pointer ${
-                                cp.status === "Fail"
-                                  ? "bg-rose-600 text-white shadow-2xs ring-1 ring-rose-700"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                              }`}
-                            >
-                              NOT OK
-                            </button>
-                          </div>
-                        </td>
-
-                        {/* REMARKS */}
-                        <td className="p-2 border-r border-slate-300">
-                          <input
-                            type="text"
-                            value={cp.remarks ?? ""}
-                            onChange={(e) => handleRemarksChange(cp.id, e.target.value)}
-                            placeholder="Remarks"
-                            className="w-full rounded border border-slate-300 bg-white p-1.5 text-xs font-medium text-slate-800 focus:border-emerald-600 focus:outline-none"
-                          />
-                        </td>
-
-                        {/* ACTIONS */}
-                        <td className="p-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => deleteCheckpointRow(cp.id)}
-                            className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Remove row"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {checkpoints.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400">
-                          No quality characteristics added yet. Click "+ Insert Checkpoint Row" or "Import MS Excel (.xlsx)" above.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            {/* Bottom Next Step Bar */}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <div className="text-xs text-slate-500 font-medium">
+                Step 1 of 3: Checkpoints filled & synced. Proceed to attach evidence photos.
               </div>
-
-              {/* Inspection Matrix Footer Bar */}
-              <div className="flex items-center justify-between bg-slate-100 px-4 py-2 border-t border-slate-300 text-[11px] font-mono text-slate-600 select-none">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                  READY · TOTAL CHECKPOINTS: <strong>{checkpoints.length}</strong>
-                </span>
-                <span>OFFICIAL SAKTHI AUTO QUALITY MATRIX · MS EXCEL COMPATIBLE</span>
-              </div>
-            </div>
-
-            {/* Next Button */}
-            <div className="flex justify-end">
               <Button
                 onClick={() => setCurrentStep(2)}
-                className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs"
+                className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-sm cursor-pointer"
               >
-                Next: Evidence Photos & Notes <ChevronRight className="h-4 w-4" />
+                Proceed to Step 2: Photos & Notes <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* ── STEP 2 CONTENT: NOTES & EVIDENCE PHOTOS ── */}
         {currentStep === 2 && (
           <div className="space-y-5 animate-in fade-in duration-200">
             {/* Inspector Notes */}
