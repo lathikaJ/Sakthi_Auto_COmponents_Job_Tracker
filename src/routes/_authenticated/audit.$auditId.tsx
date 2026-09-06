@@ -33,19 +33,29 @@ import { recordSubmittedAudit } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { ExportAuditModal } from "@/components/audit/ExportAuditModal";
+import { downloadAssignedAuditExcel } from "@/lib/auditExcelHelper";
+import { ArrowUpRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/audit/$auditId")({
   ssr: false,
   component: AuditFormPage,
 });
 
-type CheckpointItem = {
+export type CheckpointItem = {
   id: string;
   sl_no?: number | string;
+  section?: string;
   parameter: string;
   specification: string;
   check_method?: string;
-  actual_value: string;
+  obs_1_lh?: string;
+  obs_2_lh?: string;
+  obs_3_lh?: string;
+  obs_1_rh?: string;
+  obs_2_rh?: string;
+  obs_3_rh?: string;
+  actual_value?: string;
   status: "Pass" | "Fail" | "Pending";
   remarks?: string;
 };
@@ -65,6 +75,7 @@ function AuditFormPage() {
   const [traceability, setTraceability] = useState("OP-010 / OP-020");
   
   const [isExcelViewOpen, setIsExcelViewOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   // Wizard Step State: 1 = Checkpoints, 2 = Notes & Photos, 3 = E-Signature & Submit
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -648,16 +659,40 @@ function AuditFormPage() {
     >
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Top Back Bar */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Link
             to="/dashboard"
             className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
-          <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Ready
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => downloadAssignedAuditExcel({
+                id: auditId,
+                audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
+                title: partName || "Audit Inspection",
+                audit_type: "Product",
+                area: customer || "Machining",
+                assigned_to_employee_number: profile?.employee_number || "688079",
+              })}
+              className="h-8 text-xs font-semibold gap-1.5 border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <Download className="h-3.5 w-3.5 text-emerald-600" /> Download Excel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsExportModalOpen(true)}
+              className="h-8 text-xs font-bold gap-1.5 bg-brand hover:bg-brand-hover text-white shadow-xs"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" /> Export Result
+            </Button>
+            <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Ready
+            </span>
+          </div>
         </div>
 
         {/* Submitted Locked Banner for Non-Admin */}
@@ -1127,6 +1162,30 @@ function AuditFormPage() {
           </div>
         )}
       </div>
+
+      <ExportAuditModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        audit={{
+          id: auditId,
+          audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
+          title: partName || "Audit Inspection",
+          audit_type: "Product",
+          area: customer || "Machining",
+          assigned_to_employee_number: profile?.employee_number || "688079",
+        }}
+        onDownloadExcel={() => downloadAssignedAuditExcel({
+          id: auditId,
+          audit_code: auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`,
+          title: partName || "Audit Inspection",
+          audit_type: "Product",
+          area: customer || "Machining",
+          assigned_to_employee_number: profile?.employee_number || "688079",
+        })}
+        onSuccess={() => {
+          navigate({ to: "/dashboard" });
+        }}
+      />
     </AppShell>
   );
 }
