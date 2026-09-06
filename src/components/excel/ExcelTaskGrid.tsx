@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { mergeAndDeduplicateTasks } from "@/lib/audit";
-import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
 
 export type ExcelTaskRow = {
   id: string;
@@ -415,43 +414,9 @@ export function ExcelTaskGrid({
 
     const fileName = `Sakthi_Auto_Task_Matrix_${new Date().toISOString().split("T")[0]}.xlsx`;
     
-    // 1. Instantly trigger file download for Microsoft Excel
+    // Instantly trigger file export/download
     XLSX.writeFile(workbook, fileName);
-
-    // 2. Try URI protocol handler with hosted URL fallback
-    try {
-      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "view");
-      
-      // Attempt protocol redirection in background
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = excelUri;
-      document.body.appendChild(iframe);
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-    } catch {
-      // Fallback handled by direct download above
-    }
-
-    toast.success(`✓ Generated ${fileName}! Opening in Microsoft Excel...`);
-  };
-
-  const handleOpenDirectInExcelApp = () => {
-    try {
-      const currentHost = typeof window !== "undefined" ? window.location.origin : "";
-      const onlineFileUrl = `${currentHost}/Sakthi_Auto_Task_Matrix.xlsx`;
-      const excelUri = createExcelUri(onlineFileUrl, "view");
-      
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = excelUri;
-      document.body.appendChild(iframe);
-      setTimeout(() => document.body.removeChild(iframe), 2000);
-      toast.success("Launching in Microsoft Excel...");
-    } catch {
-      toast.error("Failed to launch Excel protocol.");
-    }
+    toast.success(`✓ Exported ${fileName} successfully.`);
   };
 
 
@@ -532,7 +497,7 @@ export function ExcelTaskGrid({
               )}
             </h3>
             <p className="text-[11px] text-emerald-100 font-medium">
-              Master Audit Task Register · Click 'Open / Download in MS Excel' to edit in Microsoft Excel directly.
+              Master Audit Task Register · Use Import & Export to work with Excel spreadsheets.
             </p>
           </div>
         </div>
@@ -569,7 +534,7 @@ export function ExcelTaskGrid({
                 className="h-8 gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 cursor-pointer"
                 title="Upload & import MS Excel file (.xlsx)"
               >
-                <Upload className="h-3.5 w-3.5" /> Import MS Excel (.xlsx)
+                <Upload className="h-3.5 w-3.5" /> Import (.xlsx)
               </Button>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
 
@@ -578,19 +543,9 @@ export function ExcelTaskGrid({
                 size="sm"
                 onClick={handleExportExcel}
                 className="h-8 gap-1.5 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold border border-white cursor-pointer shadow-xs"
-                title="Generate standard .xlsx spreadsheet & redirect to Microsoft Excel App"
+                title="Export standard .xlsx spreadsheet"
               >
-                <Download className="h-3.5 w-3.5 text-emerald-700" /> Open / Download in MS Excel (.xlsx)
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenDirectInExcelApp}
-                className="h-8 gap-1.5 bg-emerald-950/40 text-emerald-100 hover:bg-emerald-900/60 text-xs font-bold border border-emerald-400/40 cursor-pointer"
-                title="Launch directly in Microsoft Excel Desktop using ms-excel: protocol"
-              >
-                <ExternalLink className="h-3.5 w-3.5 text-emerald-300" /> Launch MS Excel App
+                <Download className="h-3.5 w-3.5 text-emerald-700" /> Export (.xlsx)
               </Button>
             </>
           )}

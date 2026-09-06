@@ -205,21 +205,14 @@ export function ExcelChecklistGrid({
     return wb;
   };
 
-  const handleOpenInLocalMSExcel = () => {
+  const handleExportExcel = () => {
     try {
-      if (typeof window !== "undefined") {
-        const origin = window.location.origin;
-        // ofv = Open for View/Local Edit mode (opens directly in desktop Excel without download or WebDAV lock error)
-        const excelProtocolUri = "ms-excel:ofv|u|" + origin + "/Checklist_Template.xlsx";
-        window.location.href = excelProtocolUri;
-      }
-
-      toast.success("Opening in Microsoft Excel Desktop App...", {
-        description: "Official Sakthi Auto checklist launched directly in local MS Excel.",
-        duration: 4000,
-      });
+      const wb = generateOfficialExcelWorkbook();
+      const fileName = `${auditCode || "AUDIT"}_${(partName || "Inspection").replace(/[^a-zA-Z0-9_-]/g, "_")}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success(`Exported ${fileName} successfully.`);
     } catch (_) {
-      toast.error("Failed to launch Microsoft Excel.");
+      toast.error("Failed to export Excel file.");
     }
   };
 
@@ -337,11 +330,11 @@ export function ExcelChecklistGrid({
 
             <button
               type="button"
-              onClick={handleOpenInLocalMSExcel}
+              onClick={handleExportExcel}
               className="bg-white text-emerald-900 hover:bg-emerald-50 font-black px-3 py-1 rounded text-xs flex items-center gap-1.5 shadow-sm cursor-pointer border border-emerald-200 transition-all active:scale-95"
-              title="Open this complete inspection sheet directly in local Microsoft Excel app"
+              title="Export this complete inspection sheet as a Microsoft Excel (.xlsx) file"
             >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-700" /> Open in Local MS Excel App
+              <Download className="h-3.5 w-3.5 text-emerald-700" /> Export .xlsx
             </button>
           </div>
         </div>
