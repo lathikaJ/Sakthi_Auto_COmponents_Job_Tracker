@@ -510,6 +510,42 @@ export function DashboardPage() {
     toast.success(`Exported ${exportData.length} ${selectedCategory} — ${selectedStatusView} records to ${fileName}!`);
   };
 
+  // Excel Template Downloader (For User in Audit Plan section)
+  const handleDownloadExcelTemplate = () => {
+    const defaultCat = selectedCategory === "Dock Audit" ? "Dock Audit" : selectedCategory.split(" ")[0] || "Product";
+    const templateRows = [
+      {
+        "SL. NO.": 1,
+        "Audit ID / Part Number": "0401DAA02010N",
+        "Part Name / Title": "FRONT KNUCKLE 4WD",
+        "Audit Type": defaultCat,
+        "Department / Area": "Machine Shop Line 1",
+        "Planned Month (1-12)": new Date().getMonth() + 1,
+        "Planned Date (YYYY-MM-DD)": new Date().toISOString().split("T")[0],
+        "Auditor (Employee Number)": "688079",
+        "Status": "Planned",
+      },
+      {
+        "SL. NO.": 2,
+        "Audit ID / Part Number": "0401DAA02020N",
+        "Part Name / Title": "REAR HOUSING BRACKET",
+        "Audit Type": defaultCat,
+        "Department / Area": "Machine Shop Line 2",
+        "Planned Month (1-12)": (new Date().getMonth() + 2) > 12 ? 1 : new Date().getMonth() + 2,
+        "Planned Date (YYYY-MM-DD)": new Date().toISOString().split("T")[0],
+        "Auditor (Employee Number)": "720145",
+        "Status": "Planned",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Audit_Plan_Template");
+    const fileName = `Sakthi_Auto_${selectedCategory.replace(/\s+/g, "_")}_Plan_Template.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success(`Excel Template downloaded: ${fileName}`);
+  };
+
   // Excel Import Handler for All 6 Audit Views (Admin Only)
   const handleTriggerImportExcel = () => {
     if (!isAdmin) {
@@ -1331,6 +1367,18 @@ export function DashboardPage() {
                     </>
                   )}
 
+                  {/* DOWNLOAD TEMPLATE BUTTON (FOR REGULAR USER IN AUDIT PLAN SECTION) */}
+                  {!isAdmin && selectedStatusView === "Audit Plan" && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadExcelTemplate}
+                      className="flex items-center gap-1.5 rounded-lg border border-sky-400 bg-sky-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-sky-700 transition-colors shadow-2xs mr-2"
+                      title="Download blank Audit Plan Excel template (.xlsx) to prepare audit records"
+                    >
+                      <Download className="h-4 w-4" /> Download Template
+                    </button>
+                  )}
+
                   {/* EXPORT EXCEL BUTTON (ADMIN ACROSS ALL 6 AUDITS, OR REGULAR USER IN ONGOING AUDIT) */}
                   {(isAdmin || selectedStatusView === "Ongoing") && (
                     <button
@@ -1474,15 +1522,7 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status)) ? null : (
-                                  <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
-                                    <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                      Open Inspection
-                                    </Link>
-                                  </Button>
-                                )}
-
-                                {isAdmin && (
+                                {isAdmin ? (
                                   <>
                                     <button
                                       type="button"
@@ -1514,6 +1554,8 @@ export function DashboardPage() {
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                   </>
+                                ) : (
+                                  <span className="text-slate-400 font-medium text-xs px-2">—</span>
                                 )}
                               </div>
                             </td>
