@@ -187,7 +187,7 @@ function AuditsPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {isAdmin && (
+          {isAdmin && filter !== "ongoing" && (
             <>
               <button
                 type="button"
