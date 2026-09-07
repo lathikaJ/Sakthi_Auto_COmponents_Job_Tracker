@@ -1,10 +1,10 @@
 # Sakthi Spark Audits
 
-Build a fully functioning, role-based Audit Management Web Application named "Sakthi Spark" (Continuous Improvement Platform) with a complete frontend and backend database integration.  1. Branding & Design System Use a dark slate and charcoal background gradient (#343a40) for login and structural containers.Accent buttons, active tabs, headers, and key branding must use the official Sakthi Spark orange color (#ff7b00) and hover state (#e06c00).Cards and input areas must feature a clean, modern white background (#ffffff) with crisp borders and subtle shadows.Top navigation must display the official Sakthi Spark logo (Trident icon + typography style).
+Build a fully functioning, role-based Audit Management Web Application for "Sakthi Auto" (Value Added Engineering & Audits) with a complete frontend and backend database integration.  1. Branding & Design System Use a dark slate and charcoal background gradient (#343a40) for login and structural containers.Accent buttons, active tabs, headers, and key branding must use the official Sakthi Spark orange color (#ff7b00) and hover state (#e06c00).Cards and input areas must feature a clean, modern white background (#ffffff) with crisp borders and subtle shadows.Top navigation must display the official Sakthi Auto logo.
 
 2. Core Authentication & Views
 
-Sign-In Screen: Employee ID/Number input field with a solid orange "Send OTP" action button.
+Sign-In Screen: Employee ID/Number input field with direct sign in authentication.
 
 Role-Based Routing:
 
