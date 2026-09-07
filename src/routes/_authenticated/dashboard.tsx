@@ -1671,15 +1671,7 @@ export function DashboardPage() {
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {(!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation", "Closed", "Page 1 Approved", "Page 2 Submitted"].includes(task.status)) ? null : (
-                                <Button asChild size="sm" className="bg-brand text-white text-xs font-bold hover:bg-brand-hover">
-                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                    Open Checklist
-                                  </Link>
-                                </Button>
-                              )}
-
-                              {isAdmin && (
+                              {isAdmin ? (
                                 <>
                                   <button
                                     type="button"
@@ -1699,6 +1691,8 @@ export function DashboardPage() {
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
                                 </>
+                              ) : (
+                                <span className="text-slate-400 font-medium text-xs px-2">—</span>
                               )}
                             </div>
                           </td>
