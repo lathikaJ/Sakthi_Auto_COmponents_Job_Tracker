@@ -546,6 +546,42 @@ export function DashboardPage() {
     toast.success(`Excel Template downloaded: ${fileName}`);
   };
 
+  // Download Excel Inspection Checklist / Template for specific audit row
+  const handleDownloadRowAuditTemplate = (task: any) => {
+    if (task.attached_file_url) {
+      const a = document.createElement("a");
+      a.href = task.attached_file_url;
+      a.download = task.attached_file_name || `${task.audit_code}_Checklist.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success(`Downloading attachment: ${task.attached_file_name || `${task.audit_code}_Checklist.xlsx`}`);
+      return;
+    }
+
+    const exportData = [
+      {
+        "SL. NO.": task.sl_no || 1,
+        "Audit Code / ID": task.audit_code,
+        "Product / Part Name": task.title,
+        "Audit Type": task.audit_type || selectedCategory,
+        "Department / Area": task.area || "Machine Shop Line 1",
+        "Planned Month": MONTHS[(task.month || 1) - 1] || `Month ${task.month}`,
+        "Planned Date": task.due_date,
+        "Auditor": task.auditor_name || task.assigned_to_employee_number,
+        "Status": task.status || "Planned",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inspection_Checklist");
+    const safeTitle = (task.title || "Audit").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const fileName = `${task.audit_code}_${safeTitle}_Checklist.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success(`Downloaded Excel Checklist: ${fileName}`);
+  };
+
   // Excel Import Handler for All 6 Audit Views (Admin Only)
   const handleTriggerImportExcel = () => {
     if (!isAdmin) {
@@ -1526,6 +1562,15 @@ export function DashboardPage() {
                                   <>
                                     <button
                                       type="button"
+                                      onClick={() => handleDownloadRowAuditTemplate(task)}
+                                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600 shadow-2xs transition-colors"
+                                      title={`Download Excel checklist template for ${task.audit_code}`}
+                                    >
+                                      <Download className="h-3.5 w-3.5" />
+                                    </button>
+
+                                    <button
+                                      type="button"
                                       onClick={() => handleMoveToNoProduction(task)}
                                       className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
                                       title="Move audit to No Production (Zero Output / Line Stopped)"
@@ -1555,7 +1600,15 @@ export function DashboardPage() {
                                     </button>
                                   </>
                                 ) : (
-                                  <span className="text-slate-400 font-medium text-xs px-2">—</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadRowAuditTemplate(task)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100 hover:border-sky-400 transition-colors shadow-2xs"
+                                    title={`Download Excel template for ${task.audit_code} (${task.title})`}
+                                  >
+                                    <Download className="h-3.5 w-3.5 text-sky-600" />
+                                    <span>Download</span>
+                                  </button>
                                 )}
                               </div>
                             </td>
