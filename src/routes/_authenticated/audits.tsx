@@ -93,7 +93,7 @@ function AuditsPage() {
   });
 
   const handleExportExcel = () => {
-    if (!isAdmin) {
+    if (!isAdmin && filter !== "ongoing") {
       toast.error("Export is restricted to Admin (KARTHIKEYAN C).");
       return;
     }
@@ -204,16 +204,18 @@ function AuditsPage() {
                 className="hidden"
                 onChange={handleImportExcel}
               />
-
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black shadow-xs transition-colors"
-                title="Export current audit filter to Excel (.xlsx)"
-              >
-                <Download className="h-3.5 w-3.5" /> Export Excel
-              </button>
             </>
+          )}
+
+          {(isAdmin || filter === "ongoing") && (
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black shadow-xs transition-colors"
+              title="Export current audit filter to Excel (.xlsx)"
+            >
+              <Download className="h-3.5 w-3.5" /> Export Excel
+            </button>
           )}
 
           <Link

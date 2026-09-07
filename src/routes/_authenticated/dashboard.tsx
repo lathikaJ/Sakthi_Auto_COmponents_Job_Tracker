@@ -398,10 +398,10 @@ export function DashboardPage() {
     });
   }, [localLowProd, selectedCategory]);
 
-  // Excel Export Handler for All Audits / Current View (Admin Only)
+  // Excel Export Handler for All Audits / Current View (Admin across all 6 views, User in Ongoing Audit)
   const handleExportCurrentViewExcel = () => {
-    if (!isAdmin) {
-      toast.error("Excel export is restricted to Admin (KARTHIKEYAN C).");
+    if (!isAdmin && selectedStatusView !== "Ongoing") {
+      toast.error("Excel export for this section is restricted to Admin (KARTHIKEYAN C).");
       return;
     }
     let exportData: any[] = [];
@@ -1309,7 +1309,7 @@ export function DashboardPage() {
                     </button>
                   )}
 
-                  {/* IMPORT & EXPORT EXCEL BUTTONS (ADMIN ONLY - APPLICABLE ACROSS ALL 6 AUDIT VIEWS) */}
+                  {/* IMPORT EXCEL BUTTON (ADMIN ONLY - ALL 6 AUDIT VIEWS) */}
                   {isAdmin && (
                     <>
                       <button
@@ -1321,15 +1321,6 @@ export function DashboardPage() {
                         <Upload className="h-4 w-4" /> Import Excel
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleExportCurrentViewExcel}
-                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
-                        title={`Export all ${selectedCategory} — ${selectedStatusView} records to formatted Excel spreadsheet`}
-                      >
-                        <Download className="h-4 w-4" /> Export Excel
-                      </button>
-
                       <input
                         ref={excelImportInputRef}
                         type="file"
@@ -1338,6 +1329,18 @@ export function DashboardPage() {
                         onChange={handleImportExcelFile}
                       />
                     </>
+                  )}
+
+                  {/* EXPORT EXCEL BUTTON (ADMIN ACROSS ALL 6 AUDITS, OR REGULAR USER IN ONGOING AUDIT) */}
+                  {(isAdmin || selectedStatusView === "Ongoing") && (
+                    <button
+                      type="button"
+                      onClick={handleExportCurrentViewExcel}
+                      className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
+                      title={`Export all ${selectedCategory} — ${selectedStatusView} records to formatted Excel spreadsheet`}
+                    >
+                      <Download className="h-4 w-4" /> Export Excel
+                    </button>
                   )}
 
                   <button
