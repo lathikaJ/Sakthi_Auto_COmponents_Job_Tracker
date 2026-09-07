@@ -861,13 +861,17 @@ export function DashboardPage() {
   };
 
   const handleSaveAuditRecord = async (updated: Assignment) => {
-    if (!updated.title.trim() || !updated.audit_code.trim()) {
-      toast.error("Please enter Part Name and Part Number.");
-      return;
-    }
-    const list = rawTaskRows.map((t) => (t.id === updated.id ? updated : t));
-    if (!list.some((t) => t.id === updated.id)) {
-      list.unshift(updated);
+    const rawTitle = updated.title?.trim() || updated.attached_file_name?.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Audit Plan Document";
+    const rawCode = updated.audit_code?.trim() || `REV-${String(rawTaskRows.length + 1).padStart(3, "0")}`;
+    const finalRecord: Assignment = {
+      ...updated,
+      title: rawTitle,
+      audit_code: rawCode,
+    };
+
+    const list = rawTaskRows.map((t) => (t.id === finalRecord.id ? finalRecord : t));
+    if (!list.some((t) => t.id === finalRecord.id)) {
+      list.unshift(finalRecord);
     }
     setLocalExcelTasks(list);
     if (typeof window !== "undefined") {
@@ -876,52 +880,52 @@ export function DashboardPage() {
     }
 
     try {
-      const empNum = String(updated.assigned_to_employee_number || profile?.employee_number || "688079");
+      const empNum = String(finalRecord.assigned_to_employee_number || profile?.employee_number || "688079");
       const { data: profs } = await supabase.from("profiles").select("id").eq("employee_number", empNum).maybeSingle();
       const targetUserId = profs?.id || profile?.id || "00000000-0000-0000-0000-000000000000";
 
       let { error: upsertErr } = await supabase.from("audit_assignments").upsert(
         {
-          audit_code: updated.audit_code,
-          title: updated.title,
-          audit_type: (updated.audit_type as any) || "Product",
-          area: updated.area || "General",
-          month: updated.month || 1,
-          year: updated.year || 2026,
-          due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+          audit_code: finalRecord.audit_code,
+          title: finalRecord.title,
+          audit_type: (finalRecord.audit_type as any) || "Product",
+          area: finalRecord.area || "General",
+          month: finalRecord.month || 1,
+          year: finalRecord.year || 2026,
+          due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
           assigned_to_employee_number: empNum,
           assigned_to: targetUserId,
-          status: (updated.status as any) || "Assigned",
+          status: (finalRecord.status as any) || "Assigned",
         },
         { onConflict: "audit_code" }
       );
 
       if (upsertErr) {
-        const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", updated.audit_code).maybeSingle();
+        const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", finalRecord.audit_code).maybeSingle();
         if (existing) {
           await supabase.from("audit_assignments").update({
-            title: updated.title,
-            audit_type: (updated.audit_type as any) || "Product",
-            area: updated.area || "General",
-            month: updated.month || 1,
-            year: updated.year || 2026,
-            due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+            title: finalRecord.title,
+            audit_type: (finalRecord.audit_type as any) || "Product",
+            area: finalRecord.area || "General",
+            month: finalRecord.month || 1,
+            year: finalRecord.year || 2026,
+            due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
             assigned_to_employee_number: empNum,
             assigned_to: targetUserId,
-            status: (updated.status as any) || "Assigned",
-          }).eq("audit_code", updated.audit_code);
+            status: (finalRecord.status as any) || "Assigned",
+          }).eq("audit_code", finalRecord.audit_code);
         } else {
           await supabase.from("audit_assignments").insert({
-            audit_code: updated.audit_code,
-            title: updated.title,
-            audit_type: (updated.audit_type as any) || "Product",
-            area: updated.area || "General",
-            month: updated.month || 1,
-            year: updated.year || 2026,
-            due_date: updated.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
+            audit_code: finalRecord.audit_code,
+            title: finalRecord.title,
+            audit_type: (finalRecord.audit_type as any) || "Product",
+            area: finalRecord.area || "General",
+            month: finalRecord.month || 1,
+            year: finalRecord.year || 2026,
+            due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
             assigned_to_employee_number: empNum,
             assigned_to: targetUserId,
-            status: (updated.status as any) || "Assigned",
+            status: (finalRecord.status as any) || "Assigned",
           });
         }
       }
@@ -930,7 +934,7 @@ export function DashboardPage() {
       console.warn("Error upserting audit_assignments on save:", err);
     }
 
-    toast.success(`Audit plan for ${updated.title} added successfully! Visible in Audit Plan & Ongoing Audit.`);
+    toast.success(`Audit attachment for ${finalRecord.title} saved successfully!`);
     setIsEditModalOpen(false);
     setIsAddPlanModalOpen(false);
   };
@@ -2334,156 +2338,19 @@ export function DashboardPage() {
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                {/* 1. SERIAL NUMBER */}
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Serial Number (SL. NO.)</label>
-                  <input
-                    type="text"
-                    value={editingAudit.sl_no ?? ""}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, sl_no: e.target.value })}
-                    placeholder="e.g. 1"
-                    className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
-                  />
+            {/* ONLY FILE SELECTION / ATTACHMENT OPTION */}
+            <div className="space-y-4 text-xs">
+              <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-6 space-y-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-2xs">
+                  <FileSpreadsheet className="h-7 w-7" />
                 </div>
 
-                {/* 2. PART NUMBER */}
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Part Number</label>
-                  <input
-                    type="text"
-                    value={editingAudit.audit_code}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
-                    placeholder="e.g. REV-007 / 45111 M 55TA0"
-                    className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-indigo-700 focus:border-emerald-500 focus:outline-none"
-                  />
+                <div className="space-y-1">
+                  <h4 className="font-black text-slate-900 text-sm">Upload Excel Checklist / Spec Document</h4>
+                  <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                    Select an Excel inspection checklist (<span className="font-mono text-emerald-700 font-bold">.xlsx, .xls, .csv</span>) or spec document (<span className="font-mono text-emerald-700 font-bold">.pdf</span>) to attach. Employees can click and view this attachment directly in Ongoing Audit.
+                  </p>
                 </div>
-              </div>
-
-              {/* 3. PART NAME */}
-              <div>
-                <label className="block font-extrabold uppercase text-slate-600 mb-1">Part Name</label>
-                <input
-                  type="text"
-                  value={editingAudit.title}
-                  onChange={(e) => setEditingAudit({ ...editingAudit, title: e.target.value })}
-                  placeholder="e.g. Steering Knuckle Housing LH/RH – MPV"
-                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-900 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              {/* PLANNED MONTH & YEAR SELECTION */}
-              <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 space-y-2">
-                <span className="font-extrabold uppercase text-[11px] text-sky-900">
-                  Planned Month & Year Selection *
-                </span>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Month</label>
-                    <select
-                      value={editingAudit.month}
-                      onChange={(e) => {
-                        const m = Number(e.target.value);
-                        const y = editingAudit.year || new Date().getFullYear();
-                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
-                        setEditingAudit({ ...editingAudit, month: m, due_date: dateStr });
-                      }}
-                      className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-800 bg-white"
-                    >
-                      {MONTHS.map((m, idx) => (
-                        <option key={m} value={idx + 1}>
-                          {m} ({idx + 1})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Year</label>
-                    <input
-                      type="number"
-                      min={2020}
-                      max={2035}
-                      value={editingAudit.year || new Date().getFullYear()}
-                      onChange={(e) => {
-                        const y = Number(e.target.value);
-                        const m = editingAudit.month || 1;
-                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
-                        setEditingAudit({ ...editingAudit, year: y, due_date: dateStr });
-                      }}
-                      className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* AUDIT CATEGORY SELECT FOR ADMIN */}
-              <div>
-                <label className="block font-extrabold uppercase text-slate-600 mb-1">Audit Category</label>
-                <select
-                  value={editingAudit.audit_type}
-                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none bg-white"
-                >
-                  <option value="Product">Product Audit</option>
-                  <option value="Revalidation">Revalidation Audit</option>
-                  <option value="Dock Audit">Dock Audit</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Assign Auditor / Emp ID</label>
-                  <select
-                    value={resolveEmployeeNumber(editingAudit.assigned_to_employee_number || editingAudit.auditor_name)}
-                    onChange={(e) => {
-                      const selectedEmp = e.target.value;
-                      const rosterInfo = OFFICIAL_ROSTER[selectedEmp];
-                      setEditingAudit({
-                        ...editingAudit,
-                        assigned_to_employee_number: selectedEmp,
-                        auditor_name: rosterInfo ? rosterInfo.name : selectedEmp,
-                        area: editingAudit.area || (rosterInfo ? rosterInfo.department : "Machining Line 1")
-                      });
-                    }}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none bg-white text-xs"
-                  >
-                    {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
-                      <option key={empId} value={empId}>
-                        {empId} - {info.name} ({info.department})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Department / Line</label>
-                  <input
-                    type="text"
-                    value={editingAudit.area}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, area: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-medium text-slate-800"
-                  />
-                </div>
-              </div>
-
-              {/* 5. ATTACHMENT FILE OPTION (UPLOAD EXCEL SHEET / SPEC DOCUMENT) */}
-              <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold uppercase text-[11px] text-emerald-900 flex items-center gap-1.5">
-                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Excel Sheet / Spec File Attachment
-                  </span>
-                  {editingAudit.attached_file_name && (
-                    <span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
-                      File Attached
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-[11px] text-emerald-700 font-medium">
-                  Attach Excel checklist (.xlsx, .csv) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
-                </p>
 
                 <input
                   type="file"
@@ -2493,22 +2360,28 @@ export function DashboardPage() {
                   className="hidden"
                 />
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col items-center justify-center gap-3 pt-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => planFileInputRef.current?.click()}
-                    className="bg-white border-emerald-300 text-emerald-800 font-bold hover:bg-emerald-100 text-xs gap-1.5 shadow-2xs"
+                    className="bg-emerald-600 text-white hover:bg-emerald-700 font-black text-xs gap-2 py-2 px-5 shadow-xs border-emerald-600 hover:border-emerald-700 cursor-pointer"
                   >
-                    <Upload className="h-3.5 w-3.5 text-emerald-600" /> Select Excel Sheet / Document
+                    <Upload className="h-4 w-4" /> Select Excel Sheet / Document
                   </Button>
 
                   {editingAudit.attached_file_name ? (
-                    <span className="font-mono text-xs font-bold text-emerald-900 truncate">
-                      {editingAudit.attached_file_name}
-                    </span>
+                    <div className="flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 border border-emerald-200 shadow-2xs">
+                      <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-xs">
+                        {editingAudit.attached_file_name}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 shrink-0">
+                        Selected
+                      </span>
+                    </div>
                   ) : (
-                    <span className="text-xs text-slate-400 italic">No file selected</span>
+                    <span className="text-xs text-slate-400 italic">No file selected yet</span>
                   )}
                 </div>
               </div>
@@ -2531,7 +2404,7 @@ export function DashboardPage() {
                 onClick={() => handleSaveAuditRecord(editingAudit)}
                 className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs"
               >
-                <Check className="h-4 w-4" /> Save Audit Plan
+                <Check className="h-4 w-4" /> Save Attachment
               </Button>
             </div>
           </div>
