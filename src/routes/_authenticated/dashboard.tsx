@@ -473,17 +473,29 @@ export function DashboardPage() {
         "Closure Status": dev.closure_status ?? dev.status,
       }));
     } else if (selectedStatusView === "No Production") {
-      exportData = categoryLowProd.map((lp, idx) => ({
-        "SL. NO.": idx + 1,
-        "Part Number": lp.part_number,
-        "Product Name": lp.product_name,
-        "Audit Type": lp.audit_type,
-        "Planned Production (PCS)": lp.planned_production,
-        "Actual Production (PCS)": lp.actual_production,
-        "Production %": `${lp.production_percentage.toFixed(1)}%`,
-        "Threshold %": `${lp.threshold_percentage}%`,
+      const auditHoldData = noProductionTasks.map((task, idx) => ({
+        "SL. NO.": task.sl_no ?? (idx + 1),
+        "Record Type": "Audit Plan on Hold",
+        "Part Number / Code": task.audit_code,
+        "Product / Part Name": task.title,
+        "Audit Type": task.audit_type,
+        "Planned Month": MONTHS[task.month - 1] ?? `Month ${task.month}`,
+        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
         "Status": "No Production",
       }));
+
+      const outputData = categoryLowProd.map((lp, idx) => ({
+        "SL. NO.": idx + 1 + auditHoldData.length,
+        "Record Type": "Line Output Record",
+        "Part Number / Code": lp.part_number,
+        "Product / Part Name": lp.product_name,
+        "Audit Type": lp.audit_type,
+        "Planned Month": `${lp.planned_production} PCS`,
+        "Auditor": `${lp.actual_production} PCS (${lp.production_percentage.toFixed(1)}%)`,
+        "Status": "No Production",
+      }));
+
+      exportData = [...auditHoldData, ...outputData];
     }
 
     if (exportData.length === 0) {
@@ -495,10 +507,10 @@ export function DashboardPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, selectedStatusView);
     XLSX.writeFile(workbook, fileName);
-    toast.success(`Exported ${exportData.length} ${selectedCategory} records to ${fileName}!`);
+    toast.success(`Exported ${exportData.length} ${selectedCategory} — ${selectedStatusView} records to ${fileName}!`);
   };
 
-  // Excel Import Handler for All Audits (Admin Only)
+  // Excel Import Handler for All 6 Audit Views (Admin Only)
   const handleTriggerImportExcel = () => {
     if (!isAdmin) {
       toast.error("Excel import is restricted to Admin (KARTHIKEYAN C).");
@@ -533,6 +545,55 @@ export function DashboardPage() {
         const today = new Date().toISOString().split("T")[0] ?? "";
         const defaultCatType = selectedCategory === "Dock Audit" ? "Dock Audit" : selectedCategory.split(" ")[0] ?? "Product";
 
+        const defaultStatus =
+          selectedStatusView === "Ongoing"
+            ? "In Progress"
+            : selectedStatusView === "Under Review"
+              ? "Under Review"
+              : selectedStatusView === "Audit Completed"
+                ? "Completed"
+                : selectedStatusView === "No Production"
+                  ? "No Production"
+                  : selectedStatusView === "Deviation"
+                    ? "Deviation"
+                    : "Planned";
+
+        if (selectedStatusView === "Deviation") {
+          const importedDevs: Deviation[] = data.map((item: any, idx: number) => {
+            const devCode = String(item["Deviation ID"] || item["Dev Code"] || `DEV-${Math.floor(1000 + Math.random() * 9000)}`);
+            const auditId = String(item["Audit ID"] || item["Audit Code"] || `AUD-${Math.floor(100 + Math.random() * 900)}`);
+            const desc = String(item["Deviation Description"] || item["Description"] || item["Observed Condition"] || "Imported deviation record");
+
+            return {
+              id: `dev-imp-${Date.now()}-${idx}`,
+              dev_code: devCode,
+              audit_id: auditId,
+              product_part_number: String(item["Product / Part Number"] || item["Part Number"] || auditId),
+              description: desc,
+              observed_condition: String(item["Observed Condition"] || desc),
+              location_operation: String(item["Location / Operation"] || item["Department"] || "Plant Line"),
+              employee_number: String(item["Responsible Person"] || profile?.employee_number || "688079"),
+              severity: String(item["Severity"] || "High"),
+              status: String(item["Closure Status"] || item["Status"] || "Open"),
+              created_at: String(item["Due Date"] || today),
+              responsible_person: String(item["Responsible Person"] || profile?.full_name || "QA Engineer"),
+              department: String(item["Department"] || "Quality Assurance"),
+              corrective_action: String(item["Corrective Action"] || "Under Review"),
+              due_date: String(item["Due Date"] || today),
+              closure_status: String(item["Closure Status"] || "Open"),
+            };
+          });
+
+          const updatedDevs = [...importedDevs, ...localDeviations];
+          setLocalDeviations(updatedDevs);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("sakthi_deviations", JSON.stringify(updatedDevs));
+            window.dispatchEvent(new Event("sakthi_deviations_updated"));
+          }
+          toast.success(`Imported ${importedDevs.length} deviation records into ${selectedCategory}!`);
+          return;
+        }
+
         const importedTasks: Assignment[] = data.map((item: any, idx: number) => {
           const auditCode = String(item["Audit ID"] || item["Audit Code"] || item["Part Number"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`);
           const title = String(item["Product / Part Name"] || item["Product / Part Number"] || item["Task Title"] || item["Product Name"] || "Imported Audit Record");
@@ -546,23 +607,21 @@ export function DashboardPage() {
             area: String(item["Department"] || item["Area"] || "Machine Shop Line 1"),
             month: Number(item["Month"]) || selectedMonth,
             year: new Date().getFullYear(),
-            due_date: String(item["Planned Date"] || item["Due Date"] || today),
-            status: String(item["Status"] || "Planned"),
+            due_date: String(item["Planned Date"] || item["Due Date"] || item["Audit Date"] || today),
+            status: String(item["Status"] || defaultStatus),
             assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
             auditor_name: String(item["Auditor"] || item["Assigned Employee"] || profile?.full_name || "Lead Auditor"),
             attached_file_name: file.name,
           };
         });
 
-        // Merge imported records into local tasks ONLY (not rawTaskRows which includes DB rows)
-        // This prevents DB rows from getting duplicated into localStorage
         const updated = mergeAndDeduplicateTasks(localExcelTasks, importedTasks);
         setLocalExcelTasks(updated);
         if (typeof window !== "undefined") {
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
           window.dispatchEvent(new Event("excel_tasks_updated"));
         }
-        toast.success(`Imported & smart-merged ${importedTasks.length} audit records into ${selectedCategory}! Total unique tasks: ${updated.length}.`);
+        toast.success(`Imported ${importedTasks.length} audit records into ${selectedCategory} — ${selectedStatusView}! Total unique tasks: ${updated.length}.`);
       } catch (err) {
         toast.error("Failed to parse Excel file. Please ensure valid file format (.xlsx, .xls, .csv).");
       }
@@ -1216,47 +1275,59 @@ export function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* ADD PLAN & IMPORT PLAN BUTTONS (ADMIN ONLY) */}
+                  {/* ADD PLAN BUTTON (ADMIN ONLY - ON AUDIT PLAN VIEW) */}
                   {isAdmin && selectedStatusView === "Audit Plan" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = new Date().toISOString().split("T")[0] ?? "";
+                        const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                        const nextSlNo = categoryTasks.length + 1;
+                        setEditingAudit({
+                          id: `aud-${Date.now()}`,
+                          sl_no: nextSlNo,
+                          audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                          title: "",
+                          audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                          area: "Machine Shop Line 1",
+                          month: selectedMonth,
+                          year: new Date().getFullYear(),
+                          due_date: today,
+                          status: "Planned",
+                          assigned_to_employee_number: profile?.employee_number ?? "688079",
+                          auditor_name: profile?.full_name ?? "Lead Auditor",
+                          department: "Quality Assurance",
+                          attached_file_name: "",
+                          attached_file_url: "",
+                        });
+                        setIsAddPlanModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs"
+                      title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
+                    >
+                      <Plus className="h-4 w-4" /> Add Plan
+                    </button>
+                  )}
+
+                  {/* IMPORT & EXPORT EXCEL BUTTONS (ADMIN ONLY - APPLICABLE ACROSS ALL 6 AUDIT VIEWS) */}
+                  {isAdmin && (
                     <>
                       <button
                         type="button"
-                        onClick={() => {
-                          const today = new Date().toISOString().split("T")[0] ?? "";
-                          const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
-                          const nextSlNo = categoryTasks.length + 1;
-                          setEditingAudit({
-                            id: `aud-${Date.now()}`,
-                            sl_no: nextSlNo,
-                            audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
-                            title: "",
-                            audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
-                            area: "Machine Shop Line 1",
-                            month: selectedMonth,
-                            year: new Date().getFullYear(),
-                            due_date: today,
-                            status: "Planned",
-                            assigned_to_employee_number: profile?.employee_number ?? "688079",
-                            auditor_name: profile?.full_name ?? "Lead Auditor",
-                            department: "Quality Assurance",
-                            attached_file_name: "",
-                            attached_file_url: "",
-                          });
-                          setIsAddPlanModalOpen(true);
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs"
-                        title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1.5 rounded-lg border border-sky-400 bg-sky-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-sky-700 transition-colors shadow-2xs"
+                        title={`Import ${selectedCategory} — ${selectedStatusView} records from Excel (.xlsx, .xls, .csv)`}
                       >
-                        <Plus className="h-4 w-4" /> Add Plan
+                        <Upload className="h-4 w-4" /> Import Excel
                       </button>
 
                       <button
                         type="button"
-                        onClick={handleTriggerImportExcel}
-                        className="flex items-center gap-1.5 rounded-lg border border-sky-400 bg-sky-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-sky-700 transition-colors shadow-2xs mr-2"
-                        title="Import audit plan records from Excel (.xlsx, .xls, .csv)"
+                        onClick={handleExportCurrentViewExcel}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
+                        title={`Export all ${selectedCategory} — ${selectedStatusView} records to formatted Excel spreadsheet`}
                       >
-                        <Upload className="h-4 w-4" /> Import Plan
+                        <Download className="h-4 w-4" /> Export Excel
                       </button>
 
                       <input
