@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Upload, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app/AppShell";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
+import { useAuth } from "@/hooks/useAuth";
 
 const FILTERS = [
   { key: "all", label: "Total Audit" },
@@ -39,11 +43,10 @@ export const Route = createFileRoute("/_authenticated/audits")({
   component: AuditsPage,
 });
 
-import { useAuth } from "@/hooks/useAuth";
-
 function AuditsPage() {
   const { filter } = Route.useSearch();
   const { isAdmin } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data = [] } = useQuery({
     queryKey: ["assignments"],
@@ -89,6 +92,84 @@ function AuditsPage() {
     return r.audit_type === filter;
   });
 
+  const handleExportExcel = () => {
+    if (!isAdmin) {
+      toast.error("Export is restricted to Admin (KARTHIKEYAN C).");
+      return;
+    }
+    const exportData = rows.map((r, idx) => ({
+      "SL. NO.": idx + 1,
+      "Audit Code": r.audit_code,
+      "Title": r.title,
+      "Type": r.audit_type,
+      "Area": r.area,
+      "Auditor": r.assigned_to_employee_number,
+      "Due Date": r.due_date,
+      "Status": r.status,
+    }));
+
+    if (exportData.length === 0) {
+      toast.error("No audit records to export for this filter.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Audits_${filter}`);
+    const dateTag = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `Sakthi_Auto_Audit_Register_${filter}_${dateTag}.xlsx`);
+    toast.success(`Exported ${exportData.length} records to Excel!`);
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        if (!wsname) return;
+        const ws = wb.Sheets[wsname];
+        if (!ws) return;
+        const json = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (!json || json.length === 0) {
+          toast.error("The uploaded Excel file contains no valid rows.");
+          return;
+        }
+
+        const today = new Date().toISOString().split("T")[0] ?? "";
+        const imported = json.map((item: any, idx: number) => ({
+          id: `aud-imp-${Date.now()}-${idx}`,
+          sl_no: item["SL. NO."] || idx + 1,
+          audit_code: String(item["Audit Code"] || item["Audit ID"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`),
+          title: String(item["Title"] || item["Part Name"] || item["Product / Part Name"] || "Imported Audit"),
+          audit_type: String(item["Type"] || item["Audit Type"] || "Product"),
+          area: String(item["Area"] || item["Department"] || "Machine Shop Line 1"),
+          month: Number(item["Month"]) || new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+          due_date: String(item["Due Date"] || item["Planned Date"] || today),
+          status: String(item["Status"] || "Planned"),
+          assigned_to_employee_number: String(item["Auditor"] || item["Assigned Employee"] || "688079"),
+        }));
+
+        const merged = mergeAndDeduplicateTasks(localTasks, imported);
+        setLocalTasks(merged);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(merged));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        }
+        toast.success(`Imported ${imported.length} audits successfully! Total unique tasks: ${merged.length}.`);
+      } catch {
+        toast.error("Failed to parse Excel file (.xlsx, .xls, .csv).");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <AppShell
       title="Audit Register"
@@ -105,7 +186,36 @@ function AuditsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-black shadow-xs transition-colors"
+                title="Import audits from Excel spreadsheet (.xlsx, .xls, .csv)"
+              >
+                <Upload className="h-3.5 w-3.5" /> Import Excel
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+                onChange={handleImportExcel}
+              />
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-black shadow-xs transition-colors"
+                title="Export current audit filter to Excel (.xlsx)"
+              >
+                <Download className="h-3.5 w-3.5" /> Export Excel
+              </button>
+            </>
+          )}
+
           <Link
             to="/assignments"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg text-xs font-black shadow-xs transition-colors"
