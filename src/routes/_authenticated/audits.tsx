@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
 import { useAuth } from "@/hooks/useAuth";
+import { OFFICIAL_ROSTER, resolveAuditorName, resolveEmployeeNumber } from "./dashboard";
 
 const FILTERS = [
   { key: "all", label: "Total Audit" },
@@ -77,24 +78,38 @@ function AuditsPage() {
     }
   }, []);
 
-  const activeDataSet = mergeAndDeduplicateTasks(
-    data.length > 0
-      ? [...data, ...localTasks.filter((lt) => !data.some((db: any) => db.audit_code === lt.audit_code))]
-      : localTasks.length > 0
-        ? localTasks
-        : DEFAULT_OFFICIAL_AUDITS
-  );
+  const baseList = data.length > 0
+    ? [...data, ...localTasks.filter((lt) => !data.some((db: any) => db.audit_code === lt.audit_code))]
+    : localTasks.length > 0
+      ? localTasks
+      : DEFAULT_OFFICIAL_AUDITS;
+
+  const activeDataSet = (mergeAndDeduplicateTasks(baseList) as any[]).map((r) => {
+    const emp = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
+    const name = resolveAuditorName(emp, r.auditor_name);
+    return {
+      ...r,
+      assigned_to_employee_number: emp,
+      auditor_name: name,
+    };
+  });
+
+  const currentEmp = String(profile?.employee_number || "").trim();
+  const currentName = profile?.full_name?.toLowerCase().trim();
 
   const rows = activeDataSet
     .filter((r: any) => {
-      if (!isAdmin) {
-        const assignedEmp = String(r.assigned_to_employee_number || "").trim();
-        const currentEmp = String(profile?.employee_number || "").trim();
-        const empMatch = assignedEmp === currentEmp;
-        const nameMatch = profile?.full_name && r.auditor_name && r.auditor_name.toLowerCase().includes(profile.full_name.toLowerCase());
-        if (!empMatch && !nameMatch) return false;
-      }
-      return true;
+      if (isAdmin) return true;
+      if (!currentEmp && !currentName) return false;
+      const assignedEmp = String(r.assigned_to_employee_number || "").trim();
+      const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
+      const empMatch = currentEmp && (assignedEmp === currentEmp || resolvedEmp === currentEmp);
+      const nameMatch = currentName && (
+        (r.auditor_name && r.auditor_name.toLowerCase().includes(currentName)) ||
+        (OFFICIAL_ROSTER[currentEmp]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmp].name.toLowerCase()) ||
+        (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentName))
+      );
+      return Boolean(empMatch || nameMatch);
     })
     .filter((r) => {
       if (filter === "all") return true;

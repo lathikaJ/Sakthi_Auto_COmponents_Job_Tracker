@@ -107,10 +107,40 @@ type Deviation = {
   responsible_person?: string;
   department?: string;
   corrective_action?: string;
-  due_date?: string;
-  closure_status?: string;
-  product_part_number?: string;
 };
+
+export const OFFICIAL_ROSTER: Record<string, { name: string; department: string; designation: string; role: "admin" | "employee" }> = {
+  "690867": { name: "KARTHIKEYAN C", role: "admin", department: "Quality Assurance", designation: "Quality Operations Lead" },
+  "688079": { name: "SILAMBARASAN S", role: "employee", department: "Machining Line 1", designation: "Senior Quality Engineer" },
+  "663875": { name: "VENKADESH D", role: "employee", department: "Machine Shop 2", designation: "Quality Inspector" },
+  "710250": { name: "MOUNIKASRI A", role: "employee", department: "Quality Lab", designation: "Metrology Specialist" },
+  "666468": { name: "KAVIN KUMAR K", role: "employee", department: "Assembly & Dock", designation: "Process Audit Lead" },
+  "665773": { name: "KARTHEEBAN K", role: "employee", department: "Value Added Engg", designation: "Revalidation Specialist" },
+  "665965": { name: "DINESHKUMAR A B", role: "employee", department: "Tool Room", designation: "Maintenance Lead" },
+  "708818": { name: "SELVAKUMAR J", role: "employee", department: "EHS & Safety", designation: "Compliance Auditor" },
+  "667685": { name: "GEETHA S", role: "employee", department: "Plant Management", designation: "Plant Head Quality" },
+};
+
+export function resolveAuditorName(empNumber?: string, fallbackName?: string): string {
+  if (empNumber && OFFICIAL_ROSTER[empNumber]) {
+    return OFFICIAL_ROSTER[empNumber].name;
+  }
+  return fallbackName || empNumber || "Lead Auditor";
+}
+
+export function resolveEmployeeNumber(auditorNameOrNumber?: string): string {
+  if (!auditorNameOrNumber) return "688079";
+  const trimmed = auditorNameOrNumber.trim();
+  if (OFFICIAL_ROSTER[trimmed]) return trimmed;
+  for (const [empNum, info] of Object.entries(OFFICIAL_ROSTER)) {
+    if (info.name.toLowerCase() === trimmed.toLowerCase() || trimmed.includes(empNum) || trimmed.toLowerCase().includes(info.name.toLowerCase())) {
+      return empNum;
+    }
+  }
+  const match = trimmed.match(/\b\d{6}\b/);
+  if (match) return match[0];
+  return "688079";
+}
 
 export function DashboardPage() {
   const { isAdmin, profile, loading } = useAuth();
@@ -299,27 +329,43 @@ export function DashboardPage() {
 
   // DB is source of truth when available; localStorage is fallback only.
   // DO NOT merge both — that causes duplicates (the "insert 10 times" bug).
-  const rawTaskRows: Assignment[] = mergeAndDeduplicateTasks(
-    dbRows.length > 0
+  const rawTaskRows: Assignment[] = useMemo(() => {
+    const base = dbRows.length > 0
       ? [...dbRows, ...localExcelTasks.filter((lt) => !dbRows.some((db) => db.audit_code === lt.audit_code))]
       : localExcelTasks.length > 0
         ? localExcelTasks
-        : DEFAULT_OFFICIAL_AUDITS
-  ) as Assignment[];
+        : DEFAULT_OFFICIAL_AUDITS;
+
+    const merged = mergeAndDeduplicateTasks(base) as Assignment[];
+    return merged.map((t) => {
+      const empNum = resolveEmployeeNumber(t.assigned_to_employee_number || t.auditor_name);
+      const auditorName = resolveAuditorName(empNum, t.auditor_name);
+      return {
+        ...t,
+        assigned_to_employee_number: empNum,
+        auditor_name: auditorName,
+      };
+    });
+  }, [dbRows, localExcelTasks]);
 
   const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
-  const currentEmpName = profile?.full_name?.toLowerCase();
+  const currentEmpName = profile?.full_name?.toLowerCase().trim();
 
   const allTaskRows = useMemo(() => {
     // Admin (KARTHIKEYAN C) can see all plant audit tasks.
     if (isAdmin) return rawTaskRows;
     // Regular employee only sees tasks assigned to their employee number or full name.
-    if (!currentEmpNumber) return [];
+    if (!currentEmpNumber && !currentEmpName) return [];
     return rawTaskRows.filter((r) => {
       const assignedEmp = String(r.assigned_to_employee_number || "").trim();
-      const empMatch = assignedEmp === currentEmpNumber;
-      const nameMatch = currentEmpName && r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName);
-      return empMatch || nameMatch;
+      const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
+      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || resolvedEmp === currentEmpNumber);
+      const nameMatch = currentEmpName && (
+        (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
+        (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()) ||
+        (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName))
+      );
+      return Boolean(empMatch || nameMatch);
     });
   }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName]);
 
@@ -2388,13 +2434,27 @@ export function DashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Auditor Name / Emp ID</label>
-                  <input
-                    type="text"
-                    value={editingAudit.auditor_name ?? editingAudit.assigned_to_employee_number}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, auditor_name: e.target.value, assigned_to_employee_number: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 p-2 font-medium text-slate-800"
-                  />
+                  <label className="block font-extrabold uppercase text-slate-600 mb-1">Assign Auditor / Emp ID</label>
+                  <select
+                    value={resolveEmployeeNumber(editingAudit.assigned_to_employee_number || editingAudit.auditor_name)}
+                    onChange={(e) => {
+                      const selectedEmp = e.target.value;
+                      const rosterInfo = OFFICIAL_ROSTER[selectedEmp];
+                      setEditingAudit({
+                        ...editingAudit,
+                        assigned_to_employee_number: selectedEmp,
+                        auditor_name: rosterInfo ? rosterInfo.name : selectedEmp,
+                        area: editingAudit.area || (rosterInfo ? rosterInfo.department : "Machining Line 1")
+                      });
+                    }}
+                    className="w-full rounded-lg border border-slate-300 p-2 font-bold text-slate-800 focus:border-emerald-500 focus:outline-none bg-white text-xs"
+                  >
+                    {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
+                      <option key={empId} value={empId}>
+                        {empId} - {info.name} ({info.department})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
