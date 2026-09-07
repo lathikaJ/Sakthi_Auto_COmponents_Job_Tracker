@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_authenticated/audits")({
 
 function AuditsPage() {
   const { filter } = Route.useSearch();
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data = [] } = useQuery({
@@ -85,12 +85,23 @@ function AuditsPage() {
         : DEFAULT_OFFICIAL_AUDITS
   );
 
-  const rows = activeDataSet.filter((r) => {
-    if (filter === "all") return true;
-    if (filter === "ongoing") return ["Assigned", "In Progress", "Overdue"].includes(r.status);
-    if (filter === "completed") return r.status === "Completed" || r.status === "Submitted";
-    return r.audit_type === filter;
-  });
+  const rows = activeDataSet
+    .filter((r: any) => {
+      if (!isAdmin) {
+        const assignedEmp = String(r.assigned_to_employee_number || "").trim();
+        const currentEmp = String(profile?.employee_number || "").trim();
+        const empMatch = assignedEmp === currentEmp;
+        const nameMatch = profile?.full_name && r.auditor_name && r.auditor_name.toLowerCase().includes(profile.full_name.toLowerCase());
+        if (!empMatch && !nameMatch) return false;
+      }
+      return true;
+    })
+    .filter((r) => {
+      if (filter === "all") return true;
+      if (filter === "ongoing") return ["Assigned", "In Progress", "Overdue"].includes(r.status);
+      if (filter === "completed") return r.status === "Completed" || r.status === "Submitted";
+      return r.audit_type === filter;
+    });
 
   const handleExportExcel = () => {
     if (!isAdmin && filter !== "ongoing") {

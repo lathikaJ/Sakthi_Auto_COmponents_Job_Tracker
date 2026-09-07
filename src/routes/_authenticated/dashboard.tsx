@@ -307,13 +307,21 @@ export function DashboardPage() {
         : DEFAULT_OFFICIAL_AUDITS
   ) as Assignment[];
 
-  const currentEmpNumber = profile?.employee_number;
+  const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
   const currentEmpName = profile?.full_name?.toLowerCase();
 
   const allTaskRows = useMemo(() => {
-    // Client requested: All audits should be visible to all employees, regardless of assignment.
-    return rawTaskRows;
-  }, [rawTaskRows]);
+    // Admin (KARTHIKEYAN C) can see all plant audit tasks.
+    if (isAdmin) return rawTaskRows;
+    // Regular employee only sees tasks assigned to their employee number or full name.
+    if (!currentEmpNumber) return [];
+    return rawTaskRows.filter((r) => {
+      const assignedEmp = String(r.assigned_to_employee_number || "").trim();
+      const empMatch = assignedEmp === currentEmpNumber;
+      const nameMatch = currentEmpName && r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName);
+      return empMatch || nameMatch;
+    });
+  }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName]);
 
 
 
@@ -1540,7 +1548,7 @@ export function DashboardPage() {
                             <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                             <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                             <td className="p-3 font-bold text-sky-700">
-                              {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                              {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                             </td>
                             <td className="p-3">
                               <button
@@ -1645,7 +1653,7 @@ export function DashboardPage() {
                           <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                           <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-bold text-sky-700">
-                            {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                            {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                           </td>
                           <td className="p-3">
                             <button
@@ -1745,7 +1753,7 @@ export function DashboardPage() {
                           <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                           <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-bold text-sky-700">
-                            {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                            {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                           </td>
                           <td className="p-3 font-medium text-slate-800">
                             {task.auditor_name ?? task.assigned_to_employee_number}
@@ -2051,7 +2059,7 @@ export function DashboardPage() {
                               <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
                               <td className="p-3 font-mono font-bold text-purple-900">{task.audit_code}</td>
                               <td className="p-3 font-bold text-slate-700">
-                                {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                                {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
                               </td>
                               <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                               <td className="p-3">
@@ -2276,21 +2284,20 @@ export function DashboardPage() {
                 />
               </div>
 
-              {/* PLANNED DATE (MONTH + DATE + YEAR) & 6 AUDIT CATEGORIES */}
+              {/* PLANNED MONTH & YEAR SELECTION */}
               <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 space-y-2">
                 <span className="font-extrabold uppercase text-[11px] text-sky-900">
-                  Planned Month + Date + Year Selection *
+                  Planned Month & Year Selection *
                 </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Month</label>
                     <select
                       value={editingAudit.month}
                       onChange={(e) => {
                         const m = Number(e.target.value);
-                        const d = editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1;
                         const y = editingAudit.year || new Date().getFullYear();
-                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
                         setEditingAudit({ ...editingAudit, month: m, due_date: dateStr });
                       }}
                       className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-800 bg-white"
@@ -2304,24 +2311,6 @@ export function DashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Date</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1}
-                      onChange={(e) => {
-                        const d = Math.max(1, Math.min(31, Number(e.target.value)));
-                        const m = editingAudit.month || 1;
-                        const y = editingAudit.year || new Date().getFullYear();
-                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-                        setEditingAudit({ ...editingAudit, due_date: dateStr });
-                      }}
-                      className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block font-bold text-[11px] uppercase text-slate-600 mb-1">Year</label>
                     <input
                       type="number"
@@ -2331,8 +2320,7 @@ export function DashboardPage() {
                       onChange={(e) => {
                         const y = Number(e.target.value);
                         const m = editingAudit.month || 1;
-                        const d = editingAudit.due_date ? parseInt(editingAudit.due_date.split("-")[2] || "1", 10) : 1;
-                        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
                         setEditingAudit({ ...editingAudit, year: y, due_date: dateStr });
                       }}
                       className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white"
