@@ -229,7 +229,7 @@ function DeviationsPage() {
     observations: DEFAULT_OBSERVATIONS,
     cc: "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE",
     doc_code: "QF/08/CQA-55",
-    doc_date: "29.12.2016",
+    doc_date: "25.12.2015",
     inspected_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
     inspected_by_signature: "",
     approved_by: "KARTHIKEYAN C (690867)",
@@ -351,7 +351,7 @@ function DeviationsPage() {
                 observations: obsList,
                 cc: String(d.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE"),
                 doc_code: String(d.doc_code || "QF/08/CQA-55"),
-                doc_date: String(d.doc_date || "29.12.2016"),
+                doc_date: String(d.doc_date || "25.12.2015"),
                 inspected_by: String(d.inspected_by || d.segregated_by || "SILAMBARASAN S (688079)"),
                 inspected_by_signature: d.inspected_by_signature || d.employee_signature || "",
                 approved_by: String(d.approved_by || "KARTHIKEYAN C (690867)"),
@@ -704,33 +704,8 @@ function DeviationsPage() {
 
       const updated = [newDev, ...deviations];
       await saveDeviationsList(updated);
-
-      if (formData.audit_id) {
-        if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-          if (stored) {
-            try {
-              let tasks = JSON.parse(stored);
-              tasks = tasks.map((t: any) => {
-                if (t.id === formData.audit_id || t.audit_code === formData.audit_id) {
-                  return { ...t, status: "Deviation", deviation_code: newCode };
-                }
-                return t;
-              });
-              localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-              window.dispatchEvent(new Event("excel_tasks_updated"));
-            } catch {}
-          }
-        }
-        supabase
-          .from("audit_assignments")
-          .update({ status: "Deviation" as any })
-          .or(`id.eq.${formData.audit_id},audit_code.eq.${formData.audit_id}`)
-          .then(() => {});
-      }
-
       setIsModalOpen(false);
-      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Audit moved to Deviation status.`);
+      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Moves for Admin Page 1 approval.`);
     }
   };
 

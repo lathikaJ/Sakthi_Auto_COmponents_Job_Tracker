@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sakthi Spark — Audit Management Platform" },
+      { title: "Sakthi Auto — Value Added Engineering & Audits Platform" },
       {
         name: "description",
         content:
-          "Sakthi Spark continuous improvement platform for planning, executing and reviewing plant audits.",
+          "Sakthi Auto Value Added Engineering & Audits platform for planning, executing and reviewing plant audits.",
       },
       { name: "author", content: "Sakthi Auto" },
-      { property: "og:title", content: "Sakthi Spark — Audit Management Platform" },
+      { property: "og:title", content: "Sakthi Auto — Value Added Engineering & Audits Platform" },
       {
         property: "og:description",
         content:
@@ -94,7 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@SakthiAuto" },
     ],
     links: [
       {
