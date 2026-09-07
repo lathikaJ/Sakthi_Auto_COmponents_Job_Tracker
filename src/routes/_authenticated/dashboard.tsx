@@ -33,7 +33,6 @@ import {
   Lock,
 } from "lucide-react";
 import { createExcelUri } from "@/lib/excelUri";
-import { MasterLayout } from "./-master-layout";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -345,6 +344,10 @@ export function DashboardPage() {
     return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned");
   }, [categoryTasks]);
 
+  const noProductionTasks = useMemo(() => {
+    return categoryTasks.filter((r) => r.status === "No Production");
+  }, [categoryTasks]);
+
   const underReviewTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "Submitted" || r.status === "Under Review");
   }, [categoryTasks]);
@@ -577,6 +580,56 @@ export function DashboardPage() {
       attached_file_url: URL.createObjectURL(file),
     });
     toast.success(`Attached Excel sheet: ${file.name}`);
+  };
+
+  // Move audit record to No Production (Zero Output / Line Stopped)
+  const handleMoveToNoProduction = async (task: Assignment) => {
+    const updatedTask: Assignment = {
+      ...task,
+      status: "No Production",
+    };
+    const list = rawTaskRows.map((t) => (t.id === task.id ? updatedTask : t));
+    if (!list.some((t) => t.id === task.id)) {
+      list.unshift(updatedTask);
+    }
+    setLocalExcelTasks(list);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+    }
+
+    try {
+      await supabase.from("audit_assignments").update({ status: "No Production" as any }).eq("id", task.id);
+    } catch (err) {
+      console.warn("Supabase status update error:", err);
+    }
+
+    toast.success(`Audit [${task.audit_code}] moved to No Production status.`);
+  };
+
+  // Restore audit record from No Production back to Planned
+  const handleRestoreFromNoProduction = async (task: Assignment) => {
+    const updatedTask: Assignment = {
+      ...task,
+      status: "Planned",
+    };
+    const list = rawTaskRows.map((t) => (t.id === task.id ? updatedTask : t));
+    if (!list.some((t) => t.id === task.id)) {
+      list.unshift(updatedTask);
+    }
+    setLocalExcelTasks(list);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+    }
+
+    try {
+      await supabase.from("audit_assignments").update({ status: "Planned" }).eq("id", task.id);
+    } catch (err) {
+      console.warn("Supabase status update error:", err);
+    }
+
+    toast.success(`Restored audit [${task.audit_code}] to Planned status.`);
   };
 
   const handleSaveAuditRecord = async (updated: Assignment) => {
@@ -1141,7 +1194,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <TrendingDown className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "No Production" ? "bg-white text-purple-800" : "bg-purple-100 text-purple-800"}`}>
-                      {categoryLowProd.length}
+                      {categoryLowProd.length + noProductionTasks.length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">No Production</p>
@@ -1163,38 +1216,57 @@ export function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* ADD PLAN BUTTON (ADMIN ONLY) */}
+                  {/* ADD PLAN & IMPORT PLAN BUTTONS (ADMIN ONLY) */}
                   {isAdmin && selectedStatusView === "Audit Plan" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const today = new Date().toISOString().split("T")[0] ?? "";
-                        const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
-                        const nextSlNo = categoryTasks.length + 1;
-                        setEditingAudit({
-                          id: `aud-${Date.now()}`,
-                          sl_no: nextSlNo,
-                          audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
-                          title: "",
-                          audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
-                          area: "Machine Shop Line 1",
-                          month: selectedMonth,
-                          year: new Date().getFullYear(),
-                          due_date: today,
-                          status: "Planned",
-                          assigned_to_employee_number: profile?.employee_number ?? "688079",
-                          auditor_name: profile?.full_name ?? "Lead Auditor",
-                          department: "Quality Assurance",
-                          attached_file_name: "",
-                          attached_file_url: "",
-                        });
-                        setIsAddPlanModalOpen(true);
-                      }}
-                      className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
-                      title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
-                    >
-                      <Plus className="h-4 w-4" /> Add Plan
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const today = new Date().toISOString().split("T")[0] ?? "";
+                          const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                          const nextSlNo = categoryTasks.length + 1;
+                          setEditingAudit({
+                            id: `aud-${Date.now()}`,
+                            sl_no: nextSlNo,
+                            audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                            title: "",
+                            audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                            area: "Machine Shop Line 1",
+                            month: selectedMonth,
+                            year: new Date().getFullYear(),
+                            due_date: today,
+                            status: "Planned",
+                            assigned_to_employee_number: profile?.employee_number ?? "688079",
+                            auditor_name: profile?.full_name ?? "Lead Auditor",
+                            department: "Quality Assurance",
+                            attached_file_name: "",
+                            attached_file_url: "",
+                          });
+                          setIsAddPlanModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs"
+                        title="Add new audit plan with serial number, part name, part number, planned month, and excel attachment"
+                      >
+                        <Plus className="h-4 w-4" /> Add Plan
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleTriggerImportExcel}
+                        className="flex items-center gap-1.5 rounded-lg border border-sky-400 bg-sky-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-sky-700 transition-colors shadow-2xs mr-2"
+                        title="Import audit plan records from Excel (.xlsx, .xls, .csv)"
+                      >
+                        <Upload className="h-4 w-4" /> Import Plan
+                      </button>
+
+                      <input
+                        ref={excelImportInputRef}
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        className="hidden"
+                        onChange={handleImportExcelFile}
+                      />
+                    </>
                   )}
 
                   <button
@@ -1340,6 +1412,15 @@ export function DashboardPage() {
                                   <>
                                     <button
                                       type="button"
+                                      onClick={() => handleMoveToNoProduction(task)}
+                                      className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
+                                      title="Move audit to No Production (Zero Output / Line Stopped)"
+                                    >
+                                      Move to No Production
+                                    </button>
+
+                                    <button
+                                      type="button"
                                       onClick={() => {
                                         setEditingAudit(task);
                                         setIsEditModalOpen(true);
@@ -1430,14 +1511,25 @@ export function DashboardPage() {
                               )}
 
                               {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteAuditRecord(task.id)}
-                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                  title="Delete Record (Admin Only)"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveToNoProduction(task)}
+                                    className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
+                                    title="Move audit to No Production (Zero Output / Line Stopped)"
+                                  >
+                                    Move to No Production
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAuditRecord(task.id)}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                    title="Delete Record (Admin Only)"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -1737,41 +1829,118 @@ export function DashboardPage() {
 
               {/* ── VIEW 6: NO PRODUCTION TABLE ── */}
               {selectedStatusView === "No Production" && (
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
-                      <tr>
-                        <th className="p-3">Part Number</th>
-                        <th className="p-3">Product Name</th>
-                        <th className="p-3 text-right">Planned Production</th>
-                        <th className="p-3 text-right">Actual Production</th>
-                        <th className="p-3 text-center">Production %</th>
-                        <th className="p-3 text-center">Threshold</th>
-                        <th className="p-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {categoryLowProd.map((lp) => (
-                        <tr key={lp.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-mono font-black text-purple-900">{lp.part_number}</td>
-                          <td className="p-3 font-bold text-slate-800">{lp.product_name}</td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-700">{lp.planned_production.toLocaleString()} PCS</td>
-                          <td className="p-3 text-right font-mono font-bold text-purple-700">{lp.actual_production.toLocaleString()} PCS</td>
-                          <td className="p-3 text-center font-black">
-                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
-                              {lp.production_percentage.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
-                          <td className="p-3">
-                            <span className="rounded-md px-2.5 py-1 font-bold text-[11px] bg-purple-600 text-white">
-                              NO PRODUCTION
-                            </span>
-                          </td>
+                <div className="space-y-4">
+                  {/* SECTION 1: AUDIT PLANS MOVED TO NO PRODUCTION */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                    <div className="bg-purple-900 text-white px-4 py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingDown className="h-4 w-4 text-purple-200" />
+                        <h4 className="text-xs font-black uppercase tracking-wider">
+                          Audit Plans on Hold — No Production / Line Stopped ({noProductionTasks.length})
+                        </h4>
+                      </div>
+                      <span className="text-[11px] text-purple-200">
+                        Zero output lines temporarily moved from active audit plan
+                      </span>
+                    </div>
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                          <th className="p-3 w-14 text-center">SL. NO.</th>
+                          <th className="p-3">PART NAME</th>
+                          <th className="p-3">AUDIT PLAN</th>
+                          <th className="p-3">PLANNED MONTH</th>
+                          <th className="p-3">AUDITOR</th>
+                          <th className="p-3">STATUS</th>
+                          <th className="p-3 text-right">ACTION</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {noProductionTasks.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-4 text-center text-slate-400 italic">
+                              No audit plans currently placed on No Production hold.
+                            </td>
+                          </tr>
+                        ) : (
+                          noProductionTasks.map((task, idx) => (
+                            <tr key={task.id} className="hover:bg-purple-50/40 transition-colors">
+                              <td className="p-3 text-center font-mono font-bold text-slate-500">
+                                {task.sl_no ?? idx + 1}
+                              </td>
+                              <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                              <td className="p-3 font-mono font-bold text-purple-900">{task.audit_code}</td>
+                              <td className="p-3 font-bold text-slate-700">
+                                {task.due_date ? `${MONTHS[(task.month || 1) - 1]} ${new Date(task.due_date).getDate() || 1}, ${task.year || 2026}` : `${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
+                              </td>
+                              <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
+                              <td className="p-3">
+                                <span className="rounded-md px-2.5 py-1 font-bold text-[11px] bg-purple-600 text-white">
+                                  NO PRODUCTION
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRestoreFromNoProduction(task)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs"
+                                    title="Restore audit plan to Planned status"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                    Restore to Plan
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* SECTION 2: PRODUCTION OUTPUT MONITORING */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                    <div className="bg-slate-100 text-slate-800 px-4 py-2 border-b border-slate-200">
+                      <h4 className="text-xs font-black uppercase tracking-wider">
+                        Plant Line Output Tracking & Threshold Records ({categoryLowProd.length})
+                      </h4>
+                    </div>
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">Part Number</th>
+                          <th className="p-3">Product Name</th>
+                          <th className="p-3 text-right">Planned Production</th>
+                          <th className="p-3 text-right">Actual Production</th>
+                          <th className="p-3 text-center">Production %</th>
+                          <th className="p-3 text-center">Threshold</th>
+                          <th className="p-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {categoryLowProd.map((lp) => (
+                          <tr key={lp.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 font-mono font-black text-purple-900">{lp.part_number}</td>
+                            <td className="p-3 font-bold text-slate-800">{lp.product_name}</td>
+                            <td className="p-3 text-right font-mono font-bold text-slate-700">{lp.planned_production.toLocaleString()} PCS</td>
+                            <td className="p-3 text-right font-mono font-bold text-purple-700">{lp.actual_production.toLocaleString()} PCS</td>
+                            <td className="p-3 text-center font-black">
+                              <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                                {lp.production_percentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
+                            <td className="p-3">
+                              <span className="rounded-md px-2.5 py-1 font-bold text-[11px] bg-purple-600 text-white">
+                                NO PRODUCTION
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
