@@ -170,7 +170,32 @@ export function DashboardPage() {
 
   // Modals for Admin Functions
   const [isAddPlanModalOpen, setIsAddPlanModalOpen] = useState(false);
+  const [isExportAttachmentModalOpen, setIsExportAttachmentModalOpen] = useState(false);
   const [isAddMode, setIsAddMode] = useState(false);
+
+  const handleTriggerExportModal = () => {
+    const today = new Date().toISOString().split("T")[0] ?? "";
+    const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+    const nextSlNo = categoryTasks.length + 1;
+    setEditingAudit({
+      id: `aud-${Date.now()}`,
+      sl_no: nextSlNo,
+      audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+      title: "",
+      audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : selectedCategory === "Revalidation Audit" ? "Revalidation Audit" : catPrefix,
+      area: "Machine Shop Line 1",
+      month: selectedMonth,
+      year: new Date().getFullYear(),
+      due_date: today,
+      status: "Planned",
+      assigned_to_employee_number: profile?.employee_number ?? "688079",
+      auditor_name: profile?.full_name ?? "Lead Auditor",
+      department: "Quality Assurance",
+      attached_file_name: "",
+      attached_file_url: "",
+    });
+    setIsExportAttachmentModalOpen(true);
+  };
 
   const handleDirectExcelLaunch = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1074,9 +1099,9 @@ export function DashboardPage() {
 
               <Button
                 type="button"
-                onClick={handleExportCurrentViewExcel}
+                onClick={handleTriggerExportModal}
                 className="bg-sky-700 text-white font-bold hover:bg-sky-800 shadow-xs text-xs gap-1.5"
-                title="Export currently displayed audit records to Excel (.xlsx)"
+                title="Open Excel sheet attachment / export option"
               >
                 <Download className="h-3.5 w-3.5" /> Export Excel
               </Button>
@@ -1520,9 +1545,9 @@ export function DashboardPage() {
                   {(isAdmin || selectedStatusView === "Ongoing") && (
                     <button
                       type="button"
-                      onClick={handleExportCurrentViewExcel}
+                      onClick={handleTriggerExportModal}
                       className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
-                      title={`Export all ${selectedCategory} — ${selectedStatusView} records to formatted Excel spreadsheet`}
+                      title="Select Excel sheet document alone or export records"
                     >
                       <Download className="h-4 w-4" /> Export Excel
                     </button>
@@ -2557,6 +2582,111 @@ export function DashboardPage() {
               >
                 <Check className="h-4 w-4" /> Save Audit Plan
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: EXPORT OPTION (SELECT EXCEL SHEET DOCUMENT ALONE) ── */}
+      {isExportAttachmentModalOpen && editingAudit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Plus className="h-4 w-4 text-emerald-600" /> Add New Audit Plan
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsExportAttachmentModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* EXCEL SHEET ATTACHMENT ONLY */}
+            <div className="space-y-4 text-xs">
+              <div className="rounded-xl border border-sky-200/90 bg-sky-50/40 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 shadow-2xs shrink-0">
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-[11px] tracking-wider text-sky-950 uppercase">
+                      EXCEL SHEET / SPEC FILE ATTACHMENT
+                    </h4>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Attach Excel checklist (<span className="font-mono text-emerald-700 font-bold">.xlsx, .csv</span>) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
+                </p>
+
+                <input
+                  type="file"
+                  ref={planFileInputRef}
+                  onChange={handlePlanFileAttachmentChange}
+                  accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, .pdf"
+                  className="hidden"
+                />
+
+                <div className="flex items-center gap-3 pt-1 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => planFileInputRef.current?.click()}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs gap-1.5 py-1.5 px-3.5 shadow-2xs cursor-pointer hover:border-emerald-500 hover:text-emerald-700 transition-colors"
+                  >
+                    <Upload className="h-3.5 w-3.5 text-slate-500" /> Select Excel Sheet / Document
+                  </Button>
+
+                  {editingAudit.attached_file_name ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-2.5 py-1 border border-emerald-200">
+                      <FileCheck2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-[200px]">
+                        {editingAudit.attached_file_name}
+                      </span>
+                      <span className="rounded-full bg-emerald-200 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-800 shrink-0">
+                        Selected
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No file selected</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleExportCurrentViewExcel}
+                className="text-[11px] font-bold text-sky-700 hover:bg-sky-50 gap-1"
+                title="Download current table as .xlsx file"
+              >
+                <Download className="h-3.5 w-3.5" /> Download .xlsx
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsExportAttachmentModalOpen(false)}
+                  className="text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    handleSaveAuditRecord(editingAudit);
+                    setIsExportAttachmentModalOpen(false);
+                  }}
+                  className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs px-4 py-2 rounded-xl"
+                >
+                  <Check className="h-4 w-4" /> Save Audit Plan
+                </Button>
+              </div>
             </div>
           </div>
         </div>
