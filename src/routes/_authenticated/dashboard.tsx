@@ -83,6 +83,8 @@ type Assignment = {
   assigned_to_employee_number?: string;
   department?: string;
   progress_pct?: number;
+  planned_date?: string;
+  start_date_time?: string;
   completion_date?: string;
   final_result?: string;
   document_url?: string;
@@ -99,7 +101,7 @@ type Deviation = {
   observed_condition?: string;
   location_operation?: string;
   created_at: string;
-  employee_number: string;
+  employee_number?: string;
   severity?: string;
   responsible_person?: string;
   department?: string;
@@ -420,8 +422,14 @@ export function DashboardPage() {
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
-    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned");
-  }, [categoryTasks]);
+    return categoryTasks.filter((r) => {
+      // Once submitted, Under Review, Completed, or Deviation, file moves to Admin Dashboard and is no longer visible to the user in Ongoing Audit
+      if (!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(r.status)) {
+        return false;
+      }
+      return r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned";
+    });
+  }, [categoryTasks, isAdmin]);
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");
@@ -453,18 +461,18 @@ export function DashboardPage() {
         description: t.title,
         observed_condition: `Non-conformance identified during ${t.audit_type} Audit`,
         location_operation: t.area,
-        employee_number: t.assigned_to_employee_number,
+        employee_number: t.assigned_to_employee_number || "688079",
         severity: "High",
         status: "Open",
         created_at: t.due_date,
-        responsible_person: t.assigned_to_employee_number,
+        responsible_person: t.assigned_to_employee_number || "688079",
         department: t.area,
         corrective_action: "Action Assigned to QA Engineer",
         due_date: t.due_date,
         closure_status: "Open",
         product_part_number: t.audit_code,
       })),
-    ];
+    ] as any;
     return merged;
   }, [categoryTasks, allDeviations, allTaskRows, selectedCategory]);
 
@@ -1904,6 +1912,17 @@ export function DashboardPage() {
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              <Button
+                                asChild
+                                size="sm"
+                                className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs"
+                                title={`Import & open audit inspection form for ${task.audit_code}`}
+                              >
+                                <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                  <Upload className="h-3.5 w-3.5" /> Import
+                                </Link>
+                              </Button>
+
                               <button
                                 type="button"
                                 onClick={() => handleDownloadRowAuditTemplate(task)}
@@ -2567,65 +2586,31 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* 4. AUDIT CATEGORY */}
+              {/* ASSIGN AUDITOR / EMP ID */}
               <div>
                 <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
-                  AUDIT CATEGORY
+                  ASSIGN AUDITOR / EMP ID
                 </label>
                 <select
-                  value={editingAudit.audit_type}
-                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                  value={resolveEmployeeNumber(editingAudit.assigned_to_employee_number || editingAudit.auditor_name)}
+                  onChange={(e) => {
+                    const selectedEmp = e.target.value;
+                    const rosterInfo = OFFICIAL_ROSTER[selectedEmp];
+                    setEditingAudit({
+                      ...editingAudit,
+                      assigned_to_employee_number: selectedEmp,
+                      auditor_name: rosterInfo ? rosterInfo.name : selectedEmp,
+                      area: editingAudit.area || (rosterInfo ? rosterInfo.department : "Machine Shop Line 1"),
+                    });
+                  }}
+                  className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white text-xs shadow-2xs"
                 >
-                  <option value="Product">Product Audit</option>
-                  <option value="Revalidation">Revalidation Audit</option>
-                  <option value="Dock Audit">Dock Audit</option>
-                  <option value="Process Audit">Process Audit</option>
-                  <option value="Supplier Quality Audit">Supplier Quality Audit</option>
-                  <option value="Special Process Audit">Special Process Audit</option>
+                  {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
+                    <option key={empId} value={empId}>
+                      {empId} - {info.name} ({info.department.slice(0, 8)}...)
+                    </option>
+                  ))}
                 </select>
-              </div>
-
-              {/* 5. ASSIGN AUDITOR / EMP ID & DEPARTMENT / LINE */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
-                    ASSIGN AUDITOR / EMP ID
-                  </label>
-                  <select
-                    value={resolveEmployeeNumber(editingAudit.assigned_to_employee_number || editingAudit.auditor_name)}
-                    onChange={(e) => {
-                      const selectedEmp = e.target.value;
-                      const rosterInfo = OFFICIAL_ROSTER[selectedEmp];
-                      setEditingAudit({
-                        ...editingAudit,
-                        assigned_to_employee_number: selectedEmp,
-                        auditor_name: rosterInfo ? rosterInfo.name : selectedEmp,
-                        area: editingAudit.area || (rosterInfo ? rosterInfo.department : "Machine Shop Line 1"),
-                      });
-                    }}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white text-xs shadow-2xs"
-                  >
-                    {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
-                      <option key={empId} value={empId}>
-                        {empId} - {info.name} ({info.department.slice(0, 8)}...)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
-                    DEPARTMENT / LINE
-                  </label>
-                  <input
-                    type="text"
-                    value={editingAudit.area}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, area: e.target.value })}
-                    placeholder="Machine Shop Line 1"
-                    className="w-full rounded-xl border border-slate-300 p-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
-                  />
-                </div>
               </div>
 
               {/* 6. EXCEL SHEET / SPEC FILE ATTACHMENT */}

@@ -165,6 +165,27 @@ function AuditFormPage() {
   const [isSignatureDialogOpen, setIsSignatureDialogOpen] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  const [selectedInspectionFile, setSelectedInspectionFile] = useState<{ name: string; size: string; timestamp: string } | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          const tasks = JSON.parse(stored);
+          const match = tasks.find((t: any) => t.id === auditId || t.audit_code === auditId);
+          if (match && match.attached_file_name) {
+            return {
+              name: match.attached_file_name,
+              size: "Pre-attached",
+              timestamp: "Ready",
+            };
+          }
+        } catch {}
+      }
+    }
+    return null;
+  });
+  const inspectionFileInputRef = useRef<HTMLInputElement>(null);
+
   // Dynamic audit preset initialization based on auditId, with Draft restoration
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -653,6 +674,126 @@ function AuditFormPage() {
             </span>
           </div>
         )}
+
+        {/* ── USER VIEW: FILE SELECTION & AUDIT DECISION (OK / NOT OK) CARD ── */}
+        <div className="rounded-2xl border-2 border-sky-300 bg-gradient-to-br from-sky-50/90 via-white to-sky-50/40 p-5 shadow-sm space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-sky-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600 text-white shadow-xs">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                  Inspection Checklist File Selection
+                </h3>
+                <p className="text-[11px] font-medium text-slate-600">
+                  Select or upload your audit Excel checklist (.xlsx, .csv) or spec document.
+                </p>
+              </div>
+            </div>
+            <input
+              type="file"
+              ref={inspectionFileInputRef}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setSelectedInspectionFile({
+                    name: file.name,
+                    size: `${(file.size / 1024).toFixed(1)} KB`,
+                    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  });
+                  handleCheckpointsFileUpload(e);
+                }
+              }}
+              accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, .pdf, image/*"
+              className="hidden"
+            />
+            <Button
+              type="button"
+              onClick={() => inspectionFileInputRef.current?.click()}
+              className="bg-sky-600 hover:bg-sky-700 text-white font-black text-xs gap-2 shadow-xs px-4 py-2 rounded-xl cursor-pointer"
+            >
+              <Upload className="h-4 w-4" /> {selectedInspectionFile ? "Change Selected File" : "Select Audit File"}
+            </Button>
+          </div>
+
+          {/* Display selected file status and decision buttons */}
+          {selectedInspectionFile ? (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between rounded-xl bg-white border border-emerald-300 p-3.5 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
+                    <Check className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-mono text-xs font-black text-emerald-950 truncate max-w-md">
+                      {selectedInspectionFile.name}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Status: Attached & Ready · {selectedInspectionFile.size} · {selectedInspectionFile.timestamp}
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase text-emerald-800 shrink-0">
+                  ✓ File Selected
+                </span>
+              </div>
+
+              {/* TWO OPTIONS: OK & NOT OK */}
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Select Inspection Result Decision:
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Choose OK to move to Admin Review, or Not OK to raise Deviation
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* OPTION 1: OK */}
+                  <button
+                    type="button"
+                    onClick={handleSubmitAudit}
+                    disabled={isAuditSubmitted && !isAdmin}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="OK → The file moves to Admin → Under Review"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>OK (Submit &rarr; Admin Under Review)</span>
+                  </button>
+
+                  {/* OPTION 2: NOT OK */}
+                  <button
+                    type="button"
+                    onClick={handleRaiseDeviation}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-rose-600 px-5 py-3 text-xs font-black text-white hover:bg-rose-700 active:scale-98 shadow-md transition-all cursor-pointer"
+                    title="Not OK → Automatically opens 2-Page Deviation Form"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>Not OK (Open 2-Page Deviation Form)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => inspectionFileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-sky-300 bg-white/90 p-6 text-center cursor-pointer hover:bg-sky-50/60 hover:border-sky-500 transition-all shadow-2xs"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                <Upload className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-900">
+                  Click here to Select Audit Checklist File (.xlsx, .csv, document)
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  After selecting the file, you will be prompted with the <strong>OK</strong> and <strong>Not OK</strong> decision options.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ── STEP-BY-STEP PROGRESS WIZARD BAR ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">

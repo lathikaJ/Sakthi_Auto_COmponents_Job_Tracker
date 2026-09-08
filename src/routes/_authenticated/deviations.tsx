@@ -1746,11 +1746,13 @@ function DeviationsPage() {
                     <span>EFFECTIVE DATE: 25.12.2015</span>
                   </div>
 
-                  {/* Submit Page 1 Button Bar */}
+                  {/* Submit / Next Page 1 Button Bar */}
                   <div className="border-t border-slate-300 pt-3 flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-[11px] text-slate-600 font-medium">
-                      Save as draft to resume tomorrow or submit to move for Admin approval.
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isPage1Valid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                        {isPage1Valid ? "✓ Page 1 Complete" : "⚠ Page 1 Incomplete"}
+                      </span>
+                    </div>
                     <div className="flex gap-2 items-center flex-wrap">
                       <Button
                         type="button"
@@ -1768,19 +1770,16 @@ function DeviationsPage() {
                         onClick={handleSaveDraft}
                         className="border-amber-400 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft (Resume Tomorrow)
+                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft
                       </Button>
 
+                      {/* PROCEED TO PAGE 2 */}
                       <Button
-                        type="submit"
-                        disabled={!isPage1Valid}
-                        className={`text-xs font-black text-white shadow-md transition-all ${
-                          isPage1Valid
-                            ? "bg-amber-600 hover:bg-amber-700 cursor-pointer"
-                            : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                        }`}
+                        type="button"
+                        onClick={() => setActiveTab(2)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-md cursor-pointer"
                       >
-                        Save & Submit Page 1 (To Deviations Icon)
+                        Next: Fill Page 2 (RCA & Quarantine) &rarr;
                       </Button>
                     </div>
                   </div>
@@ -2090,9 +2089,19 @@ function DeviationsPage() {
 
                   {/* Submit Page 2 Bar */}
                   <div className="border-t border-slate-300 pt-3 flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-[11px] text-slate-600 font-medium">
-                      Save draft to resume later or submit for Admin review.
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isPage1Valid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                        {isPage1Valid ? "✓ Page 1 Complete" : "⚠ Page 1 Incomplete"}
+                      </span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isPage2Valid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                        {isPage2Valid ? "✓ Page 2 Complete" : "⚠ Page 2 Incomplete"}
+                      </span>
+                      {!(isPage1Valid && isPage2Valid) && (
+                        <span className="text-[11px] text-amber-700 font-medium">
+                          (Submit icon will appear once Page 1 & Page 2 are fully completed)
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2 items-center flex-wrap">
                       <Button
                         type="button"
@@ -2103,6 +2112,16 @@ function DeviationsPage() {
                         Cancel
                       </Button>
 
+                      {/* BACK TO PAGE 1 BUTTON */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setActiveTab(1)}
+                        className="border-slate-300 text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        &larr; Back to Page 1
+                      </Button>
+
                       {/* SAVE AS DRAFT BUTTON */}
                       <Button
                         type="button"
@@ -2110,20 +2129,18 @@ function DeviationsPage() {
                         onClick={handleSaveDraft}
                         className="border-amber-400 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft (Resume Tomorrow)
+                        <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft
                       </Button>
 
-                      <Button
-                        type="submit"
-                        disabled={!isPage2Valid}
-                        className={`text-xs font-black text-white shadow-md transition-all ${
-                          isPage2Valid
-                            ? "bg-sky-600 hover:bg-sky-700 cursor-pointer"
-                            : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                        }`}
-                      >
-                        Submit Page 2 (Both Reports &rarr; Admin Review)
-                      </Button>
+                      {/* SUBMIT ICON & BUTTON: Visible ONLY when Deviation Form is completely filled (Page 1 + Page 2) */}
+                      {isPage1Valid && isPage2Valid && (
+                        <Button
+                          type="submit"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md cursor-pointer gap-1.5 animate-in fade-in zoom-in-95 duration-200"
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Submit Deviation Form (Move to Deviation Status)
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </form>
