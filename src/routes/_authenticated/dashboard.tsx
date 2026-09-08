@@ -2318,10 +2318,10 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ── MODAL: ADMIN "+ ADD PLAN" (SERIAL NO, PART NAME, PART NUMBER, PLANNED MONTH & EXCEL ATTACHMENT) ── */}
+      {/* ── MODAL: ADMIN "+ ADD PLAN" (COMPLETE AUDIT PLAN FORM) ── */}
       {(isAddPlanModalOpen || isEditModalOpen) && editingAudit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 border border-slate-200 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in duration-150 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <Plus className="h-4 w-4 text-emerald-600" /> {isAddPlanModalOpen ? "Add New Audit Plan" : `Edit Audit Plan [${editingAudit.audit_code}]`}
@@ -2332,28 +2332,175 @@ export function DashboardPage() {
                   setIsAddPlanModalOpen(false);
                   setIsEditModalOpen(false);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* EXCEL SHEET ATTACHMENT ONLY */}
-            <div className="space-y-4 text-xs">
-              <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 shadow-2xs shrink-0">
-                    <FileSpreadsheet className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-[11px] tracking-wider text-sky-950 uppercase">
-                      EXCEL SHEET / SPEC FILE ATTACHMENT
-                    </h4>
-                  </div>
+            <div className="space-y-3.5 text-xs">
+              {/* 1. SERIAL NUMBER & PART NUMBER */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                    SERIAL NUMBER (SL. NO.)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingAudit.sl_no ?? ""}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, sl_no: e.target.value })}
+                    placeholder="1"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 font-mono font-bold text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                  />
                 </div>
 
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Attach Excel checklist (<span className="font-mono text-emerald-700 font-bold">.xlsx, .csv</span>) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
+                <div>
+                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                    PART NUMBER
+                  </label>
+                  <input
+                    type="text"
+                    value={editingAudit.audit_code}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
+                    placeholder="REV-001"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 font-mono font-bold text-indigo-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* 2. PART NAME */}
+              <div>
+                <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                  PART NAME
+                </label>
+                <input
+                  type="text"
+                  value={editingAudit.title}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, title: e.target.value })}
+                  placeholder="e.g. Steering Knuckle Housing LH/RH – MPV"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 font-medium text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                />
+              </div>
+
+              {/* 3. PLANNED MONTH & YEAR SELECTION */}
+              <div className="rounded-xl border border-sky-200/90 bg-sky-50/40 p-3.5 space-y-2">
+                <span className="block font-extrabold uppercase text-[10px] tracking-wider text-sky-950">
+                  PLANNED MONTH &amp; YEAR SELECTION *
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-[10px] uppercase text-slate-600 mb-1">MONTH</label>
+                    <select
+                      value={editingAudit.month}
+                      onChange={(e) => {
+                        const m = Number(e.target.value);
+                        const y = editingAudit.year || new Date().getFullYear();
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
+                        setEditingAudit({ ...editingAudit, month: m, due_date: dateStr });
+                      }}
+                      className="w-full rounded-lg border border-slate-300 p-2 font-bold text-sky-900 bg-white focus:border-sky-500 focus:outline-none shadow-2xs"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>
+                          {m} ({idx + 1})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[10px] uppercase text-slate-600 mb-1">YEAR</label>
+                    <input
+                      type="number"
+                      min={2020}
+                      max={2035}
+                      value={editingAudit.year || new Date().getFullYear()}
+                      onChange={(e) => {
+                        const y = Number(e.target.value);
+                        const m = editingAudit.month || 1;
+                        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
+                        setEditingAudit({ ...editingAudit, year: y, due_date: dateStr });
+                      }}
+                      className="w-full rounded-lg border border-slate-300 p-2 font-mono font-bold text-slate-900 bg-white focus:border-sky-500 focus:outline-none shadow-2xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. AUDIT CATEGORY */}
+              <div>
+                <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                  AUDIT CATEGORY
+                </label>
+                <select
+                  value={editingAudit.audit_type}
+                  onChange={(e) => setEditingAudit({ ...editingAudit, audit_type: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                >
+                  <option value="Product">Product Audit</option>
+                  <option value="Revalidation">Revalidation Audit</option>
+                  <option value="Dock Audit">Dock Audit</option>
+                  <option value="Process Audit">Process Audit</option>
+                  <option value="Supplier Quality Audit">Supplier Quality Audit</option>
+                  <option value="Special Process Audit">Special Process Audit</option>
+                </select>
+              </div>
+
+              {/* 5. ASSIGN AUDITOR / EMP ID & DEPARTMENT / LINE */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                    ASSIGN AUDITOR / EMP ID
+                  </label>
+                  <select
+                    value={resolveEmployeeNumber(editingAudit.assigned_to_employee_number || editingAudit.auditor_name)}
+                    onChange={(e) => {
+                      const selectedEmp = e.target.value;
+                      const rosterInfo = OFFICIAL_ROSTER[selectedEmp];
+                      setEditingAudit({
+                        ...editingAudit,
+                        assigned_to_employee_number: selectedEmp,
+                        auditor_name: rosterInfo ? rosterInfo.name : selectedEmp,
+                        area: editingAudit.area || (rosterInfo ? rosterInfo.department : "Machine Shop Line 1"),
+                      });
+                    }}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white text-xs shadow-2xs"
+                  >
+                    {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
+                      <option key={empId} value={empId}>
+                        {empId} - {info.name} ({info.department.slice(0, 8)}...)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
+                    DEPARTMENT / LINE
+                  </label>
+                  <input
+                    type="text"
+                    value={editingAudit.area}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, area: e.target.value })}
+                    placeholder="Machine Shop Line 1"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 font-medium text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* 6. EXCEL SHEET / SPEC FILE ATTACHMENT */}
+              <div className="rounded-xl border border-sky-200/90 bg-sky-50/40 p-3.5 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-sky-700 shadow-2xs shrink-0">
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                  </div>
+                  <h4 className="font-extrabold text-[10px] tracking-wider text-sky-950 uppercase">
+                    EXCEL SHEET / SPEC FILE ATTACHMENT
+                  </h4>
+                </div>
+
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Attach Excel checklist (.xlsx, .csv) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
                 </p>
 
                 <input
@@ -2369,18 +2516,18 @@ export function DashboardPage() {
                     type="button"
                     variant="outline"
                     onClick={() => planFileInputRef.current?.click()}
-                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs gap-2 py-2 px-4 shadow-2xs cursor-pointer hover:border-emerald-500 hover:text-emerald-700 transition-colors"
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs gap-1.5 py-1.5 px-3.5 shadow-2xs cursor-pointer hover:border-emerald-500 hover:text-emerald-700 transition-colors"
                   >
                     <Upload className="h-3.5 w-3.5 text-slate-500" /> Select Excel Sheet / Document
                   </Button>
 
                   {editingAudit.attached_file_name ? (
-                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 border border-emerald-200">
-                      <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-[220px]">
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-2.5 py-1 border border-emerald-200">
+                      <FileCheck2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-[200px]">
                         {editingAudit.attached_file_name}
                       </span>
-                      <span className="rounded-full bg-emerald-200 px-2 py-0.2 text-[10px] font-extrabold text-emerald-800 shrink-0">
+                      <span className="rounded-full bg-emerald-200 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-800 shrink-0">
                         Selected
                       </span>
                     </div>
@@ -2406,7 +2553,7 @@ export function DashboardPage() {
               <Button
                 type="button"
                 onClick={() => handleSaveAuditRecord(editingAudit)}
-                className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs"
+                className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs px-4 py-2 rounded-xl"
               >
                 <Check className="h-4 w-4" /> Save Audit Plan
               </Button>
