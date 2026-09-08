@@ -2338,50 +2338,54 @@ export function DashboardPage() {
               </button>
             </div>
 
-            {/* ONLY FILE SELECTION / ATTACHMENT OPTION */}
+            {/* EXCEL SHEET ATTACHMENT ONLY */}
             <div className="space-y-4 text-xs">
-              <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-6 space-y-4 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-2xs">
-                  <FileSpreadsheet className="h-7 w-7" />
+              <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 shadow-2xs shrink-0">
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-[11px] tracking-wider text-sky-950 uppercase">
+                      EXCEL SHEET / SPEC FILE ATTACHMENT
+                    </h4>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <h4 className="font-black text-slate-900 text-sm">Upload Excel Checklist / Spec Document</h4>
-                  <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                    Select an Excel inspection checklist (<span className="font-mono text-emerald-700 font-bold">.xlsx, .xls, .csv</span>) or spec document (<span className="font-mono text-emerald-700 font-bold">.pdf</span>) to attach. Employees can click and view this attachment directly in Ongoing Audit.
-                  </p>
-                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Attach Excel checklist (<span className="font-mono text-emerald-700 font-bold">.xlsx, .csv</span>) or spec document. Employees can click and view this attachment directly in Ongoing Audit.
+                </p>
 
                 <input
                   type="file"
                   ref={planFileInputRef}
                   onChange={handlePlanFileAttachmentChange}
-                  accept=".xlsx,.xls,.csv,.pdf"
+                  accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv, .pdf"
                   className="hidden"
                 />
 
-                <div className="flex flex-col items-center justify-center gap-3 pt-2">
+                <div className="flex items-center gap-3 pt-1 flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => planFileInputRef.current?.click()}
-                    className="bg-emerald-600 text-white hover:bg-emerald-700 font-black text-xs gap-2 py-2 px-5 shadow-xs border-emerald-600 hover:border-emerald-700 cursor-pointer"
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs gap-2 py-2 px-4 shadow-2xs cursor-pointer hover:border-emerald-500 hover:text-emerald-700 transition-colors"
                   >
-                    <Upload className="h-4 w-4" /> Select Excel Sheet / Document
+                    <Upload className="h-3.5 w-3.5 text-slate-500" /> Select Excel Sheet / Document
                   </Button>
 
                   {editingAudit.attached_file_name ? (
-                    <div className="flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 border border-emerald-200 shadow-2xs">
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 border border-emerald-200">
                       <FileCheck2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-xs">
+                      <span className="font-mono text-xs font-bold text-emerald-900 truncate max-w-[220px]">
                         {editingAudit.attached_file_name}
                       </span>
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 shrink-0">
+                      <span className="rounded-full bg-emerald-200 px-2 py-0.2 text-[10px] font-extrabold text-emerald-800 shrink-0">
                         Selected
                       </span>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-400 italic">No file selected yet</span>
+                    <span className="text-xs text-slate-400 italic">No file selected</span>
                   )}
                 </div>
               </div>
@@ -2395,7 +2399,7 @@ export function DashboardPage() {
                   setIsAddPlanModalOpen(false);
                   setIsEditModalOpen(false);
                 }}
-                className="text-xs font-bold"
+                className="text-xs font-bold text-slate-600 hover:bg-slate-100"
               >
                 Cancel
               </Button>
@@ -2404,7 +2408,7 @@ export function DashboardPage() {
                 onClick={() => handleSaveAuditRecord(editingAudit)}
                 className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs"
               >
-                <Check className="h-4 w-4" /> Save Attachment
+                <Check className="h-4 w-4" /> Save Audit Plan
               </Button>
             </div>
           </div>
