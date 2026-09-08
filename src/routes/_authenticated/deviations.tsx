@@ -657,8 +657,38 @@ function DeviationsPage() {
         return d;
       });
       await saveDeviationsList(updated);
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("sakthi_active_deviation_in_progress");
+        localStorage.removeItem("sakthi_active_deviation_draft");
+        window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
+
+        // Update linked task to Deviation status
+        const currentAuditId = editingDevId ? (deviations.find(d => d.id === editingDevId)?.audit_id || "") : formData.audit_id;
+        if (currentAuditId) {
+          const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+          if (stored) {
+            try {
+              let tasks = JSON.parse(stored);
+              tasks = tasks.map((t: any) => {
+                if (t.id === currentAuditId || t.audit_code === currentAuditId) {
+                  return { ...t, status: "Deviation", final_result: "DEVIATION IDENTIFIED" };
+                }
+                return t;
+              });
+              localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+              window.dispatchEvent(new Event("excel_tasks_updated"));
+            } catch {}
+          }
+          updateSubmittedAuditStatus(currentAuditId, "Deviation", "Deviation Report submitted. Moved to Deviation status.");
+          supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", currentAuditId).then(({ error }) => {
+            if (error) console.warn("Supabase update error:", error);
+          });
+        }
+      }
+
       setIsModalOpen(false);
-      toast.success("Page 1 [Deviation Report Format QF/08/CQA-55] submitted successfully!");
+      toast.success("Page 1 [Deviation Report Format QF/08/CQA-55] submitted! File moved to Deviation status.");
     } else {
       // Create new deviation record (Status: page1_submitted)
       const newCode = `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
@@ -704,8 +734,36 @@ function DeviationsPage() {
 
       const updated = [newDev, ...deviations];
       await saveDeviationsList(updated);
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("sakthi_active_deviation_in_progress");
+        localStorage.removeItem("sakthi_active_deviation_draft");
+        window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
+
+        if (formData.audit_id) {
+          const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+          if (stored) {
+            try {
+              let tasks = JSON.parse(stored);
+              tasks = tasks.map((t: any) => {
+                if (t.id === formData.audit_id || t.audit_code === formData.audit_id) {
+                  return { ...t, status: "Deviation", final_result: "DEVIATION IDENTIFIED" };
+                }
+                return t;
+              });
+              localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+              window.dispatchEvent(new Event("excel_tasks_updated"));
+            } catch {}
+          }
+          updateSubmittedAuditStatus(formData.audit_id, "Deviation", "Deviation Report Page 1 submitted. File moved to Deviation status.");
+          supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", formData.audit_id).then(({ error }) => {
+            if (error) console.warn("Supabase update error:", error);
+          });
+        }
+      }
+
       setIsModalOpen(false);
-      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Moves for Admin Page 1 approval.`);
+      toast.success(`Page 1 [Deviation Report ${newCode}] submitted! Audit file moved to Deviation status.`);
     }
   };
 
@@ -779,16 +837,38 @@ function DeviationsPage() {
 
     await saveDeviationsList(updated);
 
-    // Update linked Inspection Audit in sakthi_submitted_audits_v2 to "Under Review"
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sakthi_active_deviation_in_progress");
+      localStorage.removeItem("sakthi_active_deviation_draft");
+      window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
+    }
+
+    // Update linked Inspection Audit in sakthi_submitted_audits_v2 to "Deviation"
     if (currentDev.audit_id) {
-      updateSubmittedAuditStatus(currentDev.audit_id, "Under Review", "Page 2 Root Cause, CAPA & Quarantine details submitted. Under Admin review.");
-      supabase.from("audit_assignments").update({ status: "Submitted" as any }).eq("audit_code", currentDev.audit_id).then(({ error }) => {
+      updateSubmittedAuditStatus(currentDev.audit_id, "Deviation", "2-Page Deviation Report submitted. File in Deviation status.");
+      supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", currentDev.audit_id).then(({ error }) => {
         if (error) console.warn("Supabase assignment update error:", error);
       });
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+        if (stored) {
+          try {
+            let tasks = JSON.parse(stored);
+            tasks = tasks.map((t: any) => {
+              if (t.id === currentDev.audit_id || t.audit_code === currentDev.audit_id) {
+                return { ...t, status: "Deviation", final_result: "DEVIATION IDENTIFIED" };
+              }
+              return t;
+            });
+            localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+            window.dispatchEvent(new Event("excel_tasks_updated"));
+          } catch {}
+        }
+      }
     }
 
     setIsModalOpen(false);
-    toast.success(`Page 2 (RCA, CAPA & Quarantine Details) submitted! Both Inspection Report and Deviation Report are now Under Review to Admin.`);
+    toast.success(`Page 2 (RCA, CAPA & Quarantine Details) submitted! Audit file moved to Deviation status.`);
   };
 
   // Admin Dual Approval

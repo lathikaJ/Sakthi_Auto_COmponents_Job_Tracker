@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Clock } from "lucide-react";
+import { LogOut, Clock, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 import { SakthiLogo } from "@/components/brand/SakthiLogo";
@@ -12,12 +12,8 @@ const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/assignments", label: "Assignments" },
   { to: "/audits", label: "Audit Register" },
+  { to: "/deviations", label: "Deviations" },
   { to: "/review", label: "Review Queue" },
-] as const;
-
-const EMPLOYEE_NAV = [
-  { to: "/dashboard", label: "My Work Queue" },
-  { to: "/audits", label: "Audit Register" },
 ] as const;
 
 export function AppShell({
@@ -33,8 +29,38 @@ export function AppShell({
 }) {
   const { profile, isAdmin, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
   const [now, setNow] = useState(new Date());
+  const [isCompletingDeviation, setIsCompletingDeviation] = useState(false);
+
+  useEffect(() => {
+    const checkDeviationStatus = () => {
+      if (typeof window === "undefined") return;
+      const activeFlag = localStorage.getItem("sakthi_active_deviation_in_progress") === "true";
+      const prefill = !!localStorage.getItem("sakthi_deviation_prefill");
+      const draft = !!localStorage.getItem("sakthi_active_deviation_draft");
+      setIsCompletingDeviation(activeFlag || prefill || draft);
+    };
+
+    checkDeviationStatus();
+    window.addEventListener("sakthi_deviation_active_changed", checkDeviationStatus);
+    window.addEventListener("sakthi_deviations_updated", checkDeviationStatus);
+    window.addEventListener("storage", checkDeviationStatus);
+    return () => {
+      window.removeEventListener("sakthi_deviation_active_changed", checkDeviationStatus);
+      window.removeEventListener("sakthi_deviations_updated", checkDeviationStatus);
+      window.removeEventListener("storage", checkDeviationStatus);
+    };
+  }, []);
+
+  const employeeNav = [
+    { to: "/dashboard", label: "My Work Queue" },
+    { to: "/audits", label: "Audit Register" },
+    ...(isCompletingDeviation || pathname === "/deviations"
+      ? [{ to: "/deviations", label: "Deviation Report", isDeviation: true }]
+      : []),
+  ];
+
+  const nav = isAdmin ? ADMIN_NAV : employeeNav;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,17 +79,21 @@ export function AppShell({
           <nav className="flex flex-1 flex-wrap items-center gap-1">
             {nav.map((item) => {
               const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
+              const isDev = (item as any).isDeviation;
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active
+                    "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    isDev
+                      ? "bg-rose-50 text-rose-700 border border-rose-300 font-bold hover:bg-rose-100"
+                      : active
                       ? "bg-brand text-primary-foreground"
                       : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                   )}
                 >
+                  {isDev && <AlertTriangle className="h-4 w-4 text-rose-600 animate-pulse" />}
                   {item.label}
                 </Link>
               );

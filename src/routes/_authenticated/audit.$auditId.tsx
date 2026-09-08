@@ -42,10 +42,11 @@ export const Route = createFileRoute("/_authenticated/audit/$auditId")({
 type CheckpointItem = {
   id: string;
   sl_no?: number | string;
+  section?: string;
   parameter: string;
   specification: string;
   check_method?: string;
-  actual_value: string;
+  actual_value?: string;
   status: "Pass" | "Fail" | "Pending";
   remarks?: string;
 };
@@ -580,7 +581,7 @@ function AuditFormPage() {
     if (isAdmin) {
       toast.success(`Audit ${cleanAuditCode} approved & marked Audit Completed!`);
     } else {
-      toast.success("Audit inspection report saved & submitted for Admin Review! Status updated to Under Review.");
+      toast.success("Audit inspection report submitted! File moved to Admin → Under Review.");
     }
 
     setTimeout(() => {
@@ -611,31 +612,11 @@ function AuditFormPage() {
 
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_deviation_prefill", JSON.stringify(prefill));
-
-      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-      if (stored) {
-        try {
-          let tasks = JSON.parse(stored);
-          tasks = tasks.map((t: any) => {
-            if (t.id === auditId || t.audit_code === auditId) {
-              return { ...t, status: "Deviation" };
-            }
-            return t;
-          });
-          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-          window.dispatchEvent(new Event("excel_tasks_updated"));
-        } catch {
-          // Ignore
-        }
-      }
+      localStorage.setItem("sakthi_active_deviation_in_progress", "true");
+      window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
     }
 
-    // Sync to Supabase DB
-    const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
-    supabase.from("audit_assignments").update({ status: "Deviation" }).eq("audit_code", cleanAuditCode).then(({ error }) => {
-      if (error) console.warn("Supabase assignment status update notice:", error);
-    });
-    toast.info("Opening 2-Page Deviation Report — Please fill Page 1 details.");
+    toast.info("Opening Inspection Report & 2-Page Deviation Report — Please fill Page 1 details.");
     navigate({ to: "/deviations" });
   };
 

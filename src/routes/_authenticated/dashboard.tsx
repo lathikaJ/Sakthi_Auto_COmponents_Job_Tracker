@@ -52,6 +52,7 @@ import {
   mergeAndDeduplicateTasks,
 } from "@/lib/audit";
 import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
+import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -78,15 +79,11 @@ type Assignment = {
   year: number;
   due_date: string;
   status: string;
-  assigned_to_employee_number: string;
   auditor_name?: string;
+  assigned_to_employee_number?: string;
   department?: string;
-  part_number?: string;
-  product_name?: string;
-  planned_date?: string;
-  start_date_time?: string;
-  completion_date?: string;
   progress_pct?: number;
+  completion_date?: string;
   final_result?: string;
   document_url?: string;
   attached_file_name?: string;
@@ -107,6 +104,9 @@ type Deviation = {
   responsible_person?: string;
   department?: string;
   corrective_action?: string;
+  product_part_number?: string;
+  due_date?: string;
+  closure_status?: string;
 };
 
 export const OFFICIAL_ROSTER: Record<string, { name: string; department: string; designation: string; role: "admin" | "employee" }> = {
@@ -823,19 +823,21 @@ export function DashboardPage() {
     reader.readAsBinaryString(file);
   };
 
-  // Handle plan modal file attachment upload
+  // Handle plan modal file attachment upload with auto-save
   const handlePlanFileAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingAudit) return;
-    setEditingAudit({
+    const updated: Assignment = {
       ...editingAudit,
       attached_file_name: file.name,
       attached_file_url: URL.createObjectURL(file),
-    });
-    toast.success(`Attached Excel sheet: ${file.name}`);
+    };
+    setEditingAudit(updated);
+    handleSaveAuditRecord(updated);
+    toast.success(`Attached and saved Excel sheet: ${file.name}`);
   };
 
-  // Move audit record to No Production (Zero Output / Line Stopped)
+  // Move audit record to No Production (Zero Output / Line Stopped) - Accessible to all users
   const handleMoveToNoProduction = async (task: Assignment) => {
     const updatedTask: Assignment = {
       ...task,
@@ -860,7 +862,7 @@ export function DashboardPage() {
     toast.success(`Audit [${task.audit_code}] moved to No Production status.`);
   };
 
-  // Restore audit record from No Production back to Planned
+  // Restore audit record from No Production back to Planned - Accessible to all users
   const handleRestoreFromNoProduction = async (task: Assignment) => {
     const updatedTask: Assignment = {
       ...task,
@@ -883,6 +885,121 @@ export function DashboardPage() {
     }
 
     toast.success(`Restored audit [${task.audit_code}] to Planned status.`);
+  };
+
+  // Admin: Change file status from Completed Audit to Deviation
+  const handleMoveCompletedToDeviation = async (task: Assignment) => {
+    if (!isAdmin) {
+      toast.error("Access Denied: Only Admin can change status from Completed to Deviation.");
+      return;
+    }
+    const updatedTask: Assignment = {
+      ...task,
+      status: "Deviation",
+      final_result: "DEVIATION IDENTIFIED",
+    };
+    const list = rawTaskRows.map((t) => (t.id === task.id ? updatedTask : t));
+    setLocalExcelTasks(list);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+
+      const storedDevs = localStorage.getItem("sakthi_deviations");
+      let devs = storedDevs ? JSON.parse(storedDevs) : [];
+      const newDevCode = (task.audit_code || task.id).replace("AUD-", "DEV-").replace("REV-", "DEV-");
+      if (!devs.some((d: any) => d.dev_code === newDevCode || d.audit_id === task.id)) {
+        devs.unshift({
+          id: `dev-${Date.now()}`,
+          audit_id: task.id,
+          dev_code: newDevCode.startsWith("DEV-") ? newDevCode : `DEV-${newDevCode}`,
+          description: `Deviation flagged from Completed Audit for ${task.title}`,
+          observed_condition: `Admin identified deviation during inspection audit verification of ${task.audit_code}`,
+          location_operation: task.area,
+          employee_number: task.assigned_to_employee_number,
+          severity: "High",
+          status: "open",
+          created_at: new Date().toISOString().split("T")[0],
+          responsible_person: task.assigned_to_employee_number,
+          department: task.area,
+          corrective_action: "Pending Root Cause & CAPA analysis",
+          due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+          closure_status: "Open",
+          product_part_number: task.audit_code,
+        });
+        localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
+        window.dispatchEvent(new Event("sakthi_deviations_updated"));
+      }
+    }
+
+    updateSubmittedAuditStatus(task.id, "Deviation", "Moved from Completed Audit to Deviation by Admin");
+    try {
+      await supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("id", task.id);
+    } catch (err) {
+      console.warn("Supabase status update error:", err);
+    }
+    toast.warning(`Audit [${task.audit_code}] status changed from Completed Audit to Deviation.`);
+  };
+
+  // Admin: Change file status from Deviation back to Completed Audit
+  const handleMoveDeviationToCompleted = async (dev: any) => {
+    if (!isAdmin) {
+      toast.error("Access Denied: Only Admin can change status from Deviation to Completed.");
+      return;
+    }
+    const adminSig = authenticateAndGetSignature("690867");
+    const auditId = dev.audit_id || dev.id;
+    const cleanAuditCode = dev.product_part_number || dev.audit_id || dev.dev_code?.replace("DEV-", "AUD-") || "AUD-01";
+
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          let tasks = JSON.parse(stored);
+          tasks = tasks.map((t: any) => {
+            if (t.id === auditId || t.audit_code === cleanAuditCode || t.id === dev.id) {
+              return {
+                ...t,
+                status: "Completed",
+                completion_date: new Date().toISOString().split("T")[0],
+                final_result: "PASS / COMPLIANT",
+              };
+            }
+            return t;
+          });
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        } catch {}
+      }
+
+      const storedDevs = localStorage.getItem("sakthi_deviations");
+      if (storedDevs) {
+        try {
+          let devs = JSON.parse(storedDevs);
+          devs = devs.map((d: any) => {
+            if (d.id === dev.id || d.dev_code === dev.dev_code || d.audit_id === auditId) {
+              return {
+                ...d,
+                status: "closed",
+                closure_status: "Closed",
+                both_approved: true,
+                final_approved_by: adminSig?.employee_name || "KARTHIKEYAN C (690867)",
+              };
+            }
+            return d;
+          });
+          localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
+          window.dispatchEvent(new Event("sakthi_deviations_updated"));
+        } catch {}
+      }
+    }
+
+    updateSubmittedAuditStatus(auditId, "Completed", `Moved from Deviation to Completed Audit by Admin (${adminSig?.employee_name || "KARTHIKEYAN C"})`);
+    try {
+      await supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", cleanAuditCode);
+    } catch (err) {
+      console.warn("Supabase status update error:", err);
+    }
+    toast.success(`Deviation [${dev.dev_code || dev.id}] status changed back to Completed Audit!`);
   };
 
   const handleSaveAuditRecord = async (updated: Assignment) => {
@@ -1683,27 +1800,27 @@ export function DashboardPage() {
                               <StatusBadge status={task.status} />
                             </td>
                             <td className="p-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {isAdmin ? (
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadRowAuditTemplate(task)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600 shadow-2xs transition-colors"
+                                  title={`Download Excel checklist template for ${task.audit_code}`}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveToNoProduction(task)}
+                                  className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
+                                  title="Move audit to No Production (Zero Output / Line Stopped)"
+                                >
+                                  Move to No Production
+                                </button>
+
+                                {isAdmin && (
                                   <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDownloadRowAuditTemplate(task)}
-                                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600 shadow-2xs transition-colors"
-                                      title={`Download Excel checklist template for ${task.audit_code}`}
-                                    >
-                                      <Download className="h-3.5 w-3.5" />
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMoveToNoProduction(task)}
-                                      className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
-                                      title="Move audit to No Production (Zero Output / Line Stopped)"
-                                    >
-                                      Move to No Production
-                                    </button>
-
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1725,16 +1842,6 @@ export function DashboardPage() {
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                   </>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadRowAuditTemplate(task)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100 hover:border-sky-400 transition-colors shadow-2xs"
-                                    title={`Download Excel template for ${task.audit_code} (${task.title})`}
-                                  >
-                                    <Download className="h-3.5 w-3.5 text-sky-600" />
-                                    <span>Download</span>
-                                  </button>
                                 )}
                               </div>
                             </td>
@@ -1796,45 +1903,33 @@ export function DashboardPage() {
                             <StatusBadge status={task.status} />
                           </td>
                           <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {isAdmin ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadRowAuditTemplate(task)}
-                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-emerald-400 hover:text-emerald-600 shadow-2xs transition-colors"
-                                    title={`Export Excel data for ${task.audit_code}`}
-                                  >
-                                    <Download className="h-3.5 w-3.5" />
-                                  </button>
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadRowAuditTemplate(task)}
+                                className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-emerald-400 hover:text-emerald-600 shadow-2xs transition-colors"
+                                title={`Export Excel data for ${task.audit_code}`}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMoveToNoProduction(task)}
-                                    className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
-                                    title="Move audit to No Production (Zero Output / Line Stopped)"
-                                  >
-                                    Move to No Production
-                                  </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveToNoProduction(task)}
+                                className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
+                                title="Move audit to No Production (Zero Output / Line Stopped)"
+                              >
+                                Move to No Production
+                              </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteAuditRecord(task.id)}
-                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                    title="Delete Record (Admin Only)"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </>
-                              ) : (
+                              {isAdmin && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDownloadRowAuditTemplate(task)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs"
-                                  title={`Export Excel data for ${task.audit_code} (${task.title})`}
+                                  onClick={() => handleDeleteAuditRecord(task.id)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                  title="Delete Record (Admin Only)"
                                 >
-                                  <Download className="h-3.5 w-3.5 text-emerald-600" />
-                                  <span>Export</span>
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               )}
                             </div>
@@ -2052,7 +2147,7 @@ export function DashboardPage() {
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <Button asChild size="sm" variant="outline" className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50 text-xs">
                                 <Link to="/audit/$auditId" params={{ auditId: task.id }}>
                                   View Signed Report
@@ -2060,14 +2155,25 @@ export function DashboardPage() {
                               </Button>
 
                               {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteAuditRecord(task.id)}
-                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                  title="Delete Record (Admin Only)"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveCompletedToDeviation(task)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs"
+                                    title="Admin: Change status from Completed Audit to Deviation"
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5 text-rose-600" /> Deviation
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAuditRecord(task.id)}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                    title="Delete Record (Admin Only)"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -2116,14 +2222,25 @@ export function DashboardPage() {
                           </td>
                           {isAdmin && (
                             <td className="p-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteDeviationRecord(dev.id)}
-                                className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                title="Delete Deviation Record (Admin Only)"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveDeviationToCompleted(dev)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                                  title="Admin: Change status from Deviation back to Completed Audit"
+                                >
+                                  <Check className="h-3.5 w-3.5 text-emerald-600" /> Completed Audit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDeviationRecord(dev.id)}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                  title="Delete Deviation Record (Admin Only)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -2186,17 +2303,15 @@ export function DashboardPage() {
                                 </span>
                               </td>
                               <td className="p-3 text-right">
-                                {isAdmin && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRestoreFromNoProduction(task)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs"
-                                    title="Restore audit plan to Planned status"
-                                  >
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                    Restore to Plan
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestoreFromNoProduction(task)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs"
+                                  title="Restore audit plan to Planned status"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                  Restore to Plan
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -2675,16 +2790,6 @@ export function DashboardPage() {
                   className="text-xs font-bold text-slate-600 hover:bg-slate-100"
                 >
                   Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    handleSaveAuditRecord(editingAudit);
-                    setIsExportAttachmentModalOpen(false);
-                  }}
-                  className="bg-emerald-600 text-white font-black hover:bg-emerald-700 text-xs gap-1.5 shadow-xs px-4 py-2 rounded-xl"
-                >
-                  <Check className="h-4 w-4" /> Save Audit Plan
                 </Button>
               </div>
             </div>
