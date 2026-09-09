@@ -90,6 +90,8 @@ type Assignment = {
   document_url?: string;
   attached_file_name?: string;
   attached_file_url?: string;
+  is_imported?: boolean;
+  imported_by?: string;
 };
 
 type Deviation = {
@@ -363,7 +365,7 @@ export function DashboardPage() {
         ? localExcelTasks
         : DEFAULT_OFFICIAL_AUDITS;
 
-    const merged = mergeAndDeduplicateTasks(base) as Assignment[];
+    const merged = mergeAndDeduplicateTasks(base as any) as Assignment[];
     return merged.map((t) => {
       const empNum = resolveEmployeeNumber(t.assigned_to_employee_number || t.auditor_name);
       const auditorName = resolveAuditorName(empNum, t.auditor_name);
@@ -423,13 +425,30 @@ export function DashboardPage() {
 
   const ongoingTasks = useMemo(() => {
     return categoryTasks.filter((r) => {
-      // Once submitted, Under Review, Completed, or Deviation, file moves to Admin Dashboard and is no longer visible to the user in Ongoing Audit
-      if (!isAdmin && ["Submitted", "Under Review", "Completed", "Approved", "Deviation"].includes(r.status)) {
+      // Exclude submitted, under review, completed, approved, deviation, or no production
+      if (["Submitted", "Under Review", "Completed", "Approved", "Deviation", "No Production"].includes(r.status)) {
         return false;
       }
-      return r.status === "In Progress" || r.status === "Ongoing" || r.status === "Planned" || r.status === "Assigned";
+      // When Admin assigns a task (status Planned or Assigned), it must NOT be displayed in Ongoing Audit for both Admin and User
+      if (r.status === "Planned" || r.status === "Assigned") {
+        return false;
+      }
+      // For regular employee: Ongoing Audit should show ONLY files imported / in progress by this user
+      if (!isAdmin) {
+        const assignedEmp = String(r.assigned_to_employee_number || "").trim();
+        const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
+        const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || resolvedEmp === currentEmpNumber || r.imported_by === currentEmpNumber);
+        const nameMatch = currentEmpName && (
+          (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
+          (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()) ||
+          (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName))
+        );
+        return Boolean((empMatch || nameMatch) && (r.status === "In Progress" || r.status === "Ongoing" || r.is_imported));
+      }
+      // For Admin: Ongoing Audit shows plant-wide active In-Progress audits imported by users
+      return r.status === "In Progress" || r.status === "Ongoing" || r.is_imported;
     });
-  }, [categoryTasks, isAdmin]);
+  }, [categoryTasks, isAdmin, currentEmpNumber, currentEmpName]);
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");
@@ -799,6 +818,7 @@ export function DashboardPage() {
         const importedTasks: Assignment[] = data.map((item: any, idx: number) => {
           const auditCode = String(item["Audit ID"] || item["Audit Code"] || item["Part Number"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`);
           const title = String(item["Product / Part Name"] || item["Product / Part Number"] || item["Task Title"] || item["Product Name"] || "Imported Audit Record");
+          const isImportedByUser = !isAdmin || selectedStatusView === "Ongoing";
 
           return {
             id: `imp-${Date.now()}-${idx}`,
@@ -814,6 +834,8 @@ export function DashboardPage() {
             assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
             auditor_name: String(item["Auditor"] || item["Assigned Employee"] || profile?.full_name || "Lead Auditor"),
             attached_file_name: file.name,
+            is_imported: isImportedByUser,
+            imported_by: profile?.employee_number || "688079",
           };
         });
 
@@ -1809,6 +1831,17 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs"
+                                  title={`Import & open audit inspection form for ${task.audit_code}`}
+                                >
+                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                    <Upload className="h-3.5 w-3.5" /> Import
+                                  </Link>
+                                </Button>
+
                                 <button
                                   type="button"
                                   onClick={() => handleDownloadRowAuditTemplate(task)}

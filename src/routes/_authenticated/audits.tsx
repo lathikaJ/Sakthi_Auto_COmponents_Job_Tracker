@@ -113,7 +113,7 @@ function AuditsPage() {
     })
     .filter((r) => {
       if (filter === "all") return true;
-      if (filter === "ongoing") return ["Assigned", "In Progress", "Overdue"].includes(r.status);
+      if (filter === "ongoing") return ["In Progress", "Ongoing"].includes(r.status);
       if (filter === "completed") return r.status === "Completed" || r.status === "Submitted";
       return r.audit_type === filter;
     });

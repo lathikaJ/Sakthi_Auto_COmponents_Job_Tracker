@@ -459,6 +459,27 @@ function AuditFormPage() {
         });
 
         setCheckpoints(importedCheckpoints);
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+          if (stored) {
+            try {
+              let tasks = JSON.parse(stored);
+              tasks = tasks.map((t: any) => {
+                if (t.id === auditId || t.audit_code === auditId || t.audit_code === `AUD-${auditId}`) {
+                  return {
+                    ...t,
+                    status: t.status === "Planned" || t.status === "Assigned" ? "In Progress" : t.status,
+                    is_imported: true,
+                    imported_by: profile?.employee_number || "688079",
+                  };
+                }
+                return t;
+              });
+              localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+              window.dispatchEvent(new Event("excel_tasks_updated"));
+            } catch {}
+          }
+        }
         toast.success(`Imported ${importedCheckpoints.length} inspection checkpoints from MS Excel (.xlsx)!`);
       } catch {
         toast.error("Error reading Excel file. Please ensure it is a valid .xlsx or .csv document.");
@@ -511,7 +532,33 @@ function AuditFormPage() {
     };
     if (typeof window !== "undefined") {
       localStorage.setItem(`sakthi_audit_draft_${auditId}`, JSON.stringify(draftData));
+      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+      if (stored) {
+        try {
+          let tasks = JSON.parse(stored);
+          tasks = tasks.map((t: any) => {
+            if (t.id === auditId || t.audit_code === auditId || t.audit_code === `AUD-${auditId}`) {
+              return {
+                ...t,
+                status: t.status === "Planned" || t.status === "Assigned" ? "In Progress" : t.status,
+                is_imported: true,
+                imported_by: profile?.employee_number || "688079",
+              };
+            }
+            return t;
+          });
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+          window.dispatchEvent(new Event("excel_tasks_updated"));
+        } catch {}
+      }
     }
+
+    // Sync status to Supabase DB if it was Planned / Assigned
+    const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
+    supabase.from("audit_assignments").update({ status: "In Progress" as any }).eq("audit_code", cleanAuditCode).then(({ error }) => {
+      if (error) console.warn("Supabase assignment draft status update:", error);
+    });
+
     toast.success("Audit checkpoint draft saved!");
   };
 
