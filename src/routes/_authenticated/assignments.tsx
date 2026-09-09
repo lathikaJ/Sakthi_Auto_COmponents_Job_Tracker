@@ -25,7 +25,7 @@ function AssignmentsPage() {
       if (error) throw error;
       return data ?? [];
     },
-  });
+  }); 
 
   const dbRows = assignments.data ?? [];
 

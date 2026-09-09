@@ -1923,8 +1923,8 @@ function DeviationsPage() {
                       </div>
 
                       <div>
-                        <label className="block font-black uppercase text-emerald-800 text-[10px] mb-1">
-                          OK QTY: *
+                        <label className="flex items-center gap-1 font-black uppercase text-emerald-800 text-[10px] mb-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> OK QTY: *
                         </label>
                         <Input
                           required
@@ -1938,8 +1938,8 @@ function DeviationsPage() {
                       </div>
 
                       <div>
-                        <label className="block font-black uppercase text-rose-800 text-[10px] mb-1">
-                          NOT OK QTY: *
+                        <label className="flex items-center gap-1 font-black uppercase text-rose-800 text-[10px] mb-1">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" /> NOT OK QTY: *
                         </label>
                         <Input
                           required
@@ -2431,13 +2431,17 @@ function DeviationsPage() {
                         </span>
                       </div>
                       <div className="p-3 border-r border-slate-900 flex flex-col gap-1">
-                        <span className="font-black text-emerald-800 text-[10px] uppercase">OK QTY:</span>
+                        <span className="font-black text-emerald-800 text-[10px] uppercase flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" /> OK QTY:
+                        </span>
                         <span className="font-mono font-black text-base text-emerald-900">
                           {viewReportDev.quarantine_ok_qty || viewReportDev.ok_qty || "—"}
                         </span>
                       </div>
                       <div className="p-3 flex flex-col gap-1">
-                        <span className="font-black text-rose-800 text-[10px] uppercase">NOT OK QTY:</span>
+                        <span className="font-black text-rose-800 text-[10px] uppercase flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" /> NOT OK QTY:
+                        </span>
                         <span className="font-mono font-black text-base text-rose-900">
                           {viewReportDev.quarantine_not_ok_qty || viewReportDev.ng_qty || "—"}
                         </span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ClipboardList,
@@ -31,6 +31,7 @@ import {
   FileSpreadsheet,
   Paperclip,
   Lock,
+  ShieldCheck,
 } from "lucide-react";
 import { createExcelUri } from "@/lib/excelUri";
 import { toast } from "sonner";
@@ -147,6 +148,7 @@ export function resolveEmployeeNumber(auditorNameOrNumber?: string): string {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { isAdmin, profile, loading } = useAuth();
   const excelImportInputRef = useRef<HTMLInputElement>(null);
   const planFileInputRef = useRef<HTMLInputElement>(null);
@@ -2693,6 +2695,70 @@ export function DashboardPage() {
                     <span className="text-xs text-slate-400 italic">No file selected</span>
                   )}
                 </div>
+
+                {/* OK / NOT OK DECISION OPTIONS */}
+                {editingAudit.attached_file_name && (
+                  <div className="space-y-2 rounded-xl border border-slate-200 bg-white/90 p-3 pt-2 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Inspection Result Decision:
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        OK for Pass & save, or Not OK to raise Deviation
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSaveAuditRecord({
+                            ...editingAudit,
+                            status: isAdmin ? "Completed" : "In Progress",
+                          });
+                          setIsAddPlanModalOpen(false);
+                          setIsEditModalOpen(false);
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK!`);
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
+                        title="OK → Mark Inspection Pass & Save"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>OK (Save & Proceed)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prefill = {
+                            audit_id: editingAudit.audit_code || editingAudit.id,
+                            title: `Audit ${editingAudit.audit_code} Deviation — ${editingAudit.title}`,
+                            observed_condition: `Non-conformance identified during ${editingAudit.title || editingAudit.audit_code} inspection`,
+                            location: editingAudit.area || "Machine Shop Line 1",
+                            severity: "High",
+                            part_name: editingAudit.title,
+                            part_no: editingAudit.audit_code,
+                            assigned_emp: editingAudit.assigned_to_employee_number || profile?.employee_number || "688079",
+                            segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+                          };
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("sakthi_deviation_prefill", JSON.stringify(prefill));
+                            localStorage.setItem("sakthi_active_deviation_in_progress", "true");
+                            window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
+                          }
+                          setIsAddPlanModalOpen(false);
+                          setIsEditModalOpen(false);
+                          toast.info("Opening 2-Page Deviation Report — Please fill Page 1 details.");
+                          navigate({ to: "/deviations" });
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-xs font-black text-white hover:bg-rose-700 active:scale-98 shadow-sm transition-all cursor-pointer"
+                        title="Not OK → Automatically opens 2-Page Deviation Form"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>NOT OK (Raise Deviation)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2787,6 +2853,68 @@ export function DashboardPage() {
                     <span className="text-xs text-slate-400 italic">No file selected</span>
                   )}
                 </div>
+
+                {/* OK / NOT OK DECISION BUTTONS */}
+                {editingAudit.attached_file_name && (
+                  <div className="space-y-2 rounded-xl border border-slate-200 bg-white/90 p-3 pt-2 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Inspection Result Decision:
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        OK for Pass & save, or Not OK to raise Deviation
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSaveAuditRecord({
+                            ...editingAudit,
+                            status: isAdmin ? "Completed" : "In Progress",
+                          });
+                          setIsExportAttachmentModalOpen(false);
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK!`);
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
+                        title="OK → Mark Inspection Pass & Save"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>OK (Save & Proceed)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prefill = {
+                            audit_id: editingAudit.audit_code || editingAudit.id,
+                            title: `Audit ${editingAudit.audit_code} Deviation — ${editingAudit.title}`,
+                            observed_condition: `Non-conformance identified during ${editingAudit.title || editingAudit.audit_code} inspection`,
+                            location: editingAudit.area || "Machine Shop Line 1",
+                            severity: "High",
+                            part_name: editingAudit.title,
+                            part_no: editingAudit.audit_code,
+                            assigned_emp: editingAudit.assigned_to_employee_number || profile?.employee_number || "688079",
+                            segregated_by: profile?.full_name ? `${profile.full_name} (${profile.employee_number})` : "SILAMBARASAN S (688079)",
+                          };
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("sakthi_deviation_prefill", JSON.stringify(prefill));
+                            localStorage.setItem("sakthi_active_deviation_in_progress", "true");
+                            window.dispatchEvent(new Event("sakthi_deviation_active_changed"));
+                          }
+                          setIsExportAttachmentModalOpen(false);
+                          toast.info("Opening 2-Page Deviation Report — Please fill Page 1 details.");
+                          navigate({ to: "/deviations" });
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-xs font-black text-white hover:bg-rose-700 active:scale-98 shadow-sm transition-all cursor-pointer"
+                        title="Not OK → Automatically opens 2-Page Deviation Form"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>NOT OK (Raise Deviation)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
