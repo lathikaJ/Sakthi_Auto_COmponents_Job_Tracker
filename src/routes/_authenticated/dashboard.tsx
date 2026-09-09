@@ -2711,19 +2711,25 @@ export function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => {
+                          const targetStatus = isAdmin ? "Completed" : "Under Review";
                           handleSaveAuditRecord({
                             ...editingAudit,
-                            status: isAdmin ? "Completed" : "In Progress",
+                            status: targetStatus,
                           });
+                          updateSubmittedAuditStatus(
+                            editingAudit.id || editingAudit.audit_code,
+                            targetStatus as any,
+                            "Inspection marked OK by User. Moved to Admin Under Review."
+                          );
                           setIsAddPlanModalOpen(false);
                           setIsEditModalOpen(false);
-                          toast.success(`Audit [${editingAudit.audit_code}] marked OK!`);
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — File moved to Admin → Under Review!`);
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
-                        title="OK → Mark Inspection Pass & Save"
+                        title="OK → The file moves to Admin → Under Review"
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                        <span>OK (Save & Proceed)</span>
+                        <span>OK (Submit &rarr; Admin Under Review)</span>
                       </button>
 
                       <button
@@ -2869,18 +2875,24 @@ export function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => {
+                          const targetStatus = isAdmin ? "Completed" : "Under Review";
                           handleSaveAuditRecord({
                             ...editingAudit,
-                            status: isAdmin ? "Completed" : "In Progress",
+                            status: targetStatus,
                           });
+                          updateSubmittedAuditStatus(
+                            editingAudit.id || editingAudit.audit_code,
+                            targetStatus as any,
+                            "Inspection marked OK by User. Moved to Admin Under Review."
+                          );
                           setIsExportAttachmentModalOpen(false);
-                          toast.success(`Audit [${editingAudit.audit_code}] marked OK!`);
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — File moved to Admin → Under Review!`);
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
-                        title="OK → Mark Inspection Pass & Save"
+                        title="OK → The file moves to Admin → Under Review"
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                        <span>OK (Save & Proceed)</span>
+                        <span>OK (Submit &rarr; Admin Under Review)</span>
                       </button>
 
                       <button
