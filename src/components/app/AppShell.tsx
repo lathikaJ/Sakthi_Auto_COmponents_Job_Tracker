@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/deviations", label: "Deviations" },
+  { to: "/review", label: "Review Queue" },
 ] as const;
 
 export function AppShell({
