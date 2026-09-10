@@ -19,6 +19,7 @@ import {
   Save,
   FileEdit,
   FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
@@ -208,6 +209,70 @@ function DeviationsPage() {
     } catch {
       toast.error("Failed to parse uploaded Excel file.");
     }
+  };
+
+  // Direct Live Sync (Syncs 2 Formats directly across all team accounts & Supabase without file import)
+  const handleDirectSyncDeviation = async () => {
+    const today = getTodayDateStr();
+    const existingDev = editingDevId ? deviations.find((d) => d.id === editingDevId) : null;
+    const devCode = existingDev?.dev_code || `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+    const syncedDev: DeviationItem = {
+      id: editingDevId || `dev-${Date.now()}`,
+      audit_id: formData.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+      dev_code: devCode,
+      description: formData.title || "Plant Non-Conformance Deviation",
+      observed_condition: formData.observations[0]?.specification || "Non-conformance identified during process audit.",
+      location_operation: formData.location || "Machine Shop - Line 1",
+      employee_number: profile?.employee_number || "688079",
+      severity: formData.severity,
+      status: "page1_submitted",
+      is_draft: false,
+      created_at: existingDev?.created_at || today,
+
+      report_date: formData.report_date || today,
+      from_dept: formData.from_dept,
+      to_dept: formData.to_dept,
+      part_name: formData.part_name || "STEERING KNUCKLE",
+      part_number: formData.part_number || "45110-M86R00",
+      stage: formData.stage,
+      observations: formData.observations,
+      cc: formData.cc,
+      doc_code: formData.doc_code || "QF/08/CQA-55",
+      doc_date: formData.doc_date || "25.12.2015",
+      inspected_by: formData.inspected_by,
+      inspected_by_signature: formData.inspected_by_signature,
+      approved_by: formData.approved_by,
+      approved_by_signature: formData.approved_by_signature,
+
+      page1_approved: existingDev?.page1_approved || false,
+      page2_submitted: existingDev?.page2_submitted || false,
+      capa_items: formData.capa_items,
+      quarantine_segregated_qty: formData.quarantine_segregated_qty,
+      quarantine_ok_qty: formData.quarantine_ok_qty,
+      quarantine_not_ok_qty: formData.quarantine_not_ok_qty,
+      quarantine_segregated_by: formData.quarantine_segregated_by,
+      quarantine_approved_by: formData.quarantine_approved_by,
+    };
+
+    let updated: DeviationItem[];
+    if (editingDevId && deviations.some((d) => d.id === editingDevId)) {
+      updated = deviations.map((d) => (d.id === editingDevId ? syncedDev : d));
+    } else {
+      updated = [syncedDev, ...deviations];
+    }
+
+    await saveDeviationsList(updated);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+    }
+
+    toast.success(`Directly synced ${devCode} across all team members!`, {
+      description: "Format 1 (Deviation Report QF/08/CQA-55) & Format 2 (RCA CAPA) saved to cloud & broadcast live.",
+      duration: 4000,
+    });
   };
 
   // Form State (Page 1 & Page 2 matching Image 1 and Image 2)
@@ -1110,12 +1175,11 @@ function DeviationsPage() {
               <FileSpreadsheet className="h-4 w-4" /> Open 2 Formats in MS Excel
             </Button>
             <Button
-              variant="outline"
-              onClick={() => excelImportRef.current?.click()}
-              className="gap-2 border-emerald-600 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold text-xs cursor-pointer"
-              title="Upload edited local Excel file to sync updates across all team members"
+              onClick={handleDirectSyncDeviation}
+              className="gap-2 bg-sky-600 font-bold text-white hover:bg-sky-700 shadow-sm text-xs cursor-pointer"
+              title="Directly sync 2-Page Deviation Formats to cloud & all team members without importing files"
             >
-              <Upload className="h-4 w-4 text-emerald-600" /> Upload / Sync Edited Excel
+              <RefreshCw className="h-4 w-4" /> Sync 2 Formats to Team
             </Button>
             <Button
               onClick={openModalForNew}
