@@ -18,6 +18,7 @@ import {
   Download,
   Save,
   FileEdit,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
+import { openDeviationInMSExcel } from "@/lib/deviationExcel";
 
 export const Route = createFileRoute("/_authenticated/deviations")({
   component: DeviationsPage,
@@ -1069,12 +1071,20 @@ function DeviationsPage() {
             </p>
           </div>
 
-          <Button
-            onClick={openModalForNew}
-            className="gap-2 bg-brand font-bold text-white hover:bg-brand-hover shadow-sm text-xs cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Create 2-Page Deviation Report
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => openDeviationInMSExcel(formData)}
+              className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Open 2 Formats in MS Excel
+            </Button>
+            <Button
+              onClick={openModalForNew}
+              className="gap-2 bg-brand font-bold text-white hover:bg-brand-hover shadow-sm text-xs cursor-pointer"
+            >
+              <Plus className="h-4 w-4" /> Create 2-Page Deviation Report
+            </Button>
+          </div>
         </div>
 
         {/* Overview Stats Cards */}
@@ -1247,6 +1257,16 @@ function DeviationsPage() {
                       </td>
                       <td className="p-3 text-center space-y-1">
                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {/* Open in MS Excel Desktop Protocol Button */}
+                          <button
+                            type="button"
+                            onClick={() => openDeviationInMSExcel(dev)}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
+                            title="Open 2-Page Deviation Report (QF/08/CQA-55 & RCA CAPA) in MS Excel Desktop"
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5" /> Open in MS Excel
+                          </button>
+
                           {/* Resume Draft Button */}
                           {(dev.is_draft || dev.status === "open") && (
                             <button
@@ -1509,130 +1529,28 @@ function DeviationsPage() {
                     </div>
                   </div>
 
-                  {/* OBSERVATION TABLE (IMAGE 1) */}
-                  <div className="rounded-xl border border-slate-300 bg-white p-3 space-y-2">
+                  {/* MS EXCEL PROTOCOL INTEGRATION FOR PAGE 1 FORMAT (REPLACING HTML GRID) */}
+                  <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
-                        OBSERVATION MATRIX TABLE (SAMPLE OBSERVATIONS 1..6)
+                      <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs uppercase tracking-wider">
+                        <FileSpreadsheet className="h-5 w-5 text-emerald-600 shrink-0" />
+                        <span>MS Excel Protocol Method — Page 1: Deviation Report (QF/08/CQA-55)</span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                        Protocol Active
                       </span>
+                    </div>
+                    <p className="text-xs text-emerald-800 font-medium">
+                      The official Observation Matrix Table (Samples 1..6) and Deviation Report layout (QF/08/CQA-55) are pre-formatted directly inside your local Microsoft Excel Desktop application via native MS Excel protocol.
+                    </p>
+                    <div className="pt-1">
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddObservationRow}
-                        className="h-7 gap-1 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 cursor-pointer"
+                        onClick={() => openDeviationInMSExcel(formData)}
+                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-sm"
                       >
-                        <Plus className="h-3.5 w-3.5" /> Add Observation Row
+                        <FileSpreadsheet className="h-4 w-4" /> Open Format 1 in Local MS Excel
                       </Button>
-                    </div>
-
-                    <div className="overflow-x-auto border border-slate-300 rounded-lg">
-                      <table className="w-full border-collapse text-[11px]">
-                        <thead>
-                          <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800 uppercase">
-                            <th className="p-1.5 w-12 border-r border-slate-300 text-center">SL. NO.</th>
-                            <th className="p-1.5 min-w-[180px] border-r border-slate-300">SPECIFICATION</th>
-                            <th colSpan={6} className="p-1 border-r border-slate-300 text-center bg-slate-200">
-                              OBSERVATION (SAMPLES 1 TO 6)
-                            </th>
-                            <th className="p-1.5 min-w-[120px] border-r border-slate-300">REMARKS</th>
-                            <th className="p-1 w-10 text-center">DEL</th>
-                          </tr>
-                          <tr className="bg-slate-50 border-b border-slate-300 font-bold text-slate-700 text-center">
-                            <th className="border-r border-slate-300"></th>
-                            <th className="border-r border-slate-300"></th>
-                            <th className="p-1 w-12 border-r border-slate-300">1</th>
-                            <th className="p-1 w-12 border-r border-slate-300">2</th>
-                            <th className="p-1 w-12 border-r border-slate-300">3</th>
-                            <th className="p-1 w-12 border-r border-slate-300">4</th>
-                            <th className="p-1 w-12 border-r border-slate-300">5</th>
-                            <th className="p-1 w-12 border-r border-slate-300">6</th>
-                            <th className="border-r border-slate-300"></th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {formData.observations.map((obs, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50">
-                              <td className="p-1.5 font-bold text-center border-r border-slate-300 bg-slate-50">{obs.sl_no}</td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.specification}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "specification", e.target.value)}
-                                  placeholder="e.g. Bore Dia Ø 62.00 +0.02/+0.05"
-                                  className="h-7 text-[11px] font-medium border-slate-200"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs1}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs1", e.target.value)}
-                                  placeholder="62.05"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs2}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs2", e.target.value)}
-                                  placeholder="62.06"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs3}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs3", e.target.value)}
-                                  placeholder="62.06"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs4}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs4", e.target.value)}
-                                  placeholder="62.05"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs5}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs5", e.target.value)}
-                                  placeholder="62.07"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.obs6}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "obs6", e.target.value)}
-                                  placeholder="62.06"
-                                  className="h-7 text-[11px] font-mono text-center border-slate-200 p-0.5"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={obs.remarks}
-                                  onChange={(e) => handleUpdateObservationRow(idx, "remarks", e.target.value)}
-                                  placeholder="Remarks"
-                                  className="h-7 text-[11px] font-medium border-slate-200"
-                                />
-                              </td>
-                              <td className="p-1 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveObservationRow(idx)}
-                                  disabled={formData.observations.length <= 1}
-                                  className="text-rose-600 hover:text-rose-800 disabled:opacity-30 cursor-pointer p-1"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
 
@@ -1799,104 +1717,28 @@ function DeviationsPage() {
                     </span>
                   </div>
 
-                  {/* CAPA TABLE (IMAGE 2 TOP TABLE) */}
-                  <div className="rounded-xl border border-slate-300 bg-white p-3 space-y-2">
+                  {/* MS EXCEL PROTOCOL INTEGRATION FOR PAGE 2 FORMAT (REPLACING HTML GRID 2) */}
+                  <div className="rounded-xl border border-sky-300 bg-sky-50/80 p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
-                        NON-CONFORMANCE & CORRECTIVE ACTION LOG (IMAGE 2 FORMAT)
+                      <div className="flex items-center gap-2 text-sky-900 font-extrabold text-xs uppercase tracking-wider">
+                        <FileSpreadsheet className="h-5 w-5 text-sky-600 shrink-0" />
+                        <span>MS Excel Protocol Method — Page 2: RCA, CAPA & Quarantine Details</span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-sky-200 text-sky-900 px-2 py-0.5 rounded-full">
+                        Sheet 2 Active
                       </span>
+                    </div>
+                    <p className="text-xs text-sky-800 font-medium">
+                      The Non-Conformance & Corrective Action Log (RCA, CAPA) and Quarantine Details are pre-formatted directly inside Sheet 2 of your local Microsoft Excel Desktop workbook via native MS Excel protocol.
+                    </p>
+                    <div className="pt-1">
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddCapaRow}
-                        className="h-7 gap-1 text-[11px] font-bold border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100 cursor-pointer"
+                        onClick={() => openDeviationInMSExcel(formData)}
+                        className="gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs cursor-pointer shadow-sm"
                       >
-                        <Plus className="h-3.5 w-3.5" /> Add Action Row
+                        <FileSpreadsheet className="h-4 w-4" /> Open Format 2 in Local MS Excel
                       </Button>
-                    </div>
-
-                    <div className="overflow-x-auto border border-slate-300 rounded-lg">
-                      <table className="w-full border-collapse text-[11px]">
-                        <thead>
-                          <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800 uppercase">
-                            <th className="p-1.5 w-24 border-r border-slate-300">DATE</th>
-                            <th className="p-1.5 w-32 border-r border-slate-300">PART NAME</th>
-                            <th className="p-1.5 w-28 border-r border-slate-300">PART NO.</th>
-                            <th className="p-1.5 min-w-[140px] border-r border-slate-300">NON CONFORMANCE DETAILS</th>
-                            <th className="p-1.5 min-w-[140px] border-r border-slate-300">ROOT CAUSE</th>
-                            <th className="p-1.5 min-w-[160px] border-r border-slate-300">CORRECTIVE ACTION</th>
-                            <th className="p-1 w-10 text-center">DEL</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {formData.capa_items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50">
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  type="date"
-                                  value={item.date}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "date", e.target.value)}
-                                  className="h-7 text-[10px] font-mono border-slate-200 p-1"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={item.part_name}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "part_name", e.target.value)}
-                                  placeholder="Part Name"
-                                  className="h-7 text-[11px] font-medium border-slate-200"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <Input
-                                  value={item.part_no}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "part_no", e.target.value)}
-                                  placeholder="Part No."
-                                  className="h-7 text-[11px] font-medium border-slate-200"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <textarea
-                                  rows={2}
-                                  value={item.non_conformance}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "non_conformance", e.target.value)}
-                                  placeholder="Non-conformance details..."
-                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <textarea
-                                  rows={2}
-                                  value={item.root_cause}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "root_cause", e.target.value)}
-                                  placeholder="Root cause..."
-                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
-                                />
-                              </td>
-                              <td className="p-1 border-r border-slate-300">
-                                <textarea
-                                  rows={2}
-                                  value={item.corrective_action}
-                                  onChange={(e) => handleUpdateCapaRow(idx, "corrective_action", e.target.value)}
-                                  placeholder="Corrective action..."
-                                  className="w-full rounded border border-slate-200 p-1 text-[11px] font-medium"
-                                />
-                              </td>
-                              <td className="p-1 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCapaRow(idx)}
-                                  disabled={formData.capa_items.length <= 1}
-                                  className="text-rose-600 hover:text-rose-800 disabled:opacity-30 cursor-pointer p-1"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
 
