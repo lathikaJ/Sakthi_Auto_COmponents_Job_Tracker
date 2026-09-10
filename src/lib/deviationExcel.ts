@@ -200,19 +200,11 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 }
 
 /**
- * Launches desktop Microsoft Excel directly via ms-excel protocol URI
- * and exports the pre-filled 2-Page Deviation Report workbook.
+ * Launches desktop Microsoft Excel directly via ms-excel protocol URI without downloading.
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
-    const wb = generateDeviationExcelWorkbook(data);
-    const code = data?.dev_code || "DEV-2026-001";
-    const fileName = `Sakthi_Auto_Deviation_Report_${code}.xlsx`;
-    
-    // 1. Export pre-filled 2-page local workbook (allows local Ctrl+S saving)
-    XLSX.writeFile(wb, fileName);
-
-    // 2. Launch Desktop MS Excel application directly via protocol handler
+    // Launch Desktop MS Excel application directly via protocol handler (No file download)
     if (typeof window !== "undefined") {
       const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Deviation_Report_Template.xlsx";
       const iframe = document.createElement("iframe");
@@ -227,15 +219,16 @@ export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
       }, 3000);
     }
 
-    toast.success(`Launching MS Excel Desktop App!`, {
-      description: `Opening Desktop Excel directly & generated ${fileName}. Open the downloaded file for local Ctrl+S saving!`,
+    toast.success("Launching Microsoft Excel Desktop App!", {
+      description: "Opened 2-Page Deviation Report (QF/08/CQA-55 & RCA CAPA) in desktop MS Excel. When finished editing, click 'Sync 2 Formats to Team' in Sakthi Spark Flow!",
       duration: 6000,
     });
   } catch (err) {
     console.error("Error launching MS Excel:", err);
-    toast.error("Failed to launch Microsoft Excel.");
+    toast.error("Failed to launch Microsoft Excel protocol.");
   }
 }
+
 
 
 
