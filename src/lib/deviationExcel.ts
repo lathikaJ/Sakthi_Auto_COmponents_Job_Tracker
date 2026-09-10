@@ -206,8 +206,8 @@ export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
     // Launch Desktop MS Excel directly via MS Excel protocol scheme using hidden iframe
     if (typeof window !== "undefined") {
-      const origin = window.location.origin;
-      const excelProtocolUri = "ms-excel:ofv|u|" + origin + "/Deviation_Report_Template.xlsx";
+      // Protocol URI for local Microsoft Excel in Edit mode (ofe = Open for Edit)
+      const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Deviation_Report_Template.xlsx";
 
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
