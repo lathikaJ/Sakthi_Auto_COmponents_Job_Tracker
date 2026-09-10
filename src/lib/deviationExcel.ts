@@ -204,13 +204,7 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
-    const wb = generateDeviationExcelWorkbook(data);
-    const fileName = `Sakthi_Auto_Deviation_Report_${(data?.dev_code || "QF_08_CQA_55").replace(/[^a-zA-Z0-9_-]/g, "_")}.xlsx`;
-
-    // 1. Download file locally so user has immediate offline access
-    XLSX.writeFile(wb, fileName);
-
-    // 2. Launch Desktop MS Excel via MS Excel protocol scheme
+    // Launch Desktop MS Excel directly via MS Excel protocol scheme (without browser file download)
     if (typeof window !== "undefined") {
       const origin = window.location.origin;
       // Protocol URI for local Microsoft Excel
