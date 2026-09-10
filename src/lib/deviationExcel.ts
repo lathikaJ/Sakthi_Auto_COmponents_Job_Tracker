@@ -204,12 +204,21 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
-    // Launch Desktop MS Excel directly via MS Excel protocol scheme (without browser file download)
+    // Launch Desktop MS Excel directly via MS Excel protocol scheme using hidden iframe
     if (typeof window !== "undefined") {
       const origin = window.location.origin;
-      // Protocol URI for local Microsoft Excel
       const excelProtocolUri = "ms-excel:ofv|u|" + origin + "/Deviation_Report_Template.xlsx";
-      window.location.href = excelProtocolUri;
+
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+      iframe.src = excelProtocolUri;
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 3000);
     }
 
     toast.success("Opening 2-Page Deviation Report in local MS Excel Desktop App!", {
