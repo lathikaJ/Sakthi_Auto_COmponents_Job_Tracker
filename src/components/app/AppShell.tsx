@@ -10,10 +10,7 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/assignments", label: "Assignments" },
-  { to: "/audits", label: "Audit Register" },
   { to: "/deviations", label: "Deviations" },
-  { to: "/review", label: "Review Queue" },
 ] as const;
 
 export function AppShell({
@@ -53,8 +50,7 @@ export function AppShell({
   }, []);
 
   const employeeNav = [
-    { to: "/dashboard", label: "My Work Queue" },
-    { to: "/audits", label: "Audit Register" },
+    { to: "/dashboard", label: "Dashboard" },
     ...(isCompletingDeviation || pathname === "/deviations"
       ? [{ to: "/deviations", label: "Deviation Report", isDeviation: true }]
       : []),

@@ -1307,41 +1307,21 @@ export function DashboardPage() {
           </button>
 
           {isAdmin && (
-            <>
-              <button
-                type="button"
-                onClick={() => setDashboardTab("review_jobs")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-                  dashboardTab === "review_jobs"
-                    ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400"
-                    : "bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100"
-                }`}
-              >
-                <FileText className="h-4 w-4 text-indigo-600" />
-                <span>Review Queue (Under Review)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDashboardTab("activity_logs")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
-                  dashboardTab === "activity_logs"
-                    ? "bg-sky-700 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                <Calendar className="h-4 w-4" /> Employee Login & Logout Register
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setDashboardTab("activity_logs")}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${
+                dashboardTab === "activity_logs"
+                  ? "bg-sky-700 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              <Calendar className="h-4 w-4" /> Employee Login & Logout Register
+            </button>
           )}
         </div>
 
-        {/* Tab: Review Jobs Queue (Admin Only) */}
-        {isAdmin && dashboardTab === "review_jobs" && (
-          <div className="animate-in fade-in duration-200">
-            <JobReviewTab isAdmin={isAdmin} />
-          </div>
-        )}
+
 
         {/* Tab: Employee Login Register (Admin Only) */}
         {isAdmin && dashboardTab === "activity_logs" && (
@@ -1521,27 +1501,7 @@ export function DashboardPage() {
                   </p>
                 </button>
 
-                {/* CARD 3: UNDER REVIEW (6TH AUDIT STATUS CARD WITH ICON) */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedStatusView("Under Review")}
-                  className={`rounded-xl border p-3.5 text-left transition-all ${
-                    selectedStatusView === "Under Review"
-                      ? "border-indigo-600 bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300"
-                      : "border-slate-200 bg-white hover:bg-indigo-50 text-slate-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <FileCheck2 className="h-4 w-4" />
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Under Review" ? "bg-white text-indigo-800" : "bg-indigo-100 text-indigo-800"}`}>
-                      {underReviewTasks.length}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs font-black uppercase">Under Review</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Under Review" ? "text-indigo-100" : "text-slate-500"}`}>
-                    Pending Admin Signature
-                  </p>
-                </button>
+
 
                 {/* CARD 4: AUDIT COMPLETED */}
                 <button
@@ -1990,179 +1950,6 @@ export function DashboardPage() {
                           </td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* ── VIEW 3: UNDER REVIEW AUDIT TABLE (WITH UNDER REVIEW ICON & ADMIN E-SIGN ACTION) ── */}
-              {selectedStatusView === "Under Review" && (
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
-                      <tr>
-                        <th className="p-3 w-14 text-center">SL. NO.</th>
-                        <th className="p-3">PART NAME</th>
-                        <th className="p-3">PART NUMBER</th>
-                        <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">SUBMITTED BY</th>
-                        <th className="p-3">SUBMISSION DATE</th>
-                        <th className="p-3">STATUS</th>
-                        <th className="p-3 text-right">ACTION</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {underReviewTasks.filter(filterByPlanSubView).map((task, idx) => (
-                        <tr key={task.id} className="hover:bg-indigo-50/50 transition-colors">
-                          <td className="p-3 text-center font-mono font-bold text-slate-500">
-                            {task.sl_no ?? idx + 1}
-                          </td>
-                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
-                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
-                          <td className="p-3 font-bold text-sky-700">
-                            {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
-                          </td>
-                          <td className="p-3 font-medium text-slate-800">
-                            {task.auditor_name ?? task.assigned_to_employee_number}
-                          </td>
-                          <td className="p-3 font-medium text-slate-700">{task.due_date}</td>
-                          <td className="p-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
-                              <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Under Review
-                            </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => setDashboardTab("review_jobs")}
-                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-colors shadow-2xs"
-                                title="Review Audit Evidences"
-                              >
-                                <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Review
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!isAdmin) {
-                                    toast.error("Access Denied: Only Admins can move audits from Under Review to Completed.");
-                                    return;
-                                  }
-                                  if (typeof window !== "undefined") {
-                                    const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-                                    if (stored) {
-                                      try {
-                                        let tasks = JSON.parse(stored);
-                                        tasks = tasks.map((t: any) => {
-                                          if (t.id === task.id || t.audit_code === task.audit_code) {
-                                            return {
-                                              ...t,
-                                              status: "Completed",
-                                              completion_date: new Date().toISOString().split("T")[0],
-                                              final_result: "PASS / COMPLIANT",
-                                            };
-                                          }
-                                          return t;
-                                        });
-                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-                                        window.dispatchEvent(new Event("excel_tasks_updated"));
-                                      } catch {}
-                                    }
-                                  }
-                                  updateSubmittedAuditStatus(task.id, "Completed", "Marked as Completed by Admin Dashboard");
-                                  supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
-                                  toast.success(`Audit ${task.audit_code} moved to Audit Completed!`);
-                                }}
-                                disabled={!isAdmin}
-                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
-                                  !isAdmin
-                                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                                    : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
-                                }`}
-                                title={!isAdmin ? "Admin access required" : "Move to Audit Completed"}
-                              >
-                                <Check className="h-3.5 w-3.5" /> Completed
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!isAdmin) {
-                                    toast.error("Access Denied: Only Admins can move audits from Under Review to Deviations.");
-                                    return;
-                                  }
-                                  if (typeof window !== "undefined") {
-                                    const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-                                    if (stored) {
-                                      try {
-                                        let tasks = JSON.parse(stored);
-                                        tasks = tasks.map((t: any) => {
-                                          if (t.id === task.id || t.audit_code === task.audit_code) {
-                                            return {
-                                              ...t,
-                                              status: "Deviation",
-                                              final_result: "DEVIATION IDENTIFIED",
-                                            };
-                                          }
-                                          return t;
-                                        });
-                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-                                        window.dispatchEvent(new Event("excel_tasks_updated"));
-                                      } catch {}
-                                    }
-
-                                    const storedDevs = localStorage.getItem("sakthi_deviations");
-                                    let devs = storedDevs ? JSON.parse(storedDevs) : [];
-                                    const newDevCode = (task.audit_code || task.id).replace("AUD-", "DEV-").replace("REV-", "DEV-");
-                                    if (!devs.some((d: any) => d.dev_code === newDevCode || d.audit_id === task.id)) {
-                                      devs.unshift({
-                                        id: `dev-${Date.now()}`,
-                                        audit_id: task.id,
-                                        dev_code: newDevCode.startsWith("DEV-") ? newDevCode : `DEV-${newDevCode}`,
-                                        description: `Deviation identified during Admin Audit Review for ${task.title}`,
-                                        observed_condition: `Quality issue identified by Admin during verification of audit ${task.audit_code}`,
-                                        location_operation: task.area,
-                                        employee_number: task.assigned_to_employee_number,
-                                        severity: "High",
-                                        status: "Open",
-                                        created_at: new Date().toISOString().split("T")[0],
-                                        responsible_person: task.assigned_to_employee_number,
-                                        department: task.area,
-                                        corrective_action: "Action Assigned to QA / Line Supervisor",
-                                        due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-                                        closure_status: "Open",
-                                        product_part_number: task.audit_code,
-                                      });
-                                      localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
-                                      window.dispatchEvent(new Event("sakthi_deviations_updated"));
-                                    }
-                                  }
-                                  updateSubmittedAuditStatus(task.id, "Deviation", "Moved to Deviations by Admin Dashboard");
-                                  supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
-                                  toast.warning(`Deviation logged for ${task.audit_code}. Audit moved to Deviations!`);
-                                }}
-                                disabled={!isAdmin}
-                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all shadow-2xs ${
-                                  !isAdmin
-                                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                                    : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
-                                }`}
-                                title={!isAdmin ? "Admin access required" : "Move to Deviations"}
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5" /> Deviation
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {underReviewTasks.filter(filterByPlanSubView).length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
-                            No reports currently under review for this timeframe.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
