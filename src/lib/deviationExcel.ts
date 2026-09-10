@@ -227,3 +227,66 @@ export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
     toast.error("Failed to launch Microsoft Excel protocol.");
   }
 }
+
+/**
+ * Parses an edited Excel file uploaded by user and extracts observation data & CAPA items
+ */
+export function parseDeviationExcelFile(file: File): Promise<Partial<DeviationItem>> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const sheetName1 = wb.SheetNames[0] || "";
+        const sheetName2 = wb.SheetNames[1] || sheetName1;
+        const sheet1 = wb.Sheets[sheetName1];
+        const sheet2 = wb.Sheets[sheetName2];
+
+        const rows1: any[][] = sheet1 ? (XLSX.utils.sheet_to_json(sheet1, { header: 1 }) as any[][]) : [];
+        const rows2: any[][] = sheet2 ? (XLSX.utils.sheet_to_json(sheet2, { header: 1 }) as any[][]) : [];
+
+        const observations: DeviationObservationItem[] = [];
+        rows1.forEach((r) => {
+          if (r && (typeof r[0] === "number" || (!isNaN(Number(r[0])) && Number(r[0]) > 0)) && r[1]) {
+            observations.push({
+              sl_no: Number(r[0]),
+              specification: String(r[1] || ""),
+              obs1: String(r[2] || ""),
+              obs2: String(r[3] || ""),
+              obs3: String(r[4] || ""),
+              obs4: String(r[5] || ""),
+              obs5: String(r[6] || ""),
+              obs6: String(r[7] || ""),
+              remarks: String(r[8] || ""),
+            });
+          }
+        });
+
+        const capaItems: DeviationCapaItem[] = [];
+        rows2.forEach((r) => {
+          if (r && r[0] && r[1] && r[3] && String(r[0]) !== "DATE" && String(r[0]) !== "SAKTHI AUTO") {
+            capaItems.push({
+              date: String(r[0] || ""),
+              part_name: String(r[1] || ""),
+              part_no: String(r[2] || ""),
+              non_conformance: String(r[3] || ""),
+              root_cause: String(r[4] || ""),
+              corrective_action: String(r[5] || ""),
+            });
+          }
+        });
+
+        const result: Partial<DeviationItem> = {};
+        if (observations.length > 0) result.observations = observations;
+        if (capaItems.length > 0) result.capa_items = capaItems;
+
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsArrayBuffer(file);
+  });
+}

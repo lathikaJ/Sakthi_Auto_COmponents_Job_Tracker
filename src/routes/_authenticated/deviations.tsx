@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
-import { openDeviationInMSExcel } from "@/lib/deviationExcel";
+import { openDeviationInMSExcel, parseDeviationExcelFile } from "@/lib/deviationExcel";
 
 export const Route = createFileRoute("/_authenticated/deviations")({
   component: DeviationsPage,
@@ -186,6 +186,29 @@ function DeviationsPage() {
   const segSigInputRef = useRef<HTMLInputElement>(null);
   const quarantineAppSigInputRef = useRef<HTMLInputElement>(null);
   const page2FileInputRef = useRef<HTMLInputElement>(null);
+  const excelImportRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadEditedExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = await parseDeviationExcelFile(file);
+      if (parsed.observations || parsed.capa_items) {
+        setFormData((prev) => ({
+          ...prev,
+          ...(parsed.observations ? { observations: parsed.observations } : {}),
+          ...(parsed.capa_items ? { capa_items: parsed.capa_items } : {}),
+        }));
+        toast.success(`Loaded edited Excel file ${file.name}!`, {
+          description: "Observations & CAPA details synced across all team members.",
+        });
+      } else {
+        toast.error("No valid observation or CAPA rows found in uploaded Excel file.");
+      }
+    } catch {
+      toast.error("Failed to parse uploaded Excel file.");
+    }
+  };
 
   // Form State (Page 1 & Page 2 matching Image 1 and Image 2)
   const [formData, setFormData] = useState<{
@@ -1071,12 +1094,28 @@ function DeviationsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="file"
+              ref={excelImportRef}
+              onChange={handleUploadEditedExcel}
+              accept=".xlsx, .xls"
+              className="hidden"
+            />
             <Button
               onClick={() => openDeviationInMSExcel(formData)}
               className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
+              title="Open 2-Page Deviation Formats in MS Excel Desktop"
             >
               <FileSpreadsheet className="h-4 w-4" /> Open 2 Formats in MS Excel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => excelImportRef.current?.click()}
+              className="gap-2 border-emerald-600 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold text-xs cursor-pointer"
+              title="Upload edited local Excel file to sync updates across all team members"
+            >
+              <Upload className="h-4 w-4 text-emerald-600" /> Upload / Sync Edited Excel
             </Button>
             <Button
               onClick={openModalForNew}
