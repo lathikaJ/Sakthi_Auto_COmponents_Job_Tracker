@@ -200,36 +200,27 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 }
 
 /**
- * Triggers opening the 2-Page Deviation Report in local MS Excel using protocol method (ms-excel:)
+ * Generates and downloads the pre-filled 2-Page Deviation Report as an editable local MS Excel file.
+ * Opening a local .xlsx file in MS Excel grants full edit permissions so Ctrl+S saves directly without Read-Only errors.
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
-    // Launch Desktop MS Excel directly via MS Excel protocol scheme using hidden iframe
-    if (typeof window !== "undefined") {
-      // Protocol URI for local Microsoft Excel in Edit mode (ofe = Open for Edit)
-      const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Deviation_Report_Template.xlsx";
+    const wb = generateDeviationExcelWorkbook(data);
+    const code = data?.dev_code || "DEV-2026-001";
+    const fileName = `Sakthi_Auto_Deviation_Report_${code}.xlsx`;
+    
+    XLSX.writeFile(wb, fileName);
 
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-      iframe.src = excelProtocolUri;
-
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 3000);
-    }
-
-    toast.success("Opening 2-Page Deviation Report in local MS Excel Desktop App!", {
-      description: "Format 1 (Deviation Report QF/08/CQA-55) & Format 2 (RCA, CAPA & Quarantine) launched via ms-excel protocol.",
-      duration: 5000,
+    toast.success(`Opened Editable 2-Page Excel Report: ${fileName}`, {
+      description: "Format 1 (QF/08/CQA-55) & Format 2 (RCA & CAPA) exported. Edit in MS Excel and press Ctrl+S to save locally with 0 Read-Only errors!",
+      duration: 6000,
     });
   } catch (err) {
-    console.error("Error opening MS Excel:", err);
-    toast.error("Failed to launch Microsoft Excel protocol.");
+    console.error("Error generating MS Excel file:", err);
+    toast.error("Failed to generate MS Excel workbook.");
   }
 }
+
 
 /**
  * Parses an edited Excel file uploaded by user and extracts observation data & CAPA items
