@@ -200,8 +200,8 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 }
 
 /**
- * Generates and downloads the pre-filled 2-Page Deviation Report as an editable local MS Excel file.
- * Opening a local .xlsx file in MS Excel grants full edit permissions so Ctrl+S saves directly without Read-Only errors.
+ * Launches desktop Microsoft Excel directly via ms-excel protocol URI
+ * and exports the pre-filled 2-Page Deviation Report workbook.
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
@@ -209,17 +209,34 @@ export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
     const code = data?.dev_code || "DEV-2026-001";
     const fileName = `Sakthi_Auto_Deviation_Report_${code}.xlsx`;
     
+    // 1. Export pre-filled 2-page local workbook (allows local Ctrl+S saving)
     XLSX.writeFile(wb, fileName);
 
-    toast.success(`Opened Editable 2-Page Excel Report: ${fileName}`, {
-      description: "Format 1 (QF/08/CQA-55) & Format 2 (RCA & CAPA) exported. Edit in MS Excel and press Ctrl+S to save locally with 0 Read-Only errors!",
+    // 2. Launch Desktop MS Excel application directly via protocol handler
+    if (typeof window !== "undefined") {
+      const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Deviation_Report_Template.xlsx";
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+      iframe.src = excelProtocolUri;
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 3000);
+    }
+
+    toast.success(`Launching MS Excel Desktop App!`, {
+      description: `Opening Desktop Excel directly & generated ${fileName}. Open the downloaded file for local Ctrl+S saving!`,
       duration: 6000,
     });
   } catch (err) {
-    console.error("Error generating MS Excel file:", err);
-    toast.error("Failed to generate MS Excel workbook.");
+    console.error("Error launching MS Excel:", err);
+    toast.error("Failed to launch Microsoft Excel.");
   }
 }
+
 
 
 /**
