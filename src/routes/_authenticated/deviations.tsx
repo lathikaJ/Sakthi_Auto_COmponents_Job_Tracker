@@ -1400,8 +1400,8 @@ function DeviationsPage() {
                             </button>
                           )}
 
-                          {/* Download Approved Page 1 */}
-                          {dev.page1_approved && (
+                          {/* Download Approved Page 1 (Admin Only) */}
+                          {isAdmin && dev.page1_approved && (
                             <button
                               type="button"
                               onClick={() => setViewReportDev(dev)}
@@ -2104,14 +2104,16 @@ function DeviationsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => window.print()}
-                    className="gap-1.5 text-xs font-bold border-slate-300 cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300"
-                  >
-                    <Printer className="h-4 w-4" /> Download / Print Official Document
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.print()}
+                      className="gap-1.5 text-xs font-bold border-slate-300 cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300"
+                    >
+                      <Printer className="h-4 w-4" /> Download / Print Form
+                    </Button>
+                  )}
                   <button
                     onClick={() => setViewReportDev(null)}
                     className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
@@ -2427,14 +2429,26 @@ function DeviationsPage() {
                 <span className="text-[11px] font-bold text-slate-500">
                   Workflow Status: <span className="uppercase text-purple-800 font-black">{viewReportDev.status.replace("_", " ")}</span>
                 </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setViewReportDev(null)}
-                  className="text-xs font-extrabold border-slate-300 cursor-pointer"
-                >
-                  Close Document
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="gap-1.5 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
+                      title="Download or print this official 2-Page Deviation Report (Admin only)"
+                    >
+                      <Download className="h-4 w-4" /> Download Form (PDF / Print)
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setViewReportDev(null)}
+                    className="text-xs font-extrabold border-slate-300 cursor-pointer"
+                  >
+                    Close Document
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
