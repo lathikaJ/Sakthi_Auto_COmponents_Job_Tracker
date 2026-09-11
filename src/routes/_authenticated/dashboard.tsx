@@ -1207,7 +1207,6 @@ export function DashboardPage() {
   return (
     <AppShell
       title="Audit Dashboard"
-      description="Touch-friendly dashboard for Product Audit, Revalidation Audit, and Dock Audit with live status monitoring."
       action={
         <div className="flex items-center gap-2 flex-wrap">
           {/* Hidden File Input for Excel Import */}
@@ -1384,9 +1383,6 @@ export function DashboardPage() {
                         Audit Category
                       </p>
                       <h3 className="text-xl font-black mt-1 tracking-tight">Product Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Product Audit" ? "text-orange-100" : "text-slate-500"}`}>
-                        Casting, dimensional & metallurgical audits
-                      </p>
                     </div>
                     <div className={`rounded-xl p-3 ${selectedCategory === "Product Audit" ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
                       <Package className="h-6 w-6" />
@@ -1416,9 +1412,6 @@ export function DashboardPage() {
                         Audit Category
                       </p>
                       <h3 className="text-xl font-black mt-1 tracking-tight">Revalidation Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Revalidation Audit" ? "text-blue-100" : "text-slate-500"}`}>
-                        Bi-annual product layout & safety revalidation
-                      </p>
                     </div>
                     <div className={`rounded-xl p-3 ${selectedCategory === "Revalidation Audit" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
                       <RefreshCcw className="h-6 w-6" />
@@ -1448,9 +1441,6 @@ export function DashboardPage() {
                         Audit Category
                       </p>
                       <h3 className="text-xl font-black mt-1 tracking-tight">Dock Audit</h3>
-                      <p className={`text-xs mt-1 font-medium ${selectedCategory === "Dock Audit" ? "text-emerald-100" : "text-slate-500"}`}>
-                        Dispatch packaging, VCI & dock inspection
-                      </p>
                     </div>
                     <div className={`rounded-xl p-3 ${selectedCategory === "Dock Audit" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
                       <Building2 className="h-6 w-6" />
@@ -1496,9 +1486,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Audit Plan</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Audit Plan" ? "text-sky-100" : "text-slate-500"}`}>
-                    Annual & Monthly Plans
-                  </p>
                 </button>
 
                 {/* CARD 2: ONGOING AUDIT */}
@@ -1518,9 +1505,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Ongoing Audit</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Ongoing" ? "text-amber-100" : "text-slate-500"}`}>
-                    Audits In Progress
-                  </p>
                 </button>
 
                 {/* CARD 3: UNDER REVIEW (6TH AUDIT STATUS CARD WITH ICON) */}
@@ -1540,9 +1524,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Under Review</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Under Review" ? "text-indigo-100" : "text-slate-500"}`}>
-                    Pending Admin Signature
-                  </p>
                 </button>
 
 
@@ -1564,9 +1545,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Audit Completed</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Audit Completed" ? "text-emerald-100" : "text-slate-500"}`}>
-                    Approved & Signed
-                  </p>
                 </button>
 
                 {/* CARD 5: DEVIATION */}
@@ -1586,9 +1564,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Deviation</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "Deviation" ? "text-rose-100" : "text-slate-500"}`}>
-                    Non-Conformances
-                  </p>
                 </button>
 
                 {/* CARD 6: NO PRODUCTION */}
@@ -1608,9 +1583,6 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">No Production</p>
-                  <p className={`text-[10px] mt-0.5 ${selectedStatusView === "No Production" ? "text-purple-100" : "text-slate-500"}`}>
-                    Zero Output / Line Stopped
-                  </p>
                 </button>
               </div>
             </div>
@@ -1621,7 +1593,7 @@ export function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-sky-600" />
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                    Plan Sub-Views — [{selectedCategory} / {selectedStatusView}]
+                    [{selectedCategory} / {selectedStatusView}]
                   </h3>
                 </div>
 
