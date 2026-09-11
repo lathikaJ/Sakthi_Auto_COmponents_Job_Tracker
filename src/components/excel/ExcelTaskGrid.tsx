@@ -32,7 +32,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { mergeAndDeduplicateTasks } from "@/lib/audit";
+import { mergeAndDeduplicateTasks, addDeletedAuditIdentifier } from "@/lib/audit";
 import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
 
 export type ExcelTaskRow = {
@@ -213,6 +213,12 @@ export function ExcelTaskGrid({
   const handleDeleteSelected = () => {
     if (!isAdmin || selectedRowIds.size === 0) return;
     const count = selectedRowIds.size;
+    const toDelete = rows.filter((r) => selectedRowIds.has(r.id));
+    toDelete.forEach((r) => {
+      addDeletedAuditIdentifier(r.id, r.audit_code, r.title);
+      if (r.id) void supabase.from("audit_assignments").delete().eq("id", r.id);
+      if (r.audit_code) void supabase.from("audit_assignments").delete().eq("audit_code", r.audit_code);
+    });
     setRows((prev) => prev.filter((r) => !selectedRowIds.has(r.id)));
     setSelectedRowIds(new Set());
     setHasChanges(true);
@@ -259,6 +265,12 @@ export function ExcelTaskGrid({
 
   // Delete row
   const handleDeleteRow = (id: string) => {
+    const target = rows.find((r) => r.id === id);
+    if (target) {
+      addDeletedAuditIdentifier(target.id, target.audit_code, target.title);
+      if (target.id) void supabase.from("audit_assignments").delete().eq("id", target.id);
+      if (target.audit_code) void supabase.from("audit_assignments").delete().eq("audit_code", target.audit_code);
+    }
     setRows((prev) => prev.filter((r) => r.id !== id));
     setHasChanges(true);
     toast.info("Task row removed from sheet.");

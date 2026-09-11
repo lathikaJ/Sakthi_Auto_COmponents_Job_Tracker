@@ -304,15 +304,64 @@ export const DEFAULT_OFFICIAL_AUDITS = [
   },
 ];
 
+const DELETED_AUDITS_KEY = "sakthi_deleted_audit_identifiers";
+
+export function getDeletedAuditIdentifiers(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const stored = localStorage.getItem(DELETED_AUDITS_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr)) {
+        return new Set(arr.map((s) => String(s).trim().toUpperCase()));
+      }
+    }
+  } catch {
+    // Ignore
+  }
+  return new Set();
+}
+
+export function addDeletedAuditIdentifier(id?: string, auditCode?: string, title?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const deleted = getDeletedAuditIdentifiers();
+    if (id && id.trim()) deleted.add(id.trim().toUpperCase());
+    if (auditCode && auditCode.trim()) deleted.add(auditCode.trim().toUpperCase());
+    if (title && title.trim()) deleted.add(title.trim().toUpperCase());
+    localStorage.setItem(DELETED_AUDITS_KEY, JSON.stringify(Array.from(deleted)));
+    window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
+  } catch (err) {
+    console.error("Failed to add deleted audit identifier", err);
+  }
+}
+
+export function isAuditDeleted(id?: string, auditCode?: string, title?: string): boolean {
+  const deleted = getDeletedAuditIdentifiers();
+  if (id && deleted.has(id.trim().toUpperCase())) return true;
+  if (auditCode && deleted.has(auditCode.trim().toUpperCase())) return true;
+  if (title && deleted.has(title.trim().toUpperCase())) return true;
+  return false;
+}
+
 /**
  * Utility to merge and deduplicate task arrays by audit_code / id / title.
  * Prevents identical audit records from being duplicated 25+ times upon file import or reload.
+ * Automatically filters out any permanently deleted audit records.
  */
 export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: string; title?: string }>(
   existingTasks: T[],
   newTasks: T[] = []
 ): T[] {
   const map = new Map<string, T>();
+  const deleted = getDeletedAuditIdentifiers();
+
+  const isDeleted = (task: T) => {
+    if (task.id && deleted.has(String(task.id).trim().toUpperCase())) return true;
+    if (task.audit_code && deleted.has(String(task.audit_code).trim().toUpperCase())) return true;
+    if (task.title && deleted.has(String(task.title).trim().toUpperCase())) return true;
+    return false;
+  };
 
   const getKey = (task: T): string => {
     if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
@@ -328,7 +377,7 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
   };
 
   (existingTasks || []).forEach((task) => {
-    if (!task) return;
+    if (!task || isDeleted(task)) return;
     const key = getKey(task);
     if (!map.has(key)) {
       map.set(key, task);
@@ -336,7 +385,7 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
   });
 
   (newTasks || []).forEach((task) => {
-    if (!task) return;
+    if (!task || isDeleted(task)) return;
     const key = getKey(task);
     if (map.has(key)) {
       const existing = map.get(key)!;

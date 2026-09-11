@@ -51,8 +51,9 @@ import {
   DEFAULT_LOW_PRODUCTION_DATA,
   AuditDocument,
   mergeAndDeduplicateTasks,
+  addDeletedAuditIdentifier,
 } from "@/lib/audit";
-import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
+import { updateSubmittedAuditStatus, deleteSubmittedAudit } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -350,11 +351,13 @@ export function DashboardPage() {
     window.addEventListener("sakthi_deviations_updated", loadStored);
     window.addEventListener("sakthi_submitted_audits_updated", loadStored);
     window.addEventListener("sakthi_signatures_updated", loadStored);
+    window.addEventListener("sakthi_deleted_audits_updated", loadStored);
     return () => {
       window.removeEventListener("excel_tasks_updated", loadStored);
       window.removeEventListener("sakthi_deviations_updated", loadStored);
       window.removeEventListener("sakthi_submitted_audits_updated", loadStored);
       window.removeEventListener("sakthi_signatures_updated", loadStored);
+      window.removeEventListener("sakthi_deleted_audits_updated", loadStored);
     };
   }, []);
 
@@ -1118,21 +1121,36 @@ export function DashboardPage() {
       toast.error("Only authorized Admin can remove audit plans.");
       return;
     }
-    const targetItem = rawTaskRows.find((t) => t.id === id);
-    const updated = rawTaskRows.filter((t) => t.id !== id);
+    const targetItem = rawTaskRows.find((t) => t.id === id || t.audit_code === id);
+    const targetCode = targetItem?.audit_code || (id.startsWith("REV-") || id.startsWith("AUD-") ? id : undefined);
+    const targetTitle = targetItem?.title;
+
+    addDeletedAuditIdentifier(id, targetCode, targetTitle);
+
+    const updated = rawTaskRows.filter((t) =>
+      t.id !== id &&
+      (!targetCode || t.audit_code !== targetCode) &&
+      (!targetTitle || t.title !== targetTitle)
+    );
     setLocalExcelTasks(updated);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
+      deleteSubmittedAudit(id);
+      if (targetCode) deleteSubmittedAudit(targetCode);
       window.dispatchEvent(new Event("excel_tasks_updated"));
+      window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
     }
 
-    if (targetItem?.audit_code) {
-      try {
-        await supabase.from("audit_assignments").delete().eq("audit_code", targetItem.audit_code);
-        assignmentsQuery.refetch();
-      } catch (err) {
-        console.warn("Error deleting audit_assignments:", err);
+    try {
+      if (id) {
+        await supabase.from("audit_assignments").delete().eq("id", id);
       }
+      if (targetCode) {
+        await supabase.from("audit_assignments").delete().eq("audit_code", targetCode);
+      }
+      assignmentsQuery.refetch();
+    } catch (err) {
+      console.warn("Error deleting audit_assignments:", err);
     }
 
     toast.info("Audit plan record removed by Admin.");

@@ -64,18 +64,27 @@ function AuditsPage() {
   const [localTasks, setLocalTasks] = useState<any[]>([]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const clean = mergeAndDeduplicateTasks(parsed);
-            setLocalTasks(clean);
-          }
-        } catch {}
+    const loadStored = () => {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("sakthi_excel_tasks_v8");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const clean = mergeAndDeduplicateTasks(parsed);
+              setLocalTasks(clean);
+            }
+          } catch {}
+        }
       }
-    }
+    };
+    loadStored();
+    window.addEventListener("excel_tasks_updated", loadStored);
+    window.addEventListener("sakthi_deleted_audits_updated", loadStored);
+    return () => {
+      window.removeEventListener("excel_tasks_updated", loadStored);
+      window.removeEventListener("sakthi_deleted_audits_updated", loadStored);
+    };
   }, []);
 
   const baseList = data.length > 0
