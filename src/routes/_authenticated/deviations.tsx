@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
+import { SakthiLogo } from "@/components/brand/SakthiLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,6 +182,7 @@ function DeviationsPage() {
   const [activeTab, setActiveTab] = useState<1 | 2>(1); // Page 1 vs Page 2
   const [editingDevId, setEditingDevId] = useState<string | null>(null);
   const [viewReportDev, setViewReportDev] = useState<DeviationItem | null>(null);
+  const [activeReportTab, setActiveReportTab] = useState<"page1" | "page2" | "both">("page1");
 
   const inspectedSigInputRef = useRef<HTMLInputElement>(null);
   const approvedSigInputRef = useRef<HTMLInputElement>(null);
@@ -2123,23 +2125,54 @@ function DeviationsPage() {
                 </div>
               </div>
 
+              {/* PAGE SELECTOR TABS */}
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-3 print:hidden flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setActiveReportTab("page1")}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                    activeReportTab === "page1"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Page 1: Deviation Report (QF/08/CQA-55)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveReportTab("page2")}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                    activeReportTab === "page2"
+                      ? "bg-purple-700 text-white shadow-sm"
+                      : "bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200"
+                  }`}
+                >
+                  Page 2: RCA, CAPA & Quarantine Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveReportTab("both")}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                    activeReportTab === "both"
+                      ? "bg-emerald-700 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  View Both Pages (Full 2-Page Record)
+                </button>
+              </div>
+
               {/* 2-PAGE PRINTABLE VIEW (EXACT IMAGE 1 & IMAGE 2 REPLICAS) */}
               <div className="space-y-8 font-sans print:space-y-4">
                 {/* ── PAGE 1: DEVIATION REPORT (EXACT IMAGE 1 FORMAT — QF/08/CQA-55) ── */}
+                {(activeReportTab === "page1" || activeReportTab === "both") && (
                 <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
 
                   {/* ── TOP HEADER: Logo | Title | Date ── */}
-                  <div className="grid border-b-2 border-slate-900 font-black text-center text-sm uppercase" style={{gridTemplateColumns:"1fr 2fr 1fr"}}>
-                    {/* Sakthi Auto Logo / Trident */}
-                    <div className="p-3 border-r-2 border-slate-900 flex flex-col items-center justify-center gap-1">
-                      <svg viewBox="0 0 36 48" className="h-10 w-8 text-slate-900" fill="currentColor">
-                        <path d="M18 0 L18 48 M10 4 L10 24 M26 4 L26 24 M10 4 Q18 0 26 4 M10 24 Q18 28 26 24 M6 4 L14 4 M22 4 L30 4 M6 24 L14 24 M22 24 L30 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-                        <ellipse cx="18" cy="4" rx="8" ry="4" fill="none" stroke="currentColor" strokeWidth="2"/>
-                        <ellipse cx="18" cy="24" rx="8" ry="4" fill="none" stroke="currentColor" strokeWidth="2"/>
-                      </svg>
-                      <div className="text-[11px] font-black tracking-widest leading-tight text-center">
-                        <div>SAKTHI</div><div>AUTO</div>
-                      </div>
+                  <div className="grid border-b-2 border-slate-900 font-black text-center text-sm uppercase" style={{gridTemplateColumns:"1.2fr 2fr 1fr"}}>
+                    {/* Official Sakthi Auto Logo */}
+                    <div className="p-3 border-r-2 border-slate-900 flex flex-col items-center justify-center gap-1 bg-white">
+                      <SakthiLogo imgClassName="h-11 w-auto object-contain" />
                     </div>
                     {/* Title */}
                     <div className="p-3 border-r-2 border-slate-900 flex items-center justify-center text-base tracking-widest">
@@ -2295,8 +2328,10 @@ function DeviationsPage() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* ── PAGE 2: ROOT CAUSE, CAPA & QUARANTINE DETAILS (EXACT IMAGE 2 FORMAT) ── */}
+                {(activeReportTab === "page2" || activeReportTab === "both") && (
                 <div className="border-2 border-slate-900 bg-white text-xs text-slate-900">
 
                   {/* ── CAPA TABLE — exactly matching Image 2 top section ── */}
@@ -2422,6 +2457,7 @@ function DeviationsPage() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* FOOTER */}
