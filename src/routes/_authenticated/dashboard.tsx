@@ -365,11 +365,11 @@ export function DashboardPage() {
   // DB is source of truth when available; localStorage is fallback only.
   // DO NOT merge both — that causes duplicates (the "insert 10 times" bug).
   const rawTaskRows: Assignment[] = useMemo(() => {
-    const base = dbRows.length > 0
-      ? [...dbRows, ...localExcelTasks.filter((lt) => !dbRows.some((db) => db.audit_code === lt.audit_code))]
-      : localExcelTasks.length > 0
-        ? localExcelTasks
-        : DEFAULT_OFFICIAL_AUDITS;
+    const base = [
+      ...DEFAULT_OFFICIAL_AUDITS,
+      ...localExcelTasks,
+      ...dbRows,
+    ];
 
     const merged = mergeAndDeduplicateTasks(base as any) as Assignment[];
     return merged.map((t) => {
@@ -1053,10 +1053,8 @@ export function DashboardPage() {
       audit_code: rawCode,
     };
 
-    const list = rawTaskRows.map((t) => (t.id === finalRecord.id ? finalRecord : t));
-    if (!list.some((t) => t.id === finalRecord.id)) {
-      list.unshift(finalRecord);
-    }
+    const list = localExcelTasks.filter((t) => t.audit_code !== finalRecord.audit_code && t.id !== finalRecord.id);
+    list.unshift(finalRecord);
     setLocalExcelTasks(list);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(list));

@@ -87,11 +87,11 @@ function AuditsPage() {
     };
   }, []);
 
-  const baseList = data.length > 0
-    ? [...data, ...localTasks.filter((lt) => !data.some((db: any) => db.audit_code === lt.audit_code))]
-    : localTasks.length > 0
-      ? localTasks
-      : DEFAULT_OFFICIAL_AUDITS;
+  const baseList = [
+    ...DEFAULT_OFFICIAL_AUDITS,
+    ...localTasks,
+    ...data,
+  ];
 
   const activeDataSet = (mergeAndDeduplicateTasks(baseList) as any[]).map((r) => {
     const emp = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
