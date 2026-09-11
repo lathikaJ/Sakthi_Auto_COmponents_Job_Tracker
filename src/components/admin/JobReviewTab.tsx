@@ -283,14 +283,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
               Employee Job Review Hub
             </h2>
-            <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-800 flex items-center gap-1 border border-indigo-300">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-              Admin Verification Queue
-            </span>
           </div>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            Review employee-submitted quality audits, verify checkpoint parameters, and move to Completed or Deviations.
-          </p>
         </div>
 
         <button

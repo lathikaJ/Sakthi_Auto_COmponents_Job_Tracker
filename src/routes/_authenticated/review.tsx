@@ -11,7 +11,6 @@ function ReviewPage() {
   return (
     <AppShell
       title="Admin Review Queue & E-Signature Registry"
-      description="Track submitted audit records, verify employee signatures, and manage 10-member electronic signatures."
     >
       <div className="space-y-6">
         <SubmittedAuditsRegister />

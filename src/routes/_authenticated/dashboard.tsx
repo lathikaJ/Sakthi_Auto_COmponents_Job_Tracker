@@ -2302,9 +2302,6 @@ export function DashboardPage() {
                           Audit Plans on Hold — No Production / Line Stopped ({noProductionTasks.length})
                         </h4>
                       </div>
-                      <span className="text-[11px] text-purple-200">
-                        Zero output lines temporarily moved from active audit plan
-                      </span>
                     </div>
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
