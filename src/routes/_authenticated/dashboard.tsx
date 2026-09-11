@@ -1284,14 +1284,16 @@ export function DashboardPage() {
               type="button"
               onClick={() => {
                 const today = new Date().toISOString().split("T")[0] ?? "";
-                const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+                const codePrefix = selectedCategory === "Product Audit" ? "AUD-PROD" : selectedCategory === "Revalidation Audit" ? "REV" : "DOC";
+                const catType = selectedCategory === "Product Audit" ? "Product" : selectedCategory === "Revalidation Audit" ? "Revalidation" : "Dock Audit";
+                const uniqueNum = String(rawTaskRows.length + 1 + Math.floor(Math.random() * 100)).padStart(3, "0");
                 const nextSlNo = categoryTasks.length + 1;
                 setEditingAudit({
                   id: `aud-${Date.now()}`,
                   sl_no: nextSlNo,
-                  audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
+                  audit_code: `${codePrefix}-${uniqueNum}`,
                   title: "",
-                  audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : catPrefix,
+                  audit_type: catType,
                   area: "Machine Shop Line 1",
                   month: selectedMonth,
                   year: new Date().getFullYear(),

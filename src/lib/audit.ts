@@ -405,6 +405,11 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
     const key = getKey(task);
     if (!map.has(key)) {
       map.set(key, task);
+    } else {
+      map.set(key, {
+        ...map.get(key)!,
+        ...task,
+      });
     }
   });
 
