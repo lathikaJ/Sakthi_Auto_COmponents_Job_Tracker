@@ -1111,10 +1111,19 @@ export function DashboardPage() {
           });
         }
       }
-      assignmentsQuery.refetch();
+    assignmentsQuery.refetch();
     } catch (err) {
       console.warn("Error upserting audit_assignments on save:", err);
     }
+
+    const targetCat = matchesCategory(finalRecord.audit_type, "Dock Audit")
+      ? "Dock Audit"
+      : matchesCategory(finalRecord.audit_type, "Revalidation Audit")
+        ? "Revalidation Audit"
+        : "Product Audit";
+    setSelectedCategory(targetCat);
+    setSelectedStatusView("Audit Plan");
+    setSelectedPlanSubView("One Year Plan");
 
     toast.success(`Audit attachment for ${finalRecord.title} saved successfully!`);
     setIsEditModalOpen(false);
