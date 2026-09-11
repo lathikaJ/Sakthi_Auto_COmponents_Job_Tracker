@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { mergeAndDeduplicateTasks, addDeletedAuditIdentifier } from "@/lib/audit";
 import { createExcelUri, openInExcelDesktop } from "@/lib/excelUri";
+import { resolveEmployeeNumber } from "@/routes/_authenticated/dashboard";
 
 export type ExcelTaskRow = {
   id: string;
@@ -120,8 +121,12 @@ export function ExcelTaskGrid({
   // Filtered rows
   const filteredRows = rows.filter((r) => {
     if (activeSheetTab === "sheet2") {
-      if (currentEmployeeNumber && String(r.assigned_to_employee_number) !== String(currentEmployeeNumber)) {
-        return false;
+      if (currentEmployeeNumber) {
+        const assignedEmp = String(r.assigned_to_employee_number || "").trim();
+        const resolvedEmp = resolveEmployeeNumber(assignedEmp);
+        if (assignedEmp !== currentEmployeeNumber && resolvedEmp !== currentEmployeeNumber && !assignedEmp.includes(currentEmployeeNumber)) {
+          return false;
+        }
       }
     }
     if (filterType !== "all" && r.audit_type !== filterType) return false;

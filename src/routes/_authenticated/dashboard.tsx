@@ -135,7 +135,7 @@ export function resolveAuditorName(empNumber?: string, fallbackName?: string): s
 }
 
 export function resolveEmployeeNumber(auditorNameOrNumber?: string): string {
-  if (!auditorNameOrNumber) return "688079";
+  if (!auditorNameOrNumber) return "";
   const trimmed = auditorNameOrNumber.trim();
   if (OFFICIAL_ROSTER[trimmed]) return trimmed;
   for (const [empNum, info] of Object.entries(OFFICIAL_ROSTER)) {
@@ -143,9 +143,10 @@ export function resolveEmployeeNumber(auditorNameOrNumber?: string): string {
       return empNum;
     }
   }
-  const match = trimmed.match(/\b\d{6}\b/);
+  const match = trimmed.match(/\b\d{4,8}\b/);
   if (match) return match[0];
-  return "688079";
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  return trimmed;
 }
 
 export function DashboardPage() {
@@ -393,15 +394,21 @@ export function DashboardPage() {
     return rawTaskRows.filter((r) => {
       const assignedEmp = String(r.assigned_to_employee_number || "").trim();
       const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
-      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || resolvedEmp === currentEmpNumber);
+      const empMatch = currentEmpNumber && (
+        assignedEmp === currentEmpNumber ||
+        resolvedEmp === currentEmpNumber ||
+        assignedEmp.includes(currentEmpNumber) ||
+        (r as any).assigned_to === profile?.id
+      );
       const nameMatch = currentEmpName && (
         (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
         (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()) ||
-        (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName))
+        (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName)) ||
+        (OFFICIAL_ROSTER[resolvedEmp]?.name && OFFICIAL_ROSTER[resolvedEmp].name.toLowerCase().includes(currentEmpName))
       );
       return Boolean(empMatch || nameMatch);
     });
-  }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName]);
+  }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName, profile?.id]);
 
 
 

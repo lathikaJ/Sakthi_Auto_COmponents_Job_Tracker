@@ -302,6 +302,30 @@ export const DEFAULT_OFFICIAL_AUDITS = [
     due_date: "2026-01-31",
     status: "In Progress",
   },
+  {
+    id: "aud-prod-venk-01",
+    audit_code: "AUD-PROD-VENK-01",
+    title: "Product Audit — Steering Knuckle Housing LH/RH – MPV (VENKADESH D)",
+    audit_type: "Product",
+    area: "Machine Shop 2",
+    assigned_to_employee_number: "663875",
+    month: 9,
+    year: 2026,
+    due_date: "2026-09-30",
+    status: "Assigned",
+  },
+  {
+    id: "aud-prod-geeth-01",
+    audit_code: "AUD-PROD-GEETH-01",
+    title: "Product Audit — Disc Brake - Bolero Quality Verification (GEETHA S)",
+    audit_type: "Product",
+    area: "Plant Management",
+    assigned_to_employee_number: "667685",
+    month: 9,
+    year: 2026,
+    due_date: "2026-09-30",
+    status: "Assigned",
+  },
 ];
 
 const DELETED_AUDITS_KEY = "sakthi_deleted_audit_identifiers";
