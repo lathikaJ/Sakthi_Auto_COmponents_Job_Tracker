@@ -2341,48 +2341,7 @@ export function DashboardPage() {
                     </table>
                   </div>
 
-                  {/* SECTION 2: PRODUCTION OUTPUT MONITORING */}
-                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                    <div className="bg-slate-100 text-slate-800 px-4 py-2 border-b border-slate-200">
-                      <h4 className="text-xs font-black uppercase tracking-wider">
-                        Plant Line Output Tracking & Threshold Records ({categoryLowProd.length})
-                      </h4>
-                    </div>
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-b border-slate-200">
-                        <tr>
-                          <th className="p-3">Part Number</th>
-                          <th className="p-3">Product Name</th>
-                          <th className="p-3 text-right">Planned Production</th>
-                          <th className="p-3 text-right">Actual Production</th>
-                          <th className="p-3 text-center">Production %</th>
-                          <th className="p-3 text-center">Threshold</th>
-                          <th className="p-3">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {categoryLowProd.map((lp) => (
-                          <tr key={lp.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-3 font-mono font-black text-purple-900">{lp.part_number}</td>
-                            <td className="p-3 font-bold text-slate-800">{lp.product_name}</td>
-                            <td className="p-3 text-right font-mono font-bold text-slate-700">{lp.planned_production.toLocaleString()} PCS</td>
-                            <td className="p-3 text-right font-mono font-bold text-purple-700">{lp.actual_production.toLocaleString()} PCS</td>
-                            <td className="p-3 text-center font-black">
-                              <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
-                                {lp.production_percentage.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-center font-mono font-bold text-slate-600">{lp.threshold_percentage}%</td>
-                            <td className="p-3">
-                              <span className="rounded-md px-2.5 py-1 font-bold text-[11px] bg-purple-600 text-white">
-                                NO PRODUCTION
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+
                 </div>
               )}
             </div>
