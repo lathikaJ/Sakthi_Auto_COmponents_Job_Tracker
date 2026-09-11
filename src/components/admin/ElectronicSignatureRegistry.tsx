@@ -157,18 +157,8 @@ export function ElectronicSignatureRegistry() {
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
         <div>
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <PenTool className="h-5 w-5 text-brand" /> Official Employee Electronic Signature Directory & Authentication Database
+            <PenTool className="h-5 w-5 text-brand" /> Employee Electronic Signature Directory
           </h2>
-          <p className="text-xs text-slate-600 font-medium">
-            Centralized E-signature database for registered employees. Authenticate employee numbers, view e-signatures, and grant audit approval access.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            9 Employees Registered
-          </span>
         </div>
       </div>
 
@@ -179,9 +169,6 @@ export function ElectronicSignatureRegistry() {
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-brand" /> Employee Number Authentication & E-Signature Access
             </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Enter any registered employee number (e.g. 690867, 688079) to authenticate identity and access their registered E-signature image.
-            </p>
           </div>
         </div>
 

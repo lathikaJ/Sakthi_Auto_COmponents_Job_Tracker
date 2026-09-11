@@ -65,14 +65,7 @@ export function EmployeeActivityLogsGrid() {
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
               All Employee Log In & Log Out Audit Grid
             </h2>
-            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 flex items-center gap-1 border border-sky-300">
-              <Sparkles className="h-3.5 w-3.5 text-sky-600" />
-              Live Website Activity Register
-            </span>
           </div>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            Real-time track of all website sign-in and sign-out timestamps across plant inspectors and administrators.
-          </p>
         </div>
 
         <button

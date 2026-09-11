@@ -1359,11 +1359,8 @@ export function DashboardPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-2">
-                  <Package className="h-4 w-4 text-amber-600" /> 1. Touch Audit Category Selection
+                  <Package className="h-4 w-4 text-amber-600" /> Audit Category Selection
                 </h2>
-                <span className="text-xs font-medium text-slate-500">
-                  Touch / Click any category to switch active plan & status views
-                </span>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1460,11 +1457,8 @@ export function DashboardPage() {
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-brand" /> 2. 6 Status Option Cards for [{selectedCategory.toUpperCase()}]
+                  <Filter className="h-4 w-4 text-brand" /> Status Option Cards — [{selectedCategory.toUpperCase()}]
                 </h2>
-                <div className="text-xs text-slate-500 font-medium">
-                  Flow: AUDIT DASHBOARD → {selectedCategory} → <strong className="text-brand">{selectedStatusView}</strong>
-                </div>
               </div>
 
               {/* 6 STATUS OPTION CARDS */}

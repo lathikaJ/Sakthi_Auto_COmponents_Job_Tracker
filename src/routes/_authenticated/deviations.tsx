@@ -1144,19 +1144,15 @@ function DeviationsPage() {
 
   return (
     <AppShell
-      title="Plant Deviation Tracker (2-Page CAPA Workflow)"
-      description="Record non-conformances across official 2-page formats: Page 1 (Deviation Report QF/08/CQA-55) & Page 2 (RCA, CAPA & Quarantine Details) with multi-stage Admin approval & Save Draft support."
+      title="Plant Deviation Tracker"
     >
       <div className="space-y-6">
         {/* Header Action Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" /> Sakthi Auto Plant Deviation Register (QF/08/CQA-55)
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Plant Deviation Register
             </h2>
-            <p className="text-xs text-slate-600 font-medium">
-              2-Page Deviation Format: Page 1 (Deviation Report) &rarr; Admin P1 Approval &rarr; Page 2 (RCA, CAPA & Quarantine Details) &rarr; Dual Approval. Supports <strong>Save Draft</strong> for resuming later.
-            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1459,7 +1455,7 @@ function DeviationsPage() {
                 {filteredDeviations.length === 0 && (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-sm font-semibold text-slate-500">
-                      No deviation records match your criteria. Click '+ Create 2-Page Deviation Report' to add one.
+                      No deviation records found.
                     </td>
                   </tr>
                 )}
