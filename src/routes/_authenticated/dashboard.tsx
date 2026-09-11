@@ -2229,7 +2229,7 @@ export function DashboardPage() {
                               {dev.severity ?? "High"}
                             </span>
                           </td>
-                          <td className="p-3 font-medium text-slate-700">{dev.responsible_person ?? dev.employee_number} ({dev.department ?? "QA"})</td>
+                          <td className="p-3 font-medium text-slate-700">{dev.responsible_person ?? dev.employee_number}</td>
                           <td className="p-3 font-medium text-slate-700">{dev.corrective_action ?? "Under Review"}</td>
                           <td className="p-3 font-medium text-slate-600">{dev.due_date ?? dev.created_at}</td>
                           <td className="p-3">
@@ -2562,7 +2562,7 @@ export function DashboardPage() {
                 >
                   {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
                     <option key={empId} value={empId}>
-                      {empId} - {info.name} ({info.department.slice(0, 8)}...)
+                      {empId} - {info.name}
                     </option>
                   ))}
                 </select>
