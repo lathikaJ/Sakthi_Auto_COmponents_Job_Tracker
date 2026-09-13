@@ -109,7 +109,7 @@ function AuditsPage() {
   const rows = activeDataSet
     .filter((r: any) => {
       if (isAdmin) return true;
-      if (!currentEmp && !currentName) return false;
+      if (!currentEmp && !currentName) return true;
       const assignedEmp = String(r.assigned_to_employee_number || "").trim();
       const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
       const empMatch = currentEmp && (assignedEmp === currentEmp || resolvedEmp === currentEmp);

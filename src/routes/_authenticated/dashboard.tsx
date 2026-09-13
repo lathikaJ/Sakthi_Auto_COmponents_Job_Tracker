@@ -387,31 +387,9 @@ export function DashboardPage() {
   const currentEmpName = profile?.full_name?.toLowerCase().trim();
 
   const allTaskRows = useMemo(() => {
-    // Admin (KARTHIKEYAN C or any admin user) can see all plant audit tasks.
-    if (isAdmin) return rawTaskRows;
-    // Regular employee sees tasks assigned to their employee number or full name.
-    if (!currentEmpNumber && !currentEmpName) return rawTaskRows;
-
-    const filtered = rawTaskRows.filter((r) => {
-      const assignedEmp = String(r.assigned_to_employee_number || "").trim();
-      const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
-      const empMatch = Boolean(currentEmpNumber && (
-        assignedEmp === currentEmpNumber ||
-        resolvedEmp === currentEmpNumber ||
-        assignedEmp.includes(currentEmpNumber) ||
-        (r as any).assigned_to === profile?.id
-      ));
-      const nameMatch = Boolean(currentEmpName && (
-        (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
-        (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase().includes(OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase())) ||
-        (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName)) ||
-        (OFFICIAL_ROSTER[resolvedEmp]?.name && OFFICIAL_ROSTER[resolvedEmp].name.toLowerCase().includes(currentEmpName))
-      ));
-      return empMatch || nameMatch;
-    });
-
-    return filtered.length > 0 ? filtered : rawTaskRows;
-  }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName, profile?.id]);
+    // Show all plant master audit tasks across all categories for all users (Admin & Employees)
+    return rawTaskRows;
+  }, [rawTaskRows]);
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
