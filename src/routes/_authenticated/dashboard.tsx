@@ -183,19 +183,21 @@ export function DashboardPage() {
 
   const handleTriggerExportModal = () => {
     const today = new Date().toISOString().split("T")[0] ?? "";
-    const catPrefix = selectedCategory.split(" ")[0] ?? "Product";
+    const prefix = selectedCategory === "Product Audit" ? "PROD" : selectedCategory === "Dock Audit" ? "DOC" : "REV";
+    const randId = Math.floor(100 + Math.random() * 900);
+    const nextCode = `${prefix}-${randId}`;
     const nextSlNo = categoryTasks.length + 1;
     setEditingAudit({
       id: `aud-${Date.now()}`,
       sl_no: nextSlNo,
-      audit_code: `REV-${String(nextSlNo).padStart(3, "0")}`,
-      title: "",
-      audit_type: selectedCategory === "Dock Audit" ? "Dock Audit" : selectedCategory === "Revalidation Audit" ? "Revalidation Audit" : catPrefix,
+      audit_code: nextCode,
+      title: `${selectedCategory} Inspection Report`,
+      audit_type: selectedCategory,
       area: "Machine Shop Line 1",
       month: selectedMonth,
       year: new Date().getFullYear(),
       due_date: today,
-      status: "Planned",
+      status: "In Progress",
       assigned_to_employee_number: profile?.employee_number ?? "688079",
       auditor_name: profile?.full_name ?? "Lead Auditor",
       department: "Quality Assurance",
@@ -827,8 +829,13 @@ export function DashboardPage() {
   const handlePlanFileAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingAudit) return;
+    const cleanTitle = editingAudit.title && editingAudit.title !== `${selectedCategory} Inspection Report`
+      ? editingAudit.title
+      : file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
     const updated: Assignment = {
       ...editingAudit,
+      title: cleanTitle,
+      audit_type: selectedCategory,
       attached_file_name: file.name,
       attached_file_url: URL.createObjectURL(file),
       status: "In Progress",
