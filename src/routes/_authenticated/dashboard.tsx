@@ -413,21 +413,11 @@ export function DashboardPage() {
   };
 
   const planTasks = useMemo(() => {
-    return categoryTasks.filter((r) => r.status === "Planned" || r.status === "Assigned" || r.status === "Pending");
+    return categoryTasks.filter((r) => r.status === "Planned" || r.status === "Pending");
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
-    return categoryTasks.filter((r) => {
-      // Exclude completed, approved, deviation, or no production
-      if (["Completed", "Approved", "Deviation", "No Production"].includes(r.status)) {
-        return false;
-      }
-      // Unstarted planned tasks without any file attachment stay in Audit Plan only
-      if ((r.status === "Planned" || r.status === "Assigned") && !r.attached_file_name && !r.is_imported) {
-        return false;
-      }
-      return true;
-    });
+    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Assigned");
   }, [categoryTasks]);
 
   const noProductionTasks = useMemo(() => {
@@ -2824,7 +2814,7 @@ export function DashboardPage() {
                         onClick={() => {
                           const updatedRecord: Assignment = {
                             ...editingAudit,
-                            status: "In Progress",
+                            status: "Under Review",
                             is_imported: true,
                             imported_by: profile?.employee_number || editingAudit.assigned_to_employee_number || "688079",
                             attached_file_name: editingAudit.attached_file_name || "Inspection_Checklist.xlsx",
@@ -2833,10 +2823,11 @@ export function DashboardPage() {
                           updateSubmittedAuditStatus(
                             editingAudit.id || editingAudit.audit_code,
                             "Under Review" as any,
-                            "Inspection marked OK by User. Attached file synced."
+                            "Inspection marked OK by User. Submitted to Admin Under Review."
                           );
                           setIsExportAttachmentModalOpen(false);
-                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — File attached & updated in Ongoing Audit!`);
+                          setSelectedStatusView("Under Review");
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — Moved to Under Review bar & Admin Review Queue!`);
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
                         title="OK → The file moves to Admin → Under Review"
