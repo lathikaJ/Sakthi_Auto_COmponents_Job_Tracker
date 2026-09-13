@@ -213,7 +213,7 @@ function DeviationsPage() {
     }
   };
 
-  // Direct Live Sync (Syncs 2 Formats directly across all team accounts & Supabase without file import)
+    // Direct Live Sync (Syncs 2 Formats directly across all team accounts & Supabase without file import)
   const handleDirectSyncDeviation = async () => {
     const today = getTodayDateStr();
     const existingDev = editingDevId ? deviations.find((d) => d.id === editingDevId) : null;
@@ -274,6 +274,84 @@ function DeviationsPage() {
     toast.success(`Directly synced ${devCode} across all team members!`, {
       description: "Format 1 (Deviation Report QF/08/CQA-55) & Format 2 (RCA CAPA) saved to cloud & broadcast live.",
       duration: 4000,
+    });
+  };
+
+  // Submit Complete Deviation Form (Both Page 1 + Page 2 formats) directly for Admin Review
+  const handleSubmitCompleteDeviation = async (devToSubmit?: DeviationItem) => {
+    const today = getTodayDateStr();
+    const targetDev = devToSubmit || (editingDevId ? deviations.find((d) => d.id === editingDevId) : null);
+    const devCode = targetDev?.dev_code || `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+    const completeDev: DeviationItem = {
+      id: targetDev?.id || editingDevId || `dev-${Date.now()}`,
+      audit_id: formData.audit_id || targetDev?.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+      dev_code: devCode,
+      description: formData.title || targetDev?.description || "Plant Non-Conformance Deviation Report",
+      observed_condition: formData.observations[0]?.specification || targetDev?.observed_condition || "Non-conformance identified during inspection audit.",
+      location_operation: formData.location || targetDev?.location_operation || "Machine Shop - Line 1",
+      employee_number: profile?.employee_number || "688079",
+      severity: formData.severity,
+      status: "page2_submitted",
+      is_draft: false,
+      created_at: targetDev?.created_at || today,
+
+      report_date: formData.report_date || today,
+      from_dept: formData.from_dept,
+      to_dept: formData.to_dept,
+      part_name: formData.part_name || "STEERING KNUCKLE",
+      part_number: formData.part_number || "45110-M86R00",
+      stage: formData.stage,
+      observations: formData.observations.length > 0 ? formData.observations : DEFAULT_OBSERVATIONS,
+      cc: formData.cc,
+      doc_code: formData.doc_code || "QF/08/CQA-55",
+      doc_date: formData.doc_date || "25.12.2015",
+      inspected_by: formData.inspected_by,
+      inspected_by_signature: formData.inspected_by_signature,
+      approved_by: formData.approved_by,
+      approved_by_signature: formData.approved_by_signature,
+
+      page1_approved: true,
+      page2_submitted: true,
+      page2_submitted_at: today,
+      capa_items: formData.capa_items.length > 0 ? formData.capa_items : DEFAULT_CAPA_ITEMS,
+      quarantine_segregated_qty: formData.quarantine_segregated_qty || "100",
+      quarantine_ok_qty: formData.quarantine_ok_qty || "95",
+      quarantine_not_ok_qty: formData.quarantine_not_ok_qty || "5",
+      quarantine_segregated_by: formData.quarantine_segregated_by,
+      quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature,
+      quarantine_approved_by: formData.quarantine_approved_by,
+      quarantine_approved_by_signature: formData.quarantine_approved_by_signature,
+    };
+
+    let updated: DeviationItem[];
+    if (targetDev && deviations.some((d) => d.id === targetDev.id)) {
+      updated = deviations.map((d) => (d.id === targetDev.id ? completeDev : d));
+    } else {
+      updated = [completeDev, ...deviations];
+    }
+
+    await saveDeviationsList(updated);
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sakthi_active_deviation_in_progress");
+      localStorage.removeItem("sakthi_active_deviation_draft");
+      window.dispatchEvent(new Event("sakthi_deviations_updated"));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+
+      const auditId = completeDev.audit_id;
+      if (auditId) {
+        updateSubmittedAuditStatus(auditId, "Under Review", `Deviation report ${devCode} submitted with complete Page 1 & Page 2 details for Admin Review.`);
+        supabase.from("audit_assignments").update({ status: "Under Review" as any }).eq("audit_code", auditId).then(({ error }) => {
+          if (error) console.warn("Supabase update error:", error);
+        });
+      }
+    }
+
+    setIsModalOpen(false);
+    toast.success(`Complete Deviation Form ${devCode} Submitted for Admin Review!`, {
+      description: "All details (Format 1 QF/08/CQA-55 & Format 2 RCA/CAPA/Quarantine) synced & routed to Admin (KARTHIKEYAN C).",
+      duration: 5000,
     });
   };
 
@@ -1180,6 +1258,13 @@ function DeviationsPage() {
               <RefreshCw className="h-4 w-4" /> Sync 2 Formats to Team
             </Button>
             <Button
+              onClick={() => handleSubmitCompleteDeviation()}
+              className="gap-2 bg-emerald-600 font-extrabold text-white hover:bg-emerald-700 shadow-md text-xs cursor-pointer"
+              title="Submit complete 2-Page Deviation Form (Format 1 QF/08/CQA-55 & Format 2 RCA CAPA Quarantine) to Admin (KARTHIKEYAN C) for review"
+            >
+              <CheckCircle2 className="h-4 w-4 text-emerald-200" /> Submit Form for Admin Review
+            </Button>
+            <Button
               onClick={openModalForNew}
               className="gap-2 bg-brand font-bold text-white hover:bg-brand-hover shadow-sm text-xs cursor-pointer"
             >
@@ -2075,15 +2160,25 @@ function DeviationsPage() {
                         <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft
                       </Button>
 
-                      {/* SUBMIT ICON & BUTTON: Visible ONLY when Deviation Form is completely filled (Page 1 + Page 2) */}
-                      {isPage1Valid && isPage2Valid && (
-                        <Button
-                          type="submit"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md cursor-pointer gap-1.5 animate-in fade-in zoom-in-95 duration-200"
-                        >
-                          <CheckCircle2 className="h-4 w-4" /> Submit Deviation Form (Move to Deviation Status)
-                        </Button>
-                      )}
+                      {/* DIRECT SYNC BUTTON */}
+                      <Button
+                        type="button"
+                        onClick={handleDirectSyncDeviation}
+                        className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
+                        title="Sync Excel details into the form"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> Sync Excel Data
+                      </Button>
+
+                      {/* SUBMIT BUTTON AFTER SYNC BUTTON FOR ADMIN REVIEW */}
+                      <Button
+                        type="button"
+                        onClick={() => handleSubmitCompleteDeviation()}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md cursor-pointer gap-1.5 animate-in fade-in zoom-in-95 duration-200"
+                        title="Submit complete Deviation Form with all synced details to Admin for Review"
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Submit Form for Admin Review
+                      </Button>
                     </div>
                   </div>
                 </form>
