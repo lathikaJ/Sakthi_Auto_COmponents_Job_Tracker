@@ -1473,17 +1473,6 @@ function DeviationsPage() {
                             </button>
                           )}
 
-                          {/* View Official Format Report */}
-                          {!dev.is_draft && (
-                            <button
-                              type="button"
-                              onClick={() => setViewReportDev(dev)}
-                              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
-                            >
-                              <FileText className="h-3 w-3 text-amber-600" /> View Report
-                            </button>
-                          )}
-
                           {/* Admin Approve Page 1 */}
                           {isAdmin && !dev.is_draft && !dev.page1_approved && (
                             <button
@@ -1492,29 +1481,6 @@ function DeviationsPage() {
                               className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
                             >
                               <CheckCircle2 className="h-3 w-3" /> Approve P1
-                            </button>
-                          )}
-
-                          {/* Download Approved Page 1 (Admin Only) */}
-                          {isAdmin && dev.page1_approved && (
-                            <button
-                              type="button"
-                              onClick={() => setViewReportDev(dev)}
-                              className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                              title="Download Approved Deviation Report (Page 1 & 2)"
-                            >
-                              <Download className="h-3 w-3 text-emerald-600" /> Download P1/P2
-                            </button>
-                          )}
-
-                          {/* Fill Page 2 */}
-                          {dev.page1_approved && !dev.both_approved && dev.status !== "closed" && (
-                            <button
-                              type="button"
-                              onClick={() => openModalForEdit(dev, 2)}
-                              className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-sky-700 transition-colors cursor-pointer shadow-2xs"
-                            >
-                              <Plus className="h-3 w-3" /> Fill Page 2
                             </button>
                           )}
 
