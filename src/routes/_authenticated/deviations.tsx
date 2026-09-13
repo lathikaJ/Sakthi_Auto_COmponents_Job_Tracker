@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
-import { openDeviationInMSExcel, parseDeviationExcelFile } from "@/lib/deviationExcel";
+import { openDeviationInMSExcel, parseDeviationExcelFile, downloadDeviationExcelWorkbook } from "@/lib/deviationExcel";
 
 export const Route = createFileRoute("/_authenticated/deviations")({
   component: DeviationsPage,
@@ -1246,9 +1246,17 @@ function DeviationsPage() {
             <Button
               onClick={() => openDeviationInMSExcel(formData)}
               className="gap-2 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
-              title="Open 2-Page Deviation Formats in MS Excel Desktop"
+              title="Open QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION in MS Excel Desktop"
             >
               <FileSpreadsheet className="h-4 w-4" /> Open 2 Formats in MS Excel
+            </Button>
+            <Button
+              onClick={() => downloadDeviationExcelWorkbook(formData)}
+              variant="outline"
+              className="gap-2 font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs cursor-pointer"
+              title="Download official QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx file"
+            >
+              <Download className="h-4 w-4" /> Download QF/08/CQA-55 Excel
             </Button>
             <Button
               onClick={handleDirectSyncDeviation}

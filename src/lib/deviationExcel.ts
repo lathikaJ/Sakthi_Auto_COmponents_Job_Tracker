@@ -193,18 +193,34 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws1, "Page 1 - Deviation Report");
-  XLSX.utils.book_append_sheet(wb, ws2, "Page 2 - RCA & CAPA");
+  XLSX.utils.book_append_sheet(wb, ws1, "Sheet1");
+  XLSX.utils.book_append_sheet(wb, ws2, "BACK PAGE ");
 
   return wb;
 }
 
 /**
- * Launches desktop Microsoft Excel directly via ms-excel protocol URI without downloading.
+ * Downloads the exact official Sakthi Auto QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx file
+ */
+export function downloadDeviationExcelWorkbook(data?: Partial<DeviationItem>): void {
+  try {
+    const wb = generateDeviationExcelWorkbook(data);
+    const fileName = `QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast.success("Downloaded Excel Format!", {
+      description: `Saved ${fileName} (Sheet1: QF/08/CQA-55 & BACK PAGE: RCA CAPA)`,
+    });
+  } catch (err) {
+    console.error("Download Excel Error:", err);
+    toast.error("Failed to download Deviation Excel file.");
+  }
+}
+
+/**
+ * Launches desktop Microsoft Excel directly via ms-excel protocol URI using QF 08 CQA - 55 format.
  */
 export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
   try {
-    // Launch Desktop MS Excel application directly via protocol handler (No file download)
     if (typeof window !== "undefined") {
       const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Deviation_Report_Template.xlsx";
       const iframe = document.createElement("iframe");
@@ -220,7 +236,7 @@ export function openDeviationInMSExcel(data?: Partial<DeviationItem>): void {
     }
 
     toast.success("Launching Microsoft Excel Desktop App!", {
-      description: "Opened 2-Page Deviation Report (QF/08/CQA-55 & RCA CAPA) in desktop MS Excel. When finished editing, click 'Sync 2 Formats to Team' in Sakthi Spark Flow!",
+      description: "Opened QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx (Sheet1 & BACK PAGE) in desktop MS Excel.",
       duration: 6000,
     });
   } catch (err) {
