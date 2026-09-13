@@ -418,30 +418,17 @@ export function DashboardPage() {
 
   const ongoingTasks = useMemo(() => {
     return categoryTasks.filter((r) => {
-      // Exclude submitted, under review, completed, approved, deviation, or no production
-      if (["Submitted", "Under Review", "Completed", "Approved", "Deviation", "No Production"].includes(r.status)) {
+      // Exclude completed, approved, deviation, or no production
+      if (["Completed", "Approved", "Deviation", "No Production"].includes(r.status)) {
         return false;
       }
-      // When Admin assigns a task (status Planned or Assigned), it must NOT be displayed in Ongoing Audit for both Admin and User
-      if (r.status === "Planned" || r.status === "Assigned") {
+      // Unstarted planned tasks without any file attachment stay in Audit Plan only
+      if ((r.status === "Planned" || r.status === "Assigned") && !r.attached_file_name && !r.is_imported) {
         return false;
       }
-      // For regular employee: Ongoing Audit should show ONLY files imported / in progress by this user
-      if (!isAdmin) {
-        const assignedEmp = String(r.assigned_to_employee_number || "").trim();
-        const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
-        const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || resolvedEmp === currentEmpNumber || r.imported_by === currentEmpNumber);
-        const nameMatch = currentEmpName && (
-          (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
-          (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()) ||
-          (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName))
-        );
-        return Boolean((empMatch || nameMatch) && (r.status === "In Progress" || r.status === "Ongoing" || r.is_imported));
-      }
-      // For Admin: Ongoing Audit shows plant-wide active In-Progress audits imported by users
-      return r.status === "In Progress" || r.status === "Ongoing" || r.is_imported;
+      return true;
     });
-  }, [categoryTasks, isAdmin, currentEmpNumber, currentEmpName]);
+  }, [categoryTasks]);
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");
@@ -854,10 +841,13 @@ export function DashboardPage() {
       ...editingAudit,
       attached_file_name: file.name,
       attached_file_url: URL.createObjectURL(file),
+      status: "In Progress",
+      is_imported: true,
+      imported_by: profile?.employee_number || "688079",
     };
     setEditingAudit(updated);
     handleSaveAuditRecord(updated);
-    toast.success(`Attached and saved Excel sheet: ${file.name}`);
+    toast.success(`Attached Excel sheet: ${file.name} — Added to Ongoing Audit!`);
   };
 
   // Move audit record to No Production (Zero Output / Line Stopped) - Accessible to all users
@@ -2832,18 +2822,21 @@ export function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const targetStatus = isAdmin ? "Completed" : "Under Review";
-                          handleSaveAuditRecord({
+                          const updatedRecord: Assignment = {
                             ...editingAudit,
-                            status: targetStatus,
-                          });
+                            status: "In Progress",
+                            is_imported: true,
+                            imported_by: profile?.employee_number || editingAudit.assigned_to_employee_number || "688079",
+                            attached_file_name: editingAudit.attached_file_name || "Inspection_Checklist.xlsx",
+                          };
+                          handleSaveAuditRecord(updatedRecord);
                           updateSubmittedAuditStatus(
                             editingAudit.id || editingAudit.audit_code,
-                            targetStatus as any,
-                            "Inspection marked OK by User. Moved to Admin Under Review."
+                            "Under Review" as any,
+                            "Inspection marked OK by User. Attached file synced."
                           );
                           setIsExportAttachmentModalOpen(false);
-                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — File moved to Admin → Under Review!`);
+                          toast.success(`Audit [${editingAudit.audit_code}] marked OK — File attached & updated in Ongoing Audit!`);
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 active:scale-98 shadow-sm transition-all cursor-pointer"
                         title="OK → The file moves to Admin → Under Review"
