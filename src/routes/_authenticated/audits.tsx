@@ -25,6 +25,7 @@ const FILTERS = [
 type Filter = (typeof FILTERS)[number]["key"];
 
 export const Route = createFileRoute("/_authenticated/audits")({
+  ssr: false,
   validateSearch: (search: Record<string, unknown>): { filter: Filter } => {
     const raw = String(search["filter"] ?? "all");
     const match = FILTERS.find((f) => f.key === raw);

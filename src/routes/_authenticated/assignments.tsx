@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/assignments")({
+  ssr: false,
   component: AssignmentsPage,
 });
 

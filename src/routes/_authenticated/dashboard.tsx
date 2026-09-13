@@ -57,6 +57,7 @@ import { updateSubmittedAuditStatus, deleteSubmittedAudit } from "@/lib/submitte
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Audit Dashboard — Sakthi Auto Value Added Engineering & Audits" },

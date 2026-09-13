@@ -4,6 +4,7 @@ import { SubmittedAuditsRegister } from "@/components/admin/SubmittedAuditsRegis
 import { ElectronicSignatureRegistry } from "@/components/admin/ElectronicSignatureRegistry";
 
 export const Route = createFileRoute("/_authenticated/review")({
+  ssr: false,
   component: ReviewPage,
 });
 

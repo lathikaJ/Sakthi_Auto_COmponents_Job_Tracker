@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { recordActivityLog } from "@/lib/activityLogs";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign In — Sakthi Auto Value Added Engineering & Audits" },

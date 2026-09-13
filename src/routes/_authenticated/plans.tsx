@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { PlanModal } from "@/components/plans/PlanModal";
 
 export const Route = createFileRoute("/_authenticated/plans")({
+  ssr: false,
   component: PlansPage,
 });
 

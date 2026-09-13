@@ -33,6 +33,7 @@ import { updateSubmittedAuditStatus } from "@/lib/submittedAudits";
 import { openDeviationInMSExcel, parseDeviationExcelFile, downloadDeviationExcelWorkbook } from "@/lib/deviationExcel";
 
 export const Route = createFileRoute("/_authenticated/deviations")({
+  ssr: false,
   component: DeviationsPage,
 });
 
