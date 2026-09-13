@@ -482,6 +482,30 @@ export const DEFAULT_OFFICIAL_AUDITS = [
     due_date: "2026-09-30",
     status: "Assigned",
   },
+  {
+    id: "aud-doc-karth-01",
+    audit_code: "DOC-AUD-KARTH-01",
+    title: "Dock Audit — Quality Assurance Plant Operations Release (KARTHIKEYAN C)",
+    audit_type: "Dock Audit",
+    area: "Quality Assurance",
+    assigned_to_employee_number: "690867",
+    month: 9,
+    year: 2026,
+    due_date: "2026-09-30",
+    status: "Assigned",
+  },
+  {
+    id: "aud-prod-karth-01",
+    audit_code: "AUD-PROD-KARTH-01",
+    title: "Product Audit — Final Quality Operations Assurance Verification (KARTHIKEYAN C)",
+    audit_type: "Product",
+    area: "Quality Assurance",
+    assigned_to_employee_number: "690867",
+    month: 9,
+    year: 2026,
+    due_date: "2026-09-30",
+    status: "Assigned",
+  },
 ];
 
 const DELETED_AUDITS_KEY = "sakthi_deleted_audit_identifiers";
@@ -493,7 +517,11 @@ export function getDeletedAuditIdentifiers(): Set<string> {
     if (stored) {
       const arr = JSON.parse(stored);
       if (Array.isArray(arr)) {
-        return new Set(arr.map((s) => String(s).trim().toUpperCase()));
+        return new Set(
+          arr
+            .map((s) => String(s).trim().toUpperCase())
+            .filter((s) => s && s !== "UNDEFINED" && s !== "NULL")
+        );
       }
     }
   } catch {
@@ -506,9 +534,9 @@ export function addDeletedAuditIdentifier(id?: string, auditCode?: string, title
   if (typeof window === "undefined") return;
   try {
     const deleted = getDeletedAuditIdentifiers();
-    if (id && id.trim()) deleted.add(id.trim().toUpperCase());
-    if (auditCode && auditCode.trim()) deleted.add(auditCode.trim().toUpperCase());
-    if (title && title.trim()) deleted.add(title.trim().toUpperCase());
+    if (id && typeof id === "string" && id.trim() && id.trim().toLowerCase() !== "undefined") deleted.add(id.trim().toUpperCase());
+    if (auditCode && typeof auditCode === "string" && auditCode.trim() && auditCode.trim().toLowerCase() !== "undefined") deleted.add(auditCode.trim().toUpperCase());
+    if (title && typeof title === "string" && title.trim() && title.trim().toLowerCase() !== "undefined") deleted.add(title.trim().toUpperCase());
     localStorage.setItem(DELETED_AUDITS_KEY, JSON.stringify(Array.from(deleted)));
     window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
   } catch (err) {
@@ -518,9 +546,9 @@ export function addDeletedAuditIdentifier(id?: string, auditCode?: string, title
 
 export function isAuditDeleted(id?: string, auditCode?: string, title?: string): boolean {
   const deleted = getDeletedAuditIdentifiers();
-  if (id && deleted.has(id.trim().toUpperCase())) return true;
-  if (auditCode && deleted.has(auditCode.trim().toUpperCase())) return true;
-  if (title && deleted.has(title.trim().toUpperCase())) return true;
+  if (id && typeof id === "string" && id.trim() && deleted.has(id.trim().toUpperCase())) return true;
+  if (auditCode && typeof auditCode === "string" && auditCode.trim() && deleted.has(auditCode.trim().toUpperCase())) return true;
+  if (title && typeof title === "string" && title.trim() && deleted.has(title.trim().toUpperCase())) return true;
   return false;
 }
 
@@ -537,9 +565,9 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
   const deleted = getDeletedAuditIdentifiers();
 
   const isDeleted = (task: T) => {
-    if (task.id && deleted.has(String(task.id).trim().toUpperCase())) return true;
-    if (task.audit_code && deleted.has(String(task.audit_code).trim().toUpperCase())) return true;
-    if (task.title && deleted.has(String(task.title).trim().toUpperCase())) return true;
+    if (task.id && typeof task.id === "string" && task.id.trim() && deleted.has(task.id.trim().toUpperCase())) return true;
+    if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim() && deleted.has(task.audit_code.trim().toUpperCase())) return true;
+    if (task.title && typeof task.title === "string" && task.title.trim() && deleted.has(task.title.trim().toUpperCase())) return true;
     return false;
   };
 

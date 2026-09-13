@@ -119,14 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.from("user_roles").select("role").eq("user_id", next.user.id).maybeSingle(),
         ]);
         if (!active) return;
+        const effectiveEmp = p?.employee_number || empNum;
+        const isRosterAdmin = ROSTER[effectiveEmp]?.role === "admin" || effectiveEmp === "690867";
+        const determinedRole = isRosterAdmin ? "admin" : ((r?.role as "admin" | "employee") ?? info.role ?? "employee");
+
         setProfile((p as Profile) ?? {
           id: next.user.id,
-          employee_number: empNum,
-          full_name: info.name,
-          department: info.department,
-          designation: info.designation,
+          employee_number: effectiveEmp,
+          full_name: (p?.full_name) || info.name,
+          department: (p?.department) || info.department,
+          designation: (p?.designation) || info.designation,
         });
-        setRole((r?.role as "admin" | "employee") ?? info.role);
+        setRole(determinedRole);
         setLoading(false);
         return;
       }

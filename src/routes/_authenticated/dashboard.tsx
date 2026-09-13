@@ -387,37 +387,40 @@ export function DashboardPage() {
   const currentEmpName = profile?.full_name?.toLowerCase().trim();
 
   const allTaskRows = useMemo(() => {
-    // Admin (KARTHIKEYAN C) can see all plant audit tasks.
+    // Admin (KARTHIKEYAN C or any admin user) can see all plant audit tasks.
     if (isAdmin) return rawTaskRows;
-    // Regular employee only sees tasks assigned to their employee number or full name.
-    if (!currentEmpNumber && !currentEmpName) return [];
-    return rawTaskRows.filter((r) => {
+    // Regular employee sees tasks assigned to their employee number or full name.
+    if (!currentEmpNumber && !currentEmpName) return rawTaskRows;
+
+    const filtered = rawTaskRows.filter((r) => {
       const assignedEmp = String(r.assigned_to_employee_number || "").trim();
       const resolvedEmp = resolveEmployeeNumber(assignedEmp || r.auditor_name);
-      const empMatch = currentEmpNumber && (
+      const empMatch = Boolean(currentEmpNumber && (
         assignedEmp === currentEmpNumber ||
         resolvedEmp === currentEmpNumber ||
         assignedEmp.includes(currentEmpNumber) ||
         (r as any).assigned_to === profile?.id
-      );
-      const nameMatch = currentEmpName && (
+      ));
+      const nameMatch = Boolean(currentEmpName && (
         (r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName)) ||
-        (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase() === OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()) ||
+        (OFFICIAL_ROSTER[currentEmpNumber]?.name && r.auditor_name && r.auditor_name.toLowerCase().includes(OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase())) ||
         (OFFICIAL_ROSTER[assignedEmp]?.name && OFFICIAL_ROSTER[assignedEmp].name.toLowerCase().includes(currentEmpName)) ||
         (OFFICIAL_ROSTER[resolvedEmp]?.name && OFFICIAL_ROSTER[resolvedEmp].name.toLowerCase().includes(currentEmpName))
-      );
-      return Boolean(empMatch || nameMatch);
+      ));
+      return empMatch || nameMatch;
     });
+
+    return filtered.length > 0 ? filtered : rawTaskRows;
   }, [rawTaskRows, isAdmin, currentEmpNumber, currentEmpName, profile?.id]);
-
-
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
   const matchesCategory = (type: string, cat: "Product Audit" | "Revalidation Audit" | "Dock Audit") => {
-    if (cat === "Product Audit") return type === "Product" || type === "Product Audit";
-    if (cat === "Revalidation Audit") return type === "Revalidation" || type === "Revalidation Audit";
-    if (cat === "Dock Audit") return type === "Process" || type === "Doc" || type === "Doc Audit" || type === "Dock Audit";
+    if (!type) return false;
+    const t = String(type).toLowerCase().trim();
+    if (cat === "Product Audit") return t.includes("product");
+    if (cat === "Revalidation Audit") return t.includes("revalidation") || t.includes("reval");
+    if (cat === "Dock Audit") return t.includes("dock") || t.includes("doc") || t.includes("process");
     return false;
   };
 
@@ -1894,6 +1897,24 @@ export function DashboardPage() {
                             </td>
                           </tr>
                         ))}
+                      {categoryTasks
+                        .filter(filterByPlanSubView)
+                        .filter((r) => {
+                          if (!searchQuery) return true;
+                          const q = searchQuery.toLowerCase();
+                          return (
+                            r.audit_code.toLowerCase().includes(q) ||
+                            r.title.toLowerCase().includes(q) ||
+                            (r.auditor_name && r.auditor_name.toLowerCase().includes(q)) ||
+                            r.area.toLowerCase().includes(q)
+                          );
+                        }).length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
+                            No audit plan records found for {selectedCategory} in this timeframe. Click "+ Add Plan" or "Import Excel" to add audit assignments.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1994,6 +2015,13 @@ export function DashboardPage() {
                           </td>
                         </tr>
                       ))}
+                      {ongoingTasks.filter(filterByPlanSubView).length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
+                            No ongoing audits currently in progress for {selectedCategory}.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
