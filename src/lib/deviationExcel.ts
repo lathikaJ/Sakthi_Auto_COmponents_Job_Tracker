@@ -148,13 +148,13 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
   ];
 
   // ---------------------------------------------------------
-  // SHEET 2: PAGE 2 RCA, CAPA & QUARANTINE DETAILS
+  // SHEET 2: PAGE 2 RCA, CAPA & QUARANTINE DETAILS (IMAGE 2 FORMAT)
   // ---------------------------------------------------------
   const sheet2Data: any[][] = [
     ["SAKTHI AUTO", "", "ROOT CAUSE, CORRECTIVE ACTION (CAPA) & QUARANTINE DETAILS", "", "", "PAGE : 2 OF 2"],
     ["", "", "", "", "", ""],
     ["NON-CONFORMANCE & CORRECTIVE ACTION LOG", "", "", "", "", ""],
-    ["DATE", "PART NAME", "PART NO.", "NON CONFORMANCE DETAILS", "ROOT CAUSE", "CORRECTIVE ACTION"],
+    ["Date", "Part Name", "Part No.", "Non Conformance Details", "Root Cause", "Corrective Action"],
   ];
 
   capaItems.forEach((item) => {
@@ -169,11 +169,11 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
   });
 
   sheet2Data.push(["", "", "", "", "", ""]);
-  sheet2Data.push(["QUARANTINE DETAILS", "", "", "", "", ""]);
-  sheet2Data.push(["SEGREGATED QTY", "OK QTY", "NOT OK QTY", "", "", ""]);
+  sheet2Data.push(["QUARANTINE DETAILS :", "", "", "", "", ""]);
+  sheet2Data.push(["SEGGREGATED QTT:", "OK QTT:", "NOT OK QTT:", "", "", ""]);
   sheet2Data.push([segQty + " PCS", okQty + " PCS", notOkQty + " PCS", "", "", ""]);
   sheet2Data.push(["", "", "", "", "", ""]);
-  sheet2Data.push(["SEGREGATED BY", ": " + segBy, "", "APPROVED BY", ": " + quarantineApprovedBy, ""]);
+  sheet2Data.push(["SEGGREGATED BY", ": " + segBy, "", "APPROVED BY", ": " + quarantineApprovedBy, ""]);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
 
