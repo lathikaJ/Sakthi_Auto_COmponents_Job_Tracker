@@ -55,6 +55,7 @@ import {
 } from "@/lib/audit";
 import { updateSubmittedAuditStatus, deleteSubmittedAudit } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
+import { openDeviationInMSExcel, downloadDeviationExcelWorkbook } from "@/lib/deviationExcel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -2266,6 +2267,26 @@ export function DashboardPage() {
                           {isAdmin && (
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {/* Open in MS Excel Desktop Protocol Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => openDeviationInMSExcel(dev)}
+                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
+                                  title="Open QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION in MS Excel Desktop"
+                                >
+                                  <FileSpreadsheet className="h-3 w-3" /> Open in MS Excel
+                                </button>
+
+                                {/* Download Original Excel Format */}
+                                <button
+                                  type="button"
+                                  onClick={() => downloadDeviationExcelWorkbook(dev)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
+                                  title="Download official QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx format"
+                                >
+                                  <Download className="h-3 w-3 text-emerald-600" /> Download Original Format
+                                </button>
+
                                 <button
                                   type="button"
                                   onClick={() => handleMoveDeviationToCompleted(dev)}
