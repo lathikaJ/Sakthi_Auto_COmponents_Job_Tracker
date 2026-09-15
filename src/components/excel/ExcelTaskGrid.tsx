@@ -494,18 +494,26 @@ export function ExcelTaskGrid({
           return;
         }
 
-        const importedRows: ExcelTaskRow[] = data.map((item, idx) => ({
-          id: `imported-${Date.now()}-${idx}`,
-          audit_code: item["Audit Code"] || item["Code"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
-          title: String(item["Task Title"] || item["Title"] || item["Task"] || "Imported Task").trim(),
-          audit_type: AUDIT_TYPES.includes(item["Audit Type"]) ? item["Audit Type"] : "Product",
-          area: item["Area"] || item["Department"] || "General",
-          assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || "688079").trim(),
-          month: Number(item["Month"]) || new Date().getMonth() + 1,
-          year: Number(item["Year"]) || new Date().getFullYear(),
-          due_date: String(item["Due Date"] || new Date().toISOString().split("T")[0]),
-          status: STATUSES.includes(item["Status"]) ? item["Status"] : "Assigned",
-        }));
+        const importBatchId = Date.now();
+        const importedRows: ExcelTaskRow[] = data.map((item, idx) => {
+          const rawCode = String(item["Audit Code"] || item["Audit ID"] || item["Code"] || item["Part Number"] || "").trim();
+          const auditCode = rawCode || `AUD-${importBatchId}-${idx + 1}`;
+          const taskId = `imp-${importBatchId}-${idx + 1}`;
+          const title = String(item["Task Title"] || item["Title"] || item["Task"] || item["Product Name"] || `Imported Task ${idx + 1}`).trim();
+
+          return {
+            id: taskId,
+            audit_code: auditCode,
+            title: title,
+            audit_type: AUDIT_TYPES.includes(item["Audit Type"]) ? item["Audit Type"] : "Product",
+            area: item["Area"] || item["Department"] || "General",
+            assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || "688079").trim(),
+            month: Number(item["Month"]) || new Date().getMonth() + 1,
+            year: Number(item["Year"]) || new Date().getFullYear(),
+            due_date: String(item["Due Date"] || new Date().toISOString().split("T")[0]),
+            status: STATUSES.includes(item["Status"]) ? item["Status"] : "Assigned",
+          };
+        });
 
         setRows((prev) => {
           const merged = mergeAndDeduplicateTasks(prev, importedRows);

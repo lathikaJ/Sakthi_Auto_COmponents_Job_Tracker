@@ -792,13 +792,16 @@ export function DashboardPage() {
           return;
         }
 
+        const importBatchId = Date.now();
         const importedTasks: Assignment[] = data.map((item: any, idx: number) => {
-          const auditCode = String(item["Audit ID"] || item["Audit Code"] || item["Part Number"] || `AUD-${Math.floor(1000 + Math.random() * 9000)}`);
-          const title = String(item["Product / Part Name"] || item["Product / Part Number"] || item["Task Title"] || item["Product Name"] || "Imported Audit Record");
+          const rawCode = String(item["Audit ID"] || item["Audit Code"] || item["Part Number"] || item["Code"] || "").trim();
+          const auditCode = rawCode || `IMP-${importBatchId}-${idx + 1}`;
+          const taskId = `imp-${importBatchId}-${idx + 1}`;
+          const title = String(item["Product / Part Name"] || item["Product / Part Number"] || item["Task Title"] || item["Title"] || item["Product Name"] || `Imported Task ${idx + 1}`).trim();
           const isImportedByUser = !isAdmin || selectedStatusView === "Ongoing";
 
           return {
-            id: `imp-${Date.now()}-${idx}`,
+            id: taskId,
             sl_no: item["SL. NO."] || item["Serial Number"] || idx + 1,
             audit_code: auditCode,
             title: title,
@@ -808,7 +811,7 @@ export function DashboardPage() {
             year: new Date().getFullYear(),
             due_date: String(item["Planned Date"] || item["Due Date"] || item["Audit Date"] || today),
             status: String(item["Status"] || defaultStatus),
-            assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079"),
+            assigned_to_employee_number: String(item["Assigned Emp ID"] || item["Assigned Employee"] || item["Auditor"] || item["Employee ID"] || profile?.employee_number || "688079").trim(),
             auditor_name: String(item["Auditor"] || item["Assigned Employee"] || profile?.full_name || "Lead Auditor"),
             attached_file_name: file.name,
             is_imported: isImportedByUser,

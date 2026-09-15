@@ -565,7 +565,7 @@ function safeMergeTasks<T extends Record<string, any>>(existing: T, incoming: T)
  * Prevents identical audit records from being duplicated 25+ times upon file import or reload.
  * Automatically filters out any permanently deleted audit records while preserving assigned employee fields.
  */
-export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: string; title?: string }>(
+export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: string; title?: string; month?: number }>(
   existingTasks: T[],
   newTasks: T[] = []
 ): T[] {
@@ -582,13 +582,13 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
     if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
       return task.audit_code.trim().toUpperCase();
     }
-    if (task.id && typeof task.id === "string" && task.id.trim() && !task.id.startsWith("temp-") && !task.id.startsWith("imp-")) {
+    if (task.id && typeof task.id === "string" && task.id.trim()) {
       return task.id.trim().toUpperCase();
     }
     if (task.title && typeof task.title === "string" && task.title.trim()) {
-      return task.title.trim().toUpperCase();
+      return `${task.title.trim().toUpperCase()}_M${task.month || 1}`;
     }
-    return `TASK-${Math.random()}`;
+    return "TASK_RECORD";
   };
 
   (existingTasks || []).forEach((task) => {
