@@ -158,7 +158,6 @@ export function EmployeeActivityLogsGrid() {
               <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
                 <th className="p-3 font-bold w-28">Emp ID</th>
                 <th className="p-3 font-bold min-w-[180px]">Employee Full Name</th>
-                <th className="p-3 font-bold min-w-[180px]">Department & Designation</th>
                 <th className="p-3 font-bold w-24">Role</th>
                 <th className="p-3 font-bold w-32 text-center">Event Type</th>
                 <th className="p-3 font-bold w-48">Date & Time Timestamp</th>
@@ -184,14 +183,6 @@ export function EmployeeActivityLogsGrid() {
                         <User className="h-3.5 w-3.5 text-slate-400" />
                         {log.full_name}
                       </div>
-                    </td>
-
-                    {/* Department & Designation */}
-                    <td className="p-3">
-                      <div className="font-semibold text-slate-900">{log.department}</div>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        {log.designation}
-                      </span>
                     </td>
 
                     {/* Role */}
