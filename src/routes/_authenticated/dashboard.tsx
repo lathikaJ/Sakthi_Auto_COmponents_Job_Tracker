@@ -1027,7 +1027,24 @@ export function DashboardPage() {
       ...updated,
       title: rawTitle,
       audit_code: rawCode,
+      audit_type: updated.audit_type || selectedCategory || "Product Audit",
+      status: updated.status || "Planned",
     };
+
+    // If this audit code was in deleted identifiers, un-delete it when explicitly re-saved
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("sakthi_deleted_audits_v1");
+        if (stored) {
+          let deletedSet: string[] = JSON.parse(stored);
+          if (deletedSet.includes(finalRecord.id) || deletedSet.includes(finalRecord.audit_code)) {
+            deletedSet = deletedSet.filter((item) => item !== finalRecord.id && item !== finalRecord.audit_code);
+            localStorage.setItem("sakthi_deleted_audits_v1", JSON.stringify(deletedSet));
+            window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
+          }
+        }
+      } catch {}
+    }
 
     const list = localExcelTasks.filter((t) => t.audit_code !== finalRecord.audit_code && t.id !== finalRecord.id);
     list.unshift(finalRecord);
@@ -1040,54 +1057,38 @@ export function DashboardPage() {
     try {
       const empNum = String(finalRecord.assigned_to_employee_number || profile?.employee_number || "688079");
       const { data: profs } = await supabase.from("profiles").select("id").eq("employee_number", empNum).maybeSingle();
-      const targetUserId = profs?.id || profile?.id || "00000000-0000-0000-0000-000000000000";
+      const authUser = (await supabase.auth.getUser()).data.user?.id;
+      const targetUserId = profs?.id || profile?.id || authUser;
 
-      let { error: upsertErr } = await supabase.from("audit_assignments").upsert(
-        {
-          audit_code: finalRecord.audit_code,
-          title: finalRecord.title,
-          audit_type: (finalRecord.audit_type as any) || "Product",
-          area: finalRecord.area || "General",
-          month: finalRecord.month || 1,
-          year: finalRecord.year || 2026,
-          due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
-          assigned_to_employee_number: empNum,
-          assigned_to: targetUserId,
-          status: (finalRecord.status as any) || "Assigned",
-        },
-        { onConflict: "audit_code" }
-      );
+      const mappedAuditType = matchesCategory(finalRecord.audit_type, "Revalidation Audit")
+        ? "Revalidation"
+        : matchesCategory(finalRecord.audit_type, "Dock Audit")
+          ? "Process"
+          : "Product";
 
-      if (upsertErr) {
-        const { data: existing } = await supabase.from("audit_assignments").select("id").eq("audit_code", finalRecord.audit_code).maybeSingle();
-        if (existing) {
-          await supabase.from("audit_assignments").update({
-            title: finalRecord.title,
-            audit_type: (finalRecord.audit_type as any) || "Product",
-            area: finalRecord.area || "General",
-            month: finalRecord.month || 1,
-            year: finalRecord.year || 2026,
-            due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
-            assigned_to_employee_number: empNum,
-            assigned_to: targetUserId,
-            status: (finalRecord.status as any) || "Assigned",
-          }).eq("audit_code", finalRecord.audit_code);
-        } else {
-          await supabase.from("audit_assignments").insert({
-            audit_code: finalRecord.audit_code,
-            title: finalRecord.title,
-            audit_type: (finalRecord.audit_type as any) || "Product",
-            area: finalRecord.area || "General",
-            month: finalRecord.month || 1,
-            year: finalRecord.year || 2026,
-            due_date: finalRecord.due_date || new Date().toISOString().split("T")[0] || "2026-08-30",
-            assigned_to_employee_number: empNum,
-            assigned_to: targetUserId,
-            status: (finalRecord.status as any) || "Assigned",
-          });
-        }
+      const payload: any = {
+        audit_code: finalRecord.audit_code,
+        title: finalRecord.title,
+        audit_type: mappedAuditType,
+        area: finalRecord.area || "General",
+        month: finalRecord.month || selectedMonth || 1,
+        year: finalRecord.year || new Date().getFullYear(),
+        due_date: finalRecord.due_date || new Date().toISOString().split("T")[0],
+        assigned_to_employee_number: empNum,
+        status: (finalRecord.status as any) || "Planned",
+      };
+
+      if (targetUserId) {
+        payload.assigned_to = targetUserId;
       }
-    assignmentsQuery.refetch();
+
+      let { error: upsertErr } = await supabase.from("audit_assignments").upsert(payload, { onConflict: "audit_code" });
+
+      if (upsertErr && payload.assigned_to) {
+        delete payload.assigned_to;
+        await supabase.from("audit_assignments").upsert(payload, { onConflict: "audit_code" });
+      }
+      assignmentsQuery.refetch();
     } catch (err) {
       console.warn("Error upserting audit_assignments on save:", err);
     }
@@ -1101,10 +1102,11 @@ export function DashboardPage() {
     setSelectedStatusView("Audit Plan");
     setSelectedPlanSubView("One Year Plan");
 
-    toast.success(`Audit attachment for ${finalRecord.title} saved successfully!`);
+    toast.success(`Audit plan [${finalRecord.audit_code}] saved successfully!`);
     setIsEditModalOpen(false);
     setIsAddPlanModalOpen(false);
   };
+
 
   const handleDeleteAuditRecord = async (id: string) => {
     if (!isAdmin) {
