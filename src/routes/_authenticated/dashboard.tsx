@@ -425,8 +425,17 @@ export function DashboardPage() {
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
-    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Assigned");
-  }, [categoryTasks]);
+    const list = categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Assigned");
+    if (isAdmin) return list;
+    if (!currentEmpNumber && !currentEmpName) return list;
+    return list.filter((r) => {
+      const assignedEmp = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
+      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || r.assigned_to_employee_number === currentEmpNumber);
+      const nameMatch = currentEmpName && r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName);
+      return Boolean(empMatch || nameMatch);
+    });
+  }, [categoryTasks, isAdmin, currentEmpNumber, currentEmpName]);
+
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");
