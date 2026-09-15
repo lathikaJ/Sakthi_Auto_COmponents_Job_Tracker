@@ -220,7 +220,7 @@ export function ExcelTaskGrid({
     const count = selectedRowIds.size;
     const toDelete = rows.filter((r) => selectedRowIds.has(r.id));
     toDelete.forEach((r) => {
-      addDeletedAuditIdentifier(r.id, r.audit_code, r.title);
+      addDeletedAuditIdentifier(r.id, r.audit_code);
       if (r.id) void supabase.from("audit_assignments").delete().eq("id", r.id);
       if (r.audit_code) void supabase.from("audit_assignments").delete().eq("audit_code", r.audit_code);
     });
@@ -272,7 +272,7 @@ export function ExcelTaskGrid({
   const handleDeleteRow = (id: string) => {
     const target = rows.find((r) => r.id === id);
     if (target) {
-      addDeletedAuditIdentifier(target.id, target.audit_code, target.title);
+      addDeletedAuditIdentifier(target.id, target.audit_code);
       if (target.id) void supabase.from("audit_assignments").delete().eq("id", target.id);
       if (target.audit_code) void supabase.from("audit_assignments").delete().eq("audit_code", target.audit_code);
     }

@@ -1112,7 +1112,7 @@ export function DashboardPage() {
     const targetCode = targetItem?.audit_code || (id.startsWith("REV-") || id.startsWith("AUD-") ? id : undefined);
     const targetTitle = targetItem?.title;
 
-    addDeletedAuditIdentifier(id, targetCode, targetTitle);
+    addDeletedAuditIdentifier(id, targetCode);
 
     const updated = rawTaskRows.filter((t) =>
       t.id !== id &&
