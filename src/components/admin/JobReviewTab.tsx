@@ -45,8 +45,10 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
     loadAudits();
     const handleUpdate = () => loadAudits();
     window.addEventListener("sakthi_submitted_audits_updated", handleUpdate);
+    window.addEventListener("sakthi_deleted_audits_updated", handleUpdate);
     return () => {
       window.removeEventListener("sakthi_submitted_audits_updated", handleUpdate);
+      window.removeEventListener("sakthi_deleted_audits_updated", handleUpdate);
     };
   }, []);
 
@@ -56,7 +58,9 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       return;
     }
     deleteSubmittedAudit(item.id);
-    toast.info(`Audit record ${item.audit_code} deleted by Admin.`);
+    if (item.audit_code) deleteSubmittedAudit(item.audit_code);
+    loadAudits();
+    toast.info(`Audit record ${item.audit_code} permanently deleted by Admin.`);
   };
 
   const handleMoveToCompleted = (item: SubmittedAuditItem) => {

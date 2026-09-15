@@ -38,8 +38,10 @@ export function SubmittedAuditsRegister() {
     loadAudits();
     const handleUpdate = () => loadAudits();
     window.addEventListener("sakthi_submitted_audits_updated", handleUpdate);
+    window.addEventListener("sakthi_deleted_audits_updated", handleUpdate);
     return () => {
       window.removeEventListener("sakthi_submitted_audits_updated", handleUpdate);
+      window.removeEventListener("sakthi_deleted_audits_updated", handleUpdate);
     };
   }, []);
 
@@ -304,8 +306,9 @@ export function SubmittedAuditsRegister() {
                           type="button"
                           onClick={() => {
                             deleteSubmittedAudit(item.id);
+                            if (item.audit_code) deleteSubmittedAudit(item.audit_code);
                             loadAudits();
-                            toast.info(`Submitted audit ${item.audit_code} removed by Admin.`);
+                            toast.info(`Submitted audit ${item.audit_code} permanently removed by Admin.`);
                           }}
                           className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
                           title="Delete Audit Record (Admin Only)"

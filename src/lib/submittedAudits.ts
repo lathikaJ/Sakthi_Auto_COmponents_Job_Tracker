@@ -18,7 +18,7 @@ export type SubmittedAuditItem = {
   page2_submitted?: boolean;
 };
 
-import { addDeletedAuditIdentifier } from "./audit";
+import { addDeletedAuditIdentifier, isAuditDeleted } from "./audit";
 import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "sakthi_submitted_audits_v2";
@@ -100,14 +100,17 @@ export function getSubmittedAudits(): SubmittedAuditItem[] {
   if (typeof window === "undefined") return INITIAL_SUBMITTED_AUDITS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    let items: SubmittedAuditItem[] = [];
     if (!raw) {
+      items = INITIAL_SUBMITTED_AUDITS;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_SUBMITTED_AUDITS));
-      return INITIAL_SUBMITTED_AUDITS;
+    } else {
+      const parsed = JSON.parse(raw);
+      items = Array.isArray(parsed) ? parsed : INITIAL_SUBMITTED_AUDITS;
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_SUBMITTED_AUDITS;
+    return items.filter((item) => !isAuditDeleted(item.id, item.audit_code, item.part_name));
   } catch {
-    return INITIAL_SUBMITTED_AUDITS;
+    return INITIAL_SUBMITTED_AUDITS.filter((item) => !isAuditDeleted(item.id, item.audit_code, item.part_name));
   }
 }
 
@@ -158,8 +161,35 @@ export function deleteSubmittedAudit(idOrCode: string) {
   if (typeof window === "undefined") return;
   try {
     addDeletedAuditIdentifier(idOrCode, idOrCode);
-    const existing = getSubmittedAudits();
-    const updated = existing.filter((item) => item.id !== idOrCode && item.audit_code !== idOrCode);
+
+    let rawList: SubmittedAuditItem[] = [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) rawList = parsed;
+      } catch {}
+    }
+    if (rawList.length === 0) rawList = INITIAL_SUBMITTED_AUDITS;
+
+    const matched = rawList.find(
+      (item) =>
+        item.id === idOrCode ||
+        item.audit_code === idOrCode ||
+        item.audit_code?.toLowerCase() === idOrCode.toLowerCase()
+    );
+
+    if (matched) {
+      addDeletedAuditIdentifier(matched.id, matched.audit_code, matched.part_name);
+    }
+
+    const updated = rawList.filter(
+      (item) =>
+        !isAuditDeleted(item.id, item.audit_code, item.part_name) &&
+        item.id !== idOrCode &&
+        item.audit_code !== idOrCode &&
+        item.audit_code?.toLowerCase() !== idOrCode.toLowerCase()
+    );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
     // Also clean from sakthi_excel_tasks_v8
@@ -168,8 +198,33 @@ export function deleteSubmittedAudit(idOrCode: string) {
       try {
         const parsed = JSON.parse(storedExcel);
         if (Array.isArray(parsed)) {
-          const clean = parsed.filter((t: any) => t.id !== idOrCode && t.audit_code !== idOrCode);
+          const clean = parsed.filter(
+            (t: any) =>
+              !isAuditDeleted(t.id, t.audit_code, t.title) &&
+              t.id !== idOrCode &&
+              t.audit_code !== idOrCode &&
+              t.audit_code?.toLowerCase() !== idOrCode?.toLowerCase()
+          );
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(clean));
+        }
+      } catch {}
+    }
+
+    // Also clean from sakthi_deviations
+    const storedDevs = localStorage.getItem("sakthi_deviations");
+    if (storedDevs) {
+      try {
+        const parsed = JSON.parse(storedDevs);
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter(
+            (d: any) =>
+              !isAuditDeleted(d.id, d.audit_id, d.dev_code) &&
+              d.id !== idOrCode &&
+              d.audit_id !== idOrCode &&
+              d.dev_code !== idOrCode
+          );
+          localStorage.setItem("sakthi_deviations", JSON.stringify(clean));
+          window.dispatchEvent(new Event("sakthi_deviations_updated"));
         }
       } catch {}
     }
@@ -179,6 +234,10 @@ export function deleteSubmittedAudit(idOrCode: string) {
       try {
         await supabase.from("audit_assignments").delete().eq("audit_code", idOrCode);
         await supabase.from("audit_assignments").delete().eq("id", idOrCode);
+        if (matched) {
+          if (matched.audit_code) await supabase.from("audit_assignments").delete().eq("audit_code", matched.audit_code);
+          if (matched.id) await supabase.from("audit_assignments").delete().eq("id", matched.id);
+        }
       } catch {}
     })();
 
