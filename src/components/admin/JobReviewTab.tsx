@@ -15,7 +15,10 @@ import {
   Eye,
   ShieldCheck,
   Trash2,
+  FileSpreadsheet,
+  Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   getSubmittedAudits,
   updateSubmittedAuditStatus,
@@ -374,17 +377,20 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           <table className="w-full border-collapse text-left text-xs font-sans">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                <th className="p-3 font-bold w-28">Audit Code</th>
-                <th className="p-3 font-bold w-36">Part No</th>
-                <th className="p-3 font-bold min-w-[200px]">Part Name</th>
-                <th className="p-3 font-bold min-w-[180px]">Submitted By Employee</th>
-                <th className="p-3 font-bold w-40">Submission Date</th>
-                <th className="p-3 font-bold w-32 text-center">Status</th>
-                <th className="p-3 font-bold w-52 text-center">Admin Verification Action</th>
+                <th className="p-3 w-14 text-center font-bold">SL. NO.</th>
+                <th className="p-3 min-w-[180px] font-bold">PART NAME</th>
+                <th className="p-3 w-28 font-bold">AUDIT PLAN</th>
+                <th className="p-3 w-32 font-bold">PLANNED MONTH</th>
+                <th className="p-3 w-40 font-bold">ATTACHMENT</th>
+                <th className="p-3 text-center w-24 font-bold">DOWNLOAD</th>
+                <th className="p-3 w-36 font-bold">AUDITOR</th>
+                <th className="p-3 w-36 font-bold">STATUS</th>
+                <th className="p-3 min-w-[200px] font-bold text-center">ADMIN VERIFICATION ACTION</th>
+                {isAdmin && <th className="p-3 text-center w-16 font-bold">DELETE</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
-              {filtered.map((item) => {
+              {filtered.map((item, idx) => {
                 const subDate = new Date(item.submitted_date);
                 const isUnderReview = item.status === "Under Review" || item.status === "Submitted";
                 const isCompleted = item.status === "Completed" || item.status === "Approved";
@@ -392,7 +398,18 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
 
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    {/* Audit Code */}
+                    {/* SL. NO. */}
+                    <td className="p-3 text-center font-mono font-bold text-slate-500">
+                      {idx + 1}
+                    </td>
+
+                    {/* Part Name & Part No */}
+                    <td className="p-3 max-w-xs">
+                      <div className="font-bold text-slate-900 text-xs">{item.part_name}</div>
+                      <div className="text-[11px] font-mono text-slate-500 mt-0.5">{item.part_no}</div>
+                    </td>
+
+                    {/* Audit Plan Code */}
                     <td className="p-3 font-mono font-bold text-indigo-700">
                       <Link
                         to="/audit/$auditId"
@@ -403,35 +420,60 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                       </Link>
                     </td>
 
-                    {/* Part No */}
-                    <td className="p-3 font-mono font-bold text-sky-700">
-                      {item.part_no}
+                    {/* Planned Month / Submission Date */}
+                    <td className="p-3 font-bold text-sky-700">
+                      {item.formatted_submitted_date}
                     </td>
 
-                    {/* Part Name */}
-                    <td className="p-3 font-bold text-slate-900">
-                      {item.part_name}
-                    </td>
-
-                    {/* Submitted By Employee */}
+                    {/* Attachment */}
                     <td className="p-3">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-slate-400" />
-                        {item.employee_name}
-                      </div>
-                      <span className="text-[11px] font-mono font-bold text-slate-600">
-                        Emp #{item.employee_number}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Audit_Report_Template.xlsx";
+                          window.location.href = excelProtocolUri;
+                          toast.info(`Opening ${item.part_name} checklist in MS Excel Desktop.`);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate max-w-[120px]">{item.part_no}_Checklist.xlsx</span>
+                      </button>
                     </td>
 
-                    {/* Submission Date */}
-                    <td className="p-3 font-mono text-slate-700">
-                      <div className="font-bold text-slate-900">
-                        {item.formatted_submitted_date}
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {formatDistanceToNow(subDate, { addSuffix: true })}
-                      </span>
+                    {/* Download Icon */}
+                    <td className="p-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const dataToExport = [{
+                            "Audit Code": item.audit_code,
+                            "Part No": item.part_no,
+                            "Part Name": item.part_name,
+                            "Employee Name": item.employee_name,
+                            "Employee ID": item.employee_number,
+                            "Department": item.department,
+                            "Submitted Date & Time": item.formatted_submitted_date,
+                            "Status": item.status,
+                          }];
+                          const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                          const workbook = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(workbook, worksheet, "Submitted Audit");
+                          XLSX.writeFile(workbook, `${item.audit_code}_${item.part_no}_Report.xlsx`);
+                          toast.success(`Downloaded submitted report for ${item.audit_code}!`);
+                        }}
+                        className="inline-flex items-center justify-center p-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
+                        title="Download Excel submitted by employee to review"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </td>
+
+                    {/* Auditor / Employee */}
+                    <td className="p-3 font-medium text-slate-800">
+                      <div className="font-bold text-xs text-slate-900">{item.employee_name}</div>
+                      <div className="text-[10px] font-mono text-slate-500">Emp #{item.employee_number}</div>
                     </td>
 
                     {/* Status Badge */}
@@ -459,7 +501,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                         <button
                           type="button"
                           onClick={() => setSelectedJobForReview(item)}
-                          className="flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all shadow-2xs"
+                          className="flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all shadow-2xs cursor-pointer"
                           title="View submitted evidence photos, parameter checkpoints, and authenticated E-Signature"
                         >
                           <Eye className="h-3.5 w-3.5 text-indigo-700" />
@@ -475,7 +517,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                               ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default opacity-80"
                               : !isAdmin
                               ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                              : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                              : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 cursor-pointer"
                           }`}
                           title={!isAdmin ? "Admin access required" : "OK: Move to Audit Completed"}
                         >
@@ -492,33 +534,36 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
                               ? "bg-rose-50 text-rose-600 border border-rose-200 cursor-default opacity-80"
                               : !isAdmin
                               ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                              : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
+                              : "bg-rose-600 text-white hover:bg-rose-700 active:scale-95 cursor-pointer"
                           }`}
                           title={!isAdmin ? "Admin access required" : "NOT OK: Move to Deviation"}
                         >
                           <X className="h-3.5 w-3.5" />
                           NOT OK (Deviation)
                         </button>
-
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSubmittedAudit(item)}
-                            className="flex items-center gap-1 rounded-lg p-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
-                            title="Delete Audit Record (Admin Only)"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
                       </div>
                     </td>
+
+                    {/* Delete Column (Admin Only) */}
+                    {isAdmin && (
+                      <td className="p-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubmittedAudit(item)}
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
+                          title="Delete Audit Record (Admin Only)"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-xs font-medium text-slate-500">
+                  <td colSpan={10} className="p-8 text-center text-xs font-medium text-slate-500">
                     No submitted job records matching your search and status filter.
                   </td>
                 </tr>
