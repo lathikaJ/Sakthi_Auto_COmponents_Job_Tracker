@@ -833,7 +833,7 @@ export function DashboardPage() {
     reader.readAsBinaryString(file);
   };
 
-  // Handle plan modal file attachment upload with auto-save
+  // Handle plan modal file attachment upload
   const handlePlanFileAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingAudit) return;
@@ -843,17 +843,17 @@ export function DashboardPage() {
     const updated: Assignment = {
       ...editingAudit,
       title: cleanTitle,
-      audit_type: selectedCategory,
+      audit_type: editingAudit.audit_type || selectedCategory || "Product Audit",
       attached_file_name: file.name,
       attached_file_url: URL.createObjectURL(file),
-      status: "In Progress",
+      status: editingAudit.status || "Planned",
       is_imported: true,
       imported_by: profile?.employee_number || "688079",
     };
     setEditingAudit(updated);
-    handleSaveAuditRecord(updated);
-    toast.success(`Attached Excel sheet: ${file.name} — Added to Ongoing Audit!`);
+    toast.success(`Attached document: ${file.name} — Click "Save Audit Plan" to complete.`);
   };
+
 
   // Move audit record to No Production (Zero Output / Line Stopped) - Accessible to all users
   const handleMoveToNoProduction = async (task: Assignment) => {
@@ -2704,9 +2704,10 @@ export function DashboardPage() {
                   )}
                 </div>
 
-                {/* OK / NOT OK DECISION OPTIONS */}
-                {editingAudit.attached_file_name && (
+                {/* OK / NOT OK DECISION OPTIONS (Shown during active ongoing inspection) */}
+                {editingAudit.attached_file_name && (editingAudit.status === "In Progress" || editingAudit.status === "Submitted") && (
                   <div className="space-y-2 rounded-xl border border-slate-200 bg-white/90 p-3 pt-2 mt-2">
+
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Inspection Result Decision:
