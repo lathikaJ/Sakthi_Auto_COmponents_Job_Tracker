@@ -373,9 +373,9 @@ export function DashboardPage() {
   // DO NOT merge both — that causes duplicates (the "insert 10 times" bug).
   const rawTaskRows: Assignment[] = useMemo(() => {
     const base = [
-      ...DEFAULT_OFFICIAL_AUDITS,
       ...localExcelTasks,
       ...dbRows,
+      ...DEFAULT_OFFICIAL_AUDITS,
     ];
 
     const merged = mergeAndDeduplicateTasks(base as any) as Assignment[];
@@ -389,6 +389,7 @@ export function DashboardPage() {
       };
     });
   }, [dbRows, localExcelTasks]);
+
 
   const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
   const currentEmpName = profile?.full_name?.toLowerCase().trim();
@@ -1034,17 +1035,25 @@ export function DashboardPage() {
     // If this audit code was in deleted identifiers, un-delete it when explicitly re-saved
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("sakthi_deleted_audits_v1");
-        if (stored) {
-          let deletedSet: string[] = JSON.parse(stored);
-          if (deletedSet.includes(finalRecord.id) || deletedSet.includes(finalRecord.audit_code)) {
-            deletedSet = deletedSet.filter((item) => item !== finalRecord.id && item !== finalRecord.audit_code);
-            localStorage.setItem("sakthi_deleted_audits_v1", JSON.stringify(deletedSet));
-            window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
+        const deletedKeys = ["sakthi_deleted_audit_identifiers", "sakthi_deleted_audits_v1"];
+        for (const key of deletedKeys) {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            let deletedSet: string[] = JSON.parse(stored);
+            if (Array.isArray(deletedSet)) {
+              deletedSet = deletedSet.filter(
+                (item) =>
+                  String(item).trim().toUpperCase() !== String(finalRecord.id).trim().toUpperCase() &&
+                  String(item).trim().toUpperCase() !== String(finalRecord.audit_code).trim().toUpperCase()
+              );
+              localStorage.setItem(key, JSON.stringify(deletedSet));
+            }
           }
         }
+        window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
       } catch {}
     }
+
 
     const list = localExcelTasks.filter((t) => t.audit_code !== finalRecord.audit_code && t.id !== finalRecord.id);
     list.unshift(finalRecord);

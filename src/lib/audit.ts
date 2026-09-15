@@ -588,8 +588,9 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
     if (task.title && typeof task.title === "string" && task.title.trim()) {
       return `${task.title.trim().toUpperCase()}_M${task.month || 1}`;
     }
-    return "TASK_RECORD";
+    return `TASK_${Math.random().toString(36).substring(2, 9)}`;
   };
+
 
   (existingTasks || []).forEach((task) => {
     if (!task || isDeleted(task)) return;
