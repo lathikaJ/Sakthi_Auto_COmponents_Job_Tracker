@@ -1715,29 +1715,6 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Sub-View Descriptions & Controls */}
-              {selectedPlanSubView === "As-on-Month Plan" && (
-                <div className="flex items-center gap-3 bg-sky-50 p-3 rounded-xl border border-sky-200 flex-wrap justify-between">
-                  <p className="text-xs text-sky-900 font-bold">
-                    Select target month to inspect scheduled audits for that specific timeframe:
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-700">Selected Month:</span>
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-sky-500"
-                    >
-                      {MONTHS.map((m, idx) => (
-                        <option key={m} value={idx + 1}>
-                          {m} ({idx + 1})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
               {/* Search Bar for Plan Records */}
               <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
                 <Search className="h-4 w-4 text-slate-400" />
