@@ -185,17 +185,17 @@ export function SubmittedAuditsRegister() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs font-sans">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                <th className="p-3 w-14 text-center font-bold">SL. NO.</th>
-                <th className="p-3 min-w-[180px] font-bold">PART NAME</th>
-                <th className="p-3 w-28 font-bold">AUDIT PLAN</th>
-                <th className="p-3 w-32 font-bold">PLANNED MONTH</th>
-                <th className="p-3 w-40 font-bold">ATTACHMENT</th>
-                <th className="p-3 text-center w-24 font-bold">DOWNLOAD</th>
-                <th className="p-3 w-36 font-bold">AUDITOR</th>
-                <th className="p-3 w-36 font-bold">STATUS</th>
-                <th className="p-3 min-w-[140px] font-bold text-right">ACTION</th>
-                {isAdmin && <th className="p-3 text-center w-16 font-bold">DELETE</th>}
+              <tr className="border-b border-slate-300 bg-slate-200 font-mono text-[11px] uppercase text-slate-900 font-black">
+                <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                <th className="p-3 min-w-[180px] font-black text-slate-900">PART NAME</th>
+                <th className="p-3 w-28 font-black text-slate-900">AUDIT PLAN</th>
+                <th className="p-3 w-32 font-black text-slate-900">PLANNED MONTH</th>
+                <th className="p-3 w-40 font-black text-slate-900">ATTACHMENT</th>
+                <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
+                <th className="p-3 w-36 font-black text-slate-900">AUDITOR</th>
+                <th className="p-3 w-36 font-black text-slate-900">STATUS</th>
+                <th className="p-3 min-w-[140px] font-black text-slate-900 text-right">ACTION</th>
+                {isAdmin && <th className="p-3 text-center w-16 font-black text-slate-900">DELETE</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -320,7 +320,7 @@ export function SubmittedAuditsRegister() {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-xs font-medium text-slate-500">
+                  <td colSpan={isAdmin ? 10 : 9} className="p-8 text-center text-xs font-medium text-slate-500">
                     No submitted audit records matching your search.
                   </td>
                 </tr>

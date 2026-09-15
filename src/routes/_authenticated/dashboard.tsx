@@ -1736,16 +1736,16 @@ export function DashboardPage() {
               {selectedStatusView === "Audit Plan" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                       <tr>
-                        <th className="p-3 w-14 text-center">SL. NO.</th>
-                        <th className="p-3">PART NAME</th>
-                        <th className="p-3">AUDIT PLAN</th>
-                        <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">ATTACHMENT</th>
-                        <th className="p-3">AUDITOR</th>
-                        <th className="p-3">STATUS</th>
-                        <th className="p-3 text-right">ACTION</th>
+                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                        <th className="p-3 font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
+                        <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
+                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
+                        <th className="p-3 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 font-black text-slate-900">STATUS</th>
+                        <th className="p-3 text-right font-black text-slate-900">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1871,17 +1871,17 @@ export function DashboardPage() {
               {selectedStatusView === "Ongoing" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                       <tr>
-                        <th className="p-3 w-14 text-center">SL. NO.</th>
-                        <th className="p-3">PART NAME</th>
-                        <th className="p-3">AUDIT PLAN</th>
-                        <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">ATTACHMENT</th>
-                        <th className="p-3">AUDITOR</th>
-                        <th className="p-3">PROGRESS</th>
-                        <th className="p-3">STATUS</th>
-                        <th className="p-3 text-right">ACTION</th>
+                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                        <th className="p-3 font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
+                        <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
+                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
+                        <th className="p-3 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 font-black text-slate-900">PROGRESS</th>
+                        <th className="p-3 font-black text-slate-900">STATUS</th>
+                        <th className="p-3 text-right font-black text-slate-900">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1978,18 +1978,18 @@ export function DashboardPage() {
               {selectedStatusView === "Under Review" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                       <tr>
-                        <th className="p-3 w-14 text-center font-bold">SL. NO.</th>
-                        <th className="p-3 min-w-[180px] font-bold">PART NAME</th>
-                        <th className="p-3 w-28 font-bold">AUDIT PLAN</th>
-                        <th className="p-3 w-32 font-bold">PLANNED MONTH</th>
-                        <th className="p-3 w-40 font-bold">ATTACHMENT</th>
-                        <th className="p-3 text-center w-24 font-bold">DOWNLOAD</th>
-                        <th className="p-3 w-36 font-bold">AUDITOR</th>
-                        <th className="p-3 w-36 font-bold">STATUS</th>
-                        <th className="p-3 min-w-[200px] font-bold text-right">ACTION</th>
-                        {isAdmin && <th className="p-3 text-center w-16 font-bold">DELETE</th>}
+                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                        <th className="p-3 min-w-[180px] font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 w-28 font-black text-slate-900">AUDIT PLAN</th>
+                        <th className="p-3 w-32 font-black text-slate-900">PLANNED MONTH</th>
+                        <th className="p-3 w-40 font-black text-slate-900">ATTACHMENT</th>
+                        <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
+                        <th className="p-3 w-36 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 w-36 font-black text-slate-900">STATUS</th>
+                        <th className="p-3 min-w-[200px] font-black text-right text-slate-900">ACTION</th>
+                        {isAdmin && <th className="p-3 text-center w-16 font-black text-slate-900">DELETE</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2178,16 +2178,16 @@ export function DashboardPage() {
               {selectedStatusView === "Audit Completed" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                       <tr>
-                        <th className="p-3 w-14 text-center">SL. NO.</th>
-                        <th className="p-3">PART NAME</th>
-                        <th className="p-3">PART NUMBER</th>
-                        <th className="p-3">AUDIT DATE</th>
-                        <th className="p-3">AUDITOR</th>
-                        <th className="p-3">COMPLETION DATE</th>
-                        <th className="p-3">FINAL RESULT & SIGNATURE</th>
-                        <th className="p-3 text-right">ACTION</th>
+                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                        <th className="p-3 font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 font-black text-slate-900">PART NUMBER</th>
+                        <th className="p-3 font-black text-slate-900">AUDIT DATE</th>
+                        <th className="p-3 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 font-black text-slate-900">COMPLETION DATE</th>
+                        <th className="p-3 font-black text-slate-900">FINAL RESULT & SIGNATURE</th>
+                        <th className="p-3 text-right font-black text-slate-900">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2248,17 +2248,17 @@ export function DashboardPage() {
               {selectedStatusView === "Deviation" && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                       <tr>
-                        <th className="p-3 w-14 text-center">SL. NO.</th>
-                        <th className="p-3">PART NAME</th>
-                        <th className="p-3">AUDIT PLAN</th>
-                        <th className="p-3">PLANNED MONTH</th>
-                        <th className="p-3">ATTACHMENT</th>
-                        <th className="p-3 text-center w-24">DOWNLOAD</th>
-                        <th className="p-3">AUDITOR</th>
-                        <th className="p-3">STATUS</th>
-                        <th className="p-3 text-right">ACTION</th>
+                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                        <th className="p-3 font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
+                        <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
+                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
+                        <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
+                        <th className="p-3 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 font-black text-slate-900">STATUS</th>
+                        <th className="p-3 text-right font-black text-slate-900">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2365,15 +2365,15 @@ export function DashboardPage() {
                   {/* SECTION 1: AUDIT PLANS MOVED TO NO PRODUCTION */}
                   <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
+                      <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
                         <tr>
-                          <th className="p-3 w-14 text-center">SL. NO.</th>
-                          <th className="p-3">PART NAME</th>
-                          <th className="p-3">AUDIT PLAN</th>
-                          <th className="p-3">PLANNED MONTH</th>
-                          <th className="p-3">AUDITOR</th>
-                          <th className="p-3">STATUS</th>
-                          <th className="p-3 text-right">ACTION</th>
+                          <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
+                          <th className="p-3 font-black text-slate-900">PART NAME</th>
+                          <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
+                          <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
+                          <th className="p-3 font-black text-slate-900">AUDITOR</th>
+                          <th className="p-3 font-black text-slate-900">STATUS</th>
+                          <th className="p-3 text-right font-black text-slate-900">ACTION</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">

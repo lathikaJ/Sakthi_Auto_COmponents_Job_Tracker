@@ -261,14 +261,14 @@ export function EmployeeActivityLogs() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs font-sans">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                <th className="p-3 font-bold w-44">Date & Time</th>
-                <th className="p-3 font-bold w-28">Emp ID</th>
-                <th className="p-3 font-bold min-w-[180px]">Employee Name</th>
-                <th className="p-3 font-bold w-36">Department</th>
-                <th className="p-3 font-bold w-24">Role</th>
-                <th className="p-3 font-bold w-32">Access Event</th>
-                <th className="p-3 font-bold w-32">Session Status</th>
+              <tr className="border-b border-slate-300 bg-slate-200 font-mono text-[11px] uppercase text-slate-900 font-black">
+                <th className="p-3 font-black text-slate-900 w-44">Date & Time</th>
+                <th className="p-3 font-black text-slate-900 w-28">Emp ID</th>
+                <th className="p-3 font-black text-slate-900 min-w-[180px]">Employee Name</th>
+                <th className="p-3 font-black text-slate-900 w-36">Department</th>
+                <th className="p-3 font-black text-slate-900 w-24">Role</th>
+                <th className="p-3 font-black text-slate-900 w-32">Access Event</th>
+                <th className="p-3 font-black text-slate-900 w-32">Session Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">

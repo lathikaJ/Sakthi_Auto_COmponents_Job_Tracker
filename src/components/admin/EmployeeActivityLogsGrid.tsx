@@ -155,12 +155,12 @@ export function EmployeeActivityLogsGrid() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs font-sans">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                <th className="p-3 font-bold w-28">Emp ID</th>
-                <th className="p-3 font-bold min-w-[180px]">Employee Full Name</th>
-                <th className="p-3 font-bold w-24">Role</th>
-                <th className="p-3 font-bold w-32 text-center">Event Type</th>
-                <th className="p-3 font-bold w-48">Date & Time Timestamp</th>
+              <tr className="border-b border-slate-300 bg-slate-200 font-mono text-[11px] uppercase text-slate-900 font-black">
+                <th className="p-3 font-black text-slate-900 w-28">Emp ID</th>
+                <th className="p-3 font-black text-slate-900 min-w-[180px]">Employee Full Name</th>
+                <th className="p-3 font-black text-slate-900 w-24">Role</th>
+                <th className="p-3 font-black text-slate-900 w-32 text-center">Event Type</th>
+                <th className="p-3 font-black text-slate-900 w-48">Date & Time Timestamp</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
@@ -227,7 +227,7 @@ export function EmployeeActivityLogsGrid() {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-xs font-medium text-slate-500">
+                  <td colSpan={5} className="p-8 text-center text-xs font-medium text-slate-500">
                     No log activity records matching your search and event filter.
                   </td>
                 </tr>
