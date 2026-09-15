@@ -1385,91 +1385,102 @@ function DeviationsPage() {
             <table className="w-full border-collapse text-left text-xs font-sans">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                  <th className="p-3 w-28 font-bold">Dev Code</th>
-                  <th className="p-3 min-w-[200px] font-bold">Part & Non-Conformance</th>
-                  <th className="p-3 w-32 font-bold">Stage & Line</th>
-                  <th className="p-3 w-28 font-bold">Segregated Qty</th>
-                  <th className="p-3 w-32 font-bold">Page 1 Status</th>
-                  <th className="p-3 w-32 font-bold">Page 2 Status</th>
-                  <th className="p-3 w-44 font-bold text-center">Actions & Download</th>
-                  {isAdmin && <th className="p-3 text-center w-16 font-bold">Delete</th>}
+                  <th className="p-3 w-14 text-center font-bold">SL. NO.</th>
+                  <th className="p-3 min-w-[180px] font-bold">PART NAME</th>
+                  <th className="p-3 w-28 font-bold">AUDIT PLAN</th>
+                  <th className="p-3 w-32 font-bold">PLANNED MONTH</th>
+                  <th className="p-3 w-40 font-bold">ATTACHMENT</th>
+                  <th className="p-3 text-center w-24 font-bold">DOWNLOAD</th>
+                  <th className="p-3 w-36 font-bold">AUDITOR</th>
+                  <th className="p-3 w-36 font-bold">STATUS</th>
+                  <th className="p-3 min-w-[200px] font-bold text-right">ACTIONS & REVIEW</th>
+                  {isAdmin && <th className="p-3 text-center w-16 font-bold">DELETE</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-900">
-                {filteredDeviations.map((dev) => {
+                {filteredDeviations.map((dev, idx) => {
                   return (
                     <tr key={dev.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-mono font-bold text-brand">{dev.dev_code}</td>
+                      <td className="p-3 text-center font-mono font-bold text-slate-500">
+                        {idx + 1}
+                      </td>
+                      <td className="p-3 max-w-xs">
+                        <div className="font-bold text-slate-900 text-xs">{dev.part_name}</div>
+                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">{dev.part_number}</div>
+                        <div className="text-[10px] text-slate-500 font-medium line-clamp-1 mt-0.5">{dev.description}</div>
+                      </td>
+                      <td className="p-3 font-mono font-bold text-indigo-700">
+                        {dev.dev_code}
+                        {dev.audit_id && <div className="text-[10px] font-mono text-slate-400 font-normal">{dev.audit_id}</div>}
+                      </td>
+                      <td className="p-3 font-bold text-sky-700">
+                        {dev.report_date || dev.created_at || "SEP 2026"}
+                      </td>
+                      <td className="p-3">
+                        <button
+                          type="button"
+                          onClick={() => openDeviationInMSExcel(dev)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                          title="Click to open Excel deviation report in Microsoft Excel Desktop"
+                        >
+                          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate max-w-[120px]">
+                            {dev.page2_attachment_name || "QF/08/CQA-55.xlsx"}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => downloadDeviationExcelWorkbook(dev)}
+                          className="inline-flex items-center justify-center p-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
+                          title="Download Excel submitted by employee to review"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </td>
+                      <td className="p-3 font-medium text-slate-800">
+                        <div className="text-xs font-bold">{dev.inspected_by || "SILAMBARASAN S"}</div>
+                        {dev.employee_number && <div className="text-[10px] font-mono text-slate-500">{dev.employee_number}</div>}
+                      </td>
                       <td className="p-3 space-y-1">
-                        <div className="font-bold text-slate-900 text-sm">{dev.part_name} ({dev.part_number})</div>
-                        <div className="text-xs text-slate-600 font-medium line-clamp-1">
-                          {dev.description}
+                        <div>
+                          {dev.is_draft || dev.status === "open" ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                              <Clock className="h-3 w-3 text-amber-600" /> Draft Saved
+                            </span>
+                          ) : dev.page1_approved ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="h-3 w-3" /> P1 Approved
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-800 border border-orange-300">
+                              <Clock className="h-3 w-3" /> P1 Submitted
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          {dev.both_approved || dev.status === "closed" ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="h-3 w-3" /> Dual Approved
+                            </span>
+                          ) : dev.page2_submitted || dev.status === "under_review" ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-800 border border-purple-300">
+                              <Clock className="h-3 w-3" /> Under Review
+                            </span>
+                          ) : null}
                         </div>
                       </td>
-                      <td className="p-3 font-semibold text-slate-700">
-                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-800 uppercase mr-1 border border-slate-300">
-                          {dev.stage || "INPROCESS"}
-                        </span>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
-                          <Building2 className="h-3 w-3 text-slate-400" />
-                          {dev.location_operation}
-                        </div>
-                      </td>
-                      <td className="p-3 font-mono font-bold text-slate-900">
-                        {dev.quarantine_segregated_qty || dev.segregated_qty || "100"} PCS
-                      </td>
-                      <td className="p-3">
-                        {dev.is_draft || dev.status === "open" ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">
-                            <Clock className="h-3 w-3 text-amber-600" /> Draft Saved (In Progress)
-                          </span>
-                        ) : dev.page1_approved ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
-                            <CheckCircle2 className="h-3 w-3" /> Page 1 Approved
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-800 border border-orange-300">
-                            <Clock className="h-3 w-3" /> Page 1 Submitted
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {dev.both_approved || dev.status === "closed" ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-300">
-                            <CheckCircle2 className="h-3 w-3" /> Dual Approved
-                          </span>
-                        ) : dev.page2_submitted || dev.status === "under_review" ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800 border border-purple-300">
-                            <Clock className="h-3 w-3" /> Under Admin Review
-                          </span>
-                        ) : dev.page1_approved ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-800 border border-sky-300">
-                            Ready for Page 2
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px] italic">Awaiting Page 1 Approval</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center space-y-1">
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           {/* Open in MS Excel Desktop Protocol Button */}
                           <button
                             type="button"
                             onClick={() => openDeviationInMSExcel(dev)}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
                             title="Open 2-Page Deviation Report (QF/08/CQA-55 & RCA CAPA) in MS Excel Desktop"
                           >
-                            <FileSpreadsheet className="h-3.5 w-3.5" /> Open in MS Excel
-                          </button>
-
-                          {/* Download Original Excel Format */}
-                          <button
-                            type="button"
-                            onClick={() => downloadDeviationExcelWorkbook(dev)}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
-                            title="Download official QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx format"
-                          >
-                            <Download className="h-3 w-3 text-emerald-600" /> Download Original Format
+                            <FileSpreadsheet className="h-3.5 w-3.5" /> Review Excel
                           </button>
 
                           {/* View Official Report */}
@@ -1489,7 +1500,7 @@ function DeviationsPage() {
                             <button
                               type="button"
                               onClick={() => openModalForEdit(dev, 1)}
-                              className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-extrabold text-white hover:bg-amber-700 transition-colors cursor-pointer shadow-2xs"
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-amber-700 transition-colors cursor-pointer shadow-2xs"
                               title="Resume editing saved draft"
                             >
                               <FileEdit className="h-3 w-3" /> Resume Draft

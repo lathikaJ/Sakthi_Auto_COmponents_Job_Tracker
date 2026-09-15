@@ -108,13 +108,16 @@ type Deviation = {
   location_operation?: string;
   created_at: string;
   employee_number?: string;
-  severity?: string;
+  severity?: "Low" | "Medium" | "High" | "Critical";
   responsible_person?: string;
   department?: string;
   corrective_action?: string;
   product_part_number?: string;
   due_date?: string;
   closure_status?: string;
+  part_name?: string;
+  part_number?: string;
+  page2_attachment_name?: string;
 };
 
 export const OFFICIAL_ROSTER: Record<string, { name: string; department: string; designation: string; role: "admin" | "employee" }> = {
@@ -768,7 +771,7 @@ export function DashboardPage() {
               observed_condition: String(item["Observed Condition"] || desc),
               location_operation: String(item["Location / Operation"] || item["Department"] || "Plant Line"),
               employee_number: String(item["Responsible Person"] || profile?.employee_number || "688079"),
-              severity: String(item["Severity"] || "High"),
+              severity: (item["Severity"] as "Low" | "Medium" | "High" | "Critical") || "High",
               status: String(item["Closure Status"] || item["Status"] || "Open"),
               created_at: String(item["Due Date"] || today),
               responsible_person: String(item["Responsible Person"] || profile?.full_name || "QA Engineer"),
@@ -2234,81 +2237,110 @@ export function DashboardPage() {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                       <tr>
-                        <th className="p-3">Deviation ID</th>
-                        <th className="p-3">Audit ID</th>
-                        <th className="p-3">Product / Part Number</th>
-                        <th className="p-3">Deviation Description</th>
-                        <th className="p-3">Severity</th>
-                        <th className="p-3">Responsible Person / Dept</th>
-                        <th className="p-3">Corrective Action</th>
-                        <th className="p-3">Due Date</th>
-                        <th className="p-3">Closure Status</th>
-                        {isAdmin && <th className="p-3 text-right">ACTION</th>}
+                        <th className="p-3 w-14 text-center">SL. NO.</th>
+                        <th className="p-3">PART NAME</th>
+                        <th className="p-3">AUDIT PLAN</th>
+                        <th className="p-3">PLANNED MONTH</th>
+                        <th className="p-3">ATTACHMENT</th>
+                        <th className="p-3 text-center w-24">DOWNLOAD</th>
+                        <th className="p-3">AUDITOR</th>
+                        <th className="p-3">STATUS</th>
+                        <th className="p-3 text-right">ACTION</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {deviationTasks.map((dev) => (
+                      {deviationTasks.map((dev, idx) => (
                         <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-mono font-black text-rose-700">{dev.dev_code ?? dev.id.slice(0, 8)}</td>
-                          <td className="p-3 font-mono font-bold text-slate-800">{dev.audit_id ?? "AUD-MSIL-01"}</td>
-                          <td className="p-3 font-mono font-medium text-slate-700">{dev.product_part_number ?? "0401DAA02010N"}</td>
-                          <td className="p-3 font-medium text-slate-800 max-w-xs">{dev.description}</td>
-                          <td className="p-3">
-                            <span className={`rounded-md px-2 py-0.5 font-bold text-[10px] ${dev.severity === "High" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>
-                              {dev.severity ?? "High"}
-                            </span>
+                          <td className="p-3 text-center font-mono font-bold text-slate-500">
+                            {idx + 1}
                           </td>
-                          <td className="p-3 font-medium text-slate-700">{dev.responsible_person ?? dev.employee_number}</td>
-                          <td className="p-3 font-medium text-slate-700">{dev.corrective_action ?? "Under Review"}</td>
-                          <td className="p-3 font-medium text-slate-600">{dev.due_date ?? dev.created_at}</td>
-                          <td className="p-3">
-                            <StatusBadge status={dev.closure_status ?? dev.status} />
+                          <td className="p-3 max-w-xs">
+                            <div className="font-bold text-slate-900 text-xs">
+                              {dev.description || dev.part_name || "Plant Non-Conformance"}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                              {dev.product_part_number || dev.part_number || "45110-M86R00"}
+                            </div>
                           </td>
-                          {isAdmin && (
-                            <td className="p-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                {/* Open in MS Excel Desktop Protocol Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => openDeviationInMSExcel(dev)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
-                                  title="Open QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION in MS Excel Desktop"
-                                >
-                                  <FileSpreadsheet className="h-3 w-3" /> Open in MS Excel
-                                </button>
+                          <td className="p-3 font-mono font-bold text-indigo-700">
+                            {dev.dev_code ?? dev.audit_id ?? `DEV-2026-${idx + 101}`}
+                          </td>
+                          <td className="p-3 font-bold text-sky-700">
+                            {dev.due_date ?? dev.created_at ?? "SEP 2026"}
+                          </td>
+                          <td className="p-3">
+                            <button
+                              type="button"
+                              onClick={() => openDeviationInMSExcel(dev as any)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                              title="Click to open Excel deviation report in Microsoft Excel Desktop"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate max-w-[130px]">
+                                {dev.page2_attachment_name || "QF/08/CQA-55.xlsx"}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => downloadDeviationExcelWorkbook(dev as any)}
+                              className="inline-flex items-center justify-center p-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
+                              title="Download Excel submitted by employee to review"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">
+                            {dev.responsible_person ?? dev.employee_number ?? "SILAMBARASAN S (688079)"}
+                          </td>
+                          <td className="p-3">
+                            <StatusBadge status={dev.closure_status ?? dev.status ?? "Deviation"} />
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* Open in MS Excel Desktop Protocol Button */}
+                              <button
+                                type="button"
+                                onClick={() => openDeviationInMSExcel(dev as any)}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-2xs"
+                                title="Open QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION in MS Excel Desktop"
+                              >
+                                <FileSpreadsheet className="h-3 w-3" /> Review Excel
+                              </button>
 
-                                {/* Download Original Excel Format */}
-                                <button
-                                  type="button"
-                                  onClick={() => downloadDeviationExcelWorkbook(dev)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
-                                  title="Download official QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx format"
-                                >
-                                  <Download className="h-3 w-3 text-emerald-600" /> Download Original Format
-                                </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveDeviationToCompleted(dev)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                                    title="Admin: Change status from Deviation back to Completed Audit"
+                                  >
+                                    <Check className="h-3.5 w-3.5 text-emerald-600" /> Complete
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveDeviationToCompleted(dev)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                                  title="Admin: Change status from Deviation back to Completed Audit"
-                                >
-                                  <Check className="h-3.5 w-3.5 text-emerald-600" /> Completed Audit
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteDeviationRecord(dev.id)}
-                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                  title="Delete Deviation Record (Admin Only)"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDeviationRecord(dev.id)}
+                                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
+                                    title="Delete Deviation Record (Admin Only)"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))}
+                      {deviationTasks.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
+                            No deviation records found for {selectedCategory}. Click "Create 2-Page Deviation Report" or mark non-conforming audit items.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
