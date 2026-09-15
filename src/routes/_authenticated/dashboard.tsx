@@ -2328,14 +2328,6 @@ export function DashboardPage() {
                 <div className="space-y-4">
                   {/* SECTION 1: AUDIT PLANS MOVED TO NO PRODUCTION */}
                   <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                    <div className="bg-purple-900 text-white px-4 py-2.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-purple-200" />
-                        <h4 className="text-xs font-black uppercase tracking-wider">
-                          Audit Plans on Hold — No Production / Line Stopped ({noProductionTasks.length})
-                        </h4>
-                      </div>
-                    </div>
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase tracking-wider border-b border-slate-200">
                         <tr>
