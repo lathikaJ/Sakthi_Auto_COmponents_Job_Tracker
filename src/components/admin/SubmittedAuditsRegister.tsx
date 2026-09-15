@@ -13,6 +13,7 @@ import {
   Sparkles,
   Layers,
   Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   getSubmittedAudits,
@@ -185,54 +186,36 @@ export function SubmittedAuditsRegister() {
           <table className="w-full border-collapse text-left text-xs font-sans">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 font-mono text-[11px] uppercase text-slate-700">
-                <th className="p-3 font-bold w-28">Part No</th>
-                <th className="p-3 font-bold min-w-[200px]">Part Name</th>
-                <th className="p-3 font-bold min-w-[180px]">Name of Employee</th>
-                <th className="p-3 font-bold w-44">Submitted Date & Time</th>
-                <th className="p-3 font-bold w-28">Audit Code</th>
-                <th className="p-3 font-bold w-28">Status</th>
-                {isAdmin && <th className="p-3 font-bold w-16 text-right">Action</th>}
+                <th className="p-3 w-14 text-center font-bold">SL. NO.</th>
+                <th className="p-3 min-w-[180px] font-bold">PART NAME</th>
+                <th className="p-3 w-28 font-bold">AUDIT PLAN</th>
+                <th className="p-3 w-32 font-bold">PLANNED MONTH</th>
+                <th className="p-3 w-40 font-bold">ATTACHMENT</th>
+                <th className="p-3 text-center w-24 font-bold">DOWNLOAD</th>
+                <th className="p-3 w-36 font-bold">AUDITOR</th>
+                <th className="p-3 w-36 font-bold">STATUS</th>
+                <th className="p-3 min-w-[140px] font-bold text-right">ACTION</th>
+                {isAdmin && <th className="p-3 text-center w-16 font-bold">DELETE</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-900">
-              {filtered.map((item) => {
+              {filtered.map((item, idx) => {
                 const subDate = new Date(item.submitted_date);
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    {/* Part No */}
-                    <td className="p-3 font-mono font-bold text-sky-700">
-                      <span className="rounded bg-sky-50 px-2 py-1 border border-sky-200">
-                        {item.part_no}
-                      </span>
+                    {/* SL. NO. */}
+                    <td className="p-3 text-center font-mono font-bold text-slate-500">
+                      {idx + 1}
                     </td>
 
-                    {/* Part Name */}
-                    <td className="p-3 font-bold text-slate-900">
-                      {item.part_name}
+                    {/* Part Name & Part No */}
+                    <td className="p-3 max-w-xs">
+                      <div className="font-bold text-slate-900 text-xs">{item.part_name}</div>
+                      <div className="text-[11px] font-mono text-slate-500 mt-0.5">{item.part_no}</div>
                     </td>
 
-                    {/* Name of Employee */}
-                    <td className="p-3">
-                      <div className="font-bold text-slate-900">
-                        {item.employee_name}
-                      </div>
-                      <span className="text-[11px] font-mono font-bold text-slate-600">
-                        Emp #{item.employee_number}
-                      </span>
-                    </td>
-
-                    {/* Submitted Date */}
-                    <td className="p-3 font-mono text-slate-700">
-                      <div className="font-bold text-slate-900">
-                        {item.formatted_submitted_date}
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {formatDistanceToNow(subDate, { addSuffix: true })}
-                      </span>
-                    </td>
-
-                    {/* Audit Code */}
-                    <td className="p-3 font-mono font-bold text-brand">
+                    {/* Audit Plan Code */}
+                    <td className="p-3 font-mono font-bold text-indigo-700">
                       <Link
                         to="/audit/$auditId"
                         params={{ auditId: item.audit_code.toLowerCase().replace(/[^a-z0-9-]/g, "-") }}
@@ -242,14 +225,81 @@ export function SubmittedAuditsRegister() {
                       </Link>
                     </td>
 
+                    {/* Planned Month / Submitted Date */}
+                    <td className="p-3 font-bold text-sky-700">
+                      {item.formatted_submitted_date}
+                    </td>
+
+                    {/* Attachment */}
+                    <td className="p-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const excelProtocolUri = "ms-excel:ofe|u|" + window.location.origin + "/Audit_Report_Template.xlsx";
+                          window.location.href = excelProtocolUri;
+                          toast.info(`Opening ${item.part_name} checklist in MS Excel Desktop.`);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate max-w-[120px]">{item.part_no}_Checklist.xlsx</span>
+                      </button>
+                    </td>
+
+                    {/* Download Icon */}
+                    <td className="p-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const dataToExport = [{
+                            "Audit Code": item.audit_code,
+                            "Part No": item.part_no,
+                            "Part Name": item.part_name,
+                            "Employee Name": item.employee_name,
+                            "Employee ID": item.employee_number,
+                            "Department": item.department,
+                            "Submitted Date & Time": item.formatted_submitted_date,
+                            "Status": item.status,
+                          }];
+                          const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                          const workbook = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(workbook, worksheet, "Submitted Audit");
+                          XLSX.writeFile(workbook, `${item.audit_code}_${item.part_no}_Report.xlsx`);
+                          toast.success(`Downloaded submitted report for ${item.audit_code}!`);
+                        }}
+                        className="inline-flex items-center justify-center p-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
+                        title="Download Excel submitted by employee to review"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </td>
+
+                    {/* Auditor / Employee */}
+                    <td className="p-3 font-medium text-slate-800">
+                      <div className="font-bold text-xs text-slate-900">{item.employee_name}</div>
+                      <div className="text-[10px] font-mono text-slate-500">Emp #{item.employee_number}</div>
+                    </td>
+
                     {/* Status */}
                     <td className="p-3">
                       <StatusBadge status={item.status} />
                     </td>
 
-                    {/* Action (Admin Only) */}
+                    {/* Action */}
+                    <td className="p-3 text-right">
+                      <Link
+                        to="/audit/$auditId"
+                        params={{ auditId: item.audit_code.toLowerCase().replace(/[^a-z0-9-]/g, "-") }}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        View Audit
+                      </Link>
+                    </td>
+
+                    {/* Delete (Admin Only) */}
                     {isAdmin && (
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-center">
                         <button
                           type="button"
                           onClick={() => {
@@ -257,10 +307,10 @@ export function SubmittedAuditsRegister() {
                             loadAudits();
                             toast.info(`Submitted audit ${item.audit_code} removed by Admin.`);
                           }}
-                          className="rounded border border-slate-200 bg-white p-1 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
                           title="Delete Audit Record (Admin Only)"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5 text-rose-600" />
                         </button>
                       </td>
                     )}
