@@ -129,10 +129,6 @@ function AuditsPage() {
     });
 
   const handleExportExcel = () => {
-    if (!isAdmin && filter !== "ongoing") {
-      toast.error("Export is restricted to Admin (KARTHIKEYAN C).");
-      return;
-    }
     const exportData = rows.map((r, idx) => ({
       "SL. NO.": idx + 1,
       "Audit Code": r.audit_code,

@@ -510,6 +510,13 @@ export const DEFAULT_OFFICIAL_AUDITS = [
 
 const DELETED_AUDITS_KEY = "sakthi_deleted_audit_identifiers";
 
+// Generic codes/titles that should NEVER be globally blacklisted
+const PROTECTED_AUDIT_CODES = new Set([
+  "REV-001", "REV-002", "REV-003", "REV-004", "REV-005", "REV-006", "REV-007", "REV-008",
+  "AUD-001", "AUD-002", "AUD-003", "AUD-004", "AUD-005", "AUD-006", "AUD-007", "AUD-008",
+  "LAY-VOL-01", "AUD-MSIL-01", "AUD-PLAN", "PRODUCT AUDIT", "REVALIDATION AUDIT", "DOCK AUDIT", "DOCUMENT AUDIT"
+]);
+
 export function getDeletedAuditIdentifiers(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -517,11 +524,16 @@ export function getDeletedAuditIdentifiers(): Set<string> {
     if (stored) {
       const arr = JSON.parse(stored);
       if (Array.isArray(arr)) {
-        return new Set(
-          arr
-            .map((s) => String(s).trim().toUpperCase())
-            .filter((s) => s && s !== "UNDEFINED" && s !== "NULL")
-        );
+        // Filter out generic audit codes that were mistakenly added by broken deletion logic
+        const cleaned = arr
+          .map((s) => String(s).trim().toUpperCase())
+          .filter((s) => s && s !== "UNDEFINED" && s !== "NULL" && !PROTECTED_AUDIT_CODES.has(s) && !s.startsWith("REV-") && !s.startsWith("AUD-MSIL-"));
+        
+        // Auto-heal local storage if corrupted entries were removed
+        if (cleaned.length !== arr.length) {
+          localStorage.setItem(DELETED_AUDITS_KEY, JSON.stringify(cleaned));
+        }
+        return new Set(cleaned);
       }
     }
   } catch {
@@ -534,8 +546,13 @@ export function addDeletedAuditIdentifier(id?: string, auditCode?: string) {
   if (typeof window === "undefined") return;
   try {
     const deleted = getDeletedAuditIdentifiers();
-    if (id && typeof id === "string" && id.trim() && id.trim().toLowerCase() !== "undefined") deleted.add(id.trim().toUpperCase());
-    if (auditCode && typeof auditCode === "string" && auditCode.trim() && auditCode.trim().toLowerCase() !== "undefined") deleted.add(auditCode.trim().toUpperCase());
+    // Only register specific instance IDs, not shared audit codes or generic titles
+    if (id && typeof id === "string" && id.trim() && id.trim().toLowerCase() !== "undefined") {
+      const cleanId = id.trim().toUpperCase();
+      if (!PROTECTED_AUDIT_CODES.has(cleanId)) {
+        deleted.add(cleanId);
+      }
+    }
     localStorage.setItem(DELETED_AUDITS_KEY, JSON.stringify(Array.from(deleted)));
     window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
   } catch (err) {
@@ -546,7 +563,6 @@ export function addDeletedAuditIdentifier(id?: string, auditCode?: string) {
 export function isAuditDeleted(id?: string, auditCode?: string): boolean {
   const deleted = getDeletedAuditIdentifiers();
   if (id && typeof id === "string" && id.trim() && deleted.has(id.trim().toUpperCase())) return true;
-  if (auditCode && typeof auditCode === "string" && auditCode.trim() && deleted.has(auditCode.trim().toUpperCase())) return true;
   return false;
 }
 
@@ -574,7 +590,6 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
 
   const isDeleted = (task: T) => {
     if (task.id && typeof task.id === "string" && task.id.trim() && deleted.has(task.id.trim().toUpperCase())) return true;
-    if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim() && deleted.has(task.audit_code.trim().toUpperCase())) return true;
     return false;
   };
 

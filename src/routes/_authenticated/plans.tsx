@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlanModal } from "@/components/plans/PlanModal";
 
+import { addDeletedAuditIdentifier } from "@/lib/audit";
+
 export const Route = createFileRoute("/_authenticated/plans")({
   ssr: false,
   component: PlansPage,
@@ -49,8 +51,8 @@ function PlansPage() {
   });
 
   const combinedPlans = [...dbPlans, ...localTasks.filter((t: any) => t.year === year || !t.year)].reduce((acc: any[], current: any) => {
-    const key = current.id || current.audit_code;
-    if (!acc.some((item) => (item.id || item.audit_code) === key)) {
+    const key = current.id || `${current.audit_code}_M${current.month || 1}`;
+    if (!acc.some((item) => (item.id || `${item.audit_code}_M${item.month || 1}`) === key)) {
       acc.push(current);
     }
     return acc;
@@ -58,18 +60,20 @@ function PlansPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (planId: string) => {
-      if (planId) {
+      if (planId && !planId.startsWith("plan-")) {
         await supabase.from("audit_plans").delete().eq("id", planId);
         await supabase.from("audit_assignments").delete().eq("id", planId);
       }
+      addDeletedAuditIdentifier(planId);
       if (typeof window !== "undefined") {
         const stored = localStorage.getItem("sakthi_excel_tasks_v8");
         if (stored) {
           try {
             let tasks = JSON.parse(stored);
-            tasks = tasks.filter((t: any) => t.id !== planId && t.audit_code !== planId);
+            tasks = tasks.filter((t: any) => t.id !== planId);
             localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
             window.dispatchEvent(new Event("excel_tasks_updated"));
+            window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
           } catch {}
         }
       }

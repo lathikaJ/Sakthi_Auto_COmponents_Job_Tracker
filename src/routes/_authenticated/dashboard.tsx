@@ -430,12 +430,11 @@ export function DashboardPage() {
     if (!currentEmpNumber && !currentEmpName) return list;
     return list.filter((r) => {
       const assignedEmp = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
-      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || r.assigned_to_employee_number === currentEmpNumber);
+      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || String(r.assigned_to_employee_number || "").trim() === currentEmpNumber);
       const nameMatch = currentEmpName && r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName);
       return Boolean(empMatch || nameMatch);
     });
   }, [categoryTasks, isAdmin, currentEmpNumber, currentEmpName]);
-
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");
@@ -491,12 +490,8 @@ export function DashboardPage() {
     });
   }, [localLowProd, selectedCategory]);
 
-  // Excel Export Handler for All Audits / Current View (Admin across all 6 views, User in Ongoing Audit)
+  // Excel Export Handler for All Audits / Current View
   const handleExportCurrentViewExcel = () => {
-    if (!isAdmin && selectedStatusView !== "Ongoing") {
-      toast.error("Excel export for this section is restricted to Admin (KARTHIKEYAN C).");
-      return;
-    }
     let exportData: any[] = [];
     const dateTag = new Date().toISOString().split("T")[0] ?? "";
     const fileName = `Sakthi_Auto_${selectedCategory.replace(/\s+/g, "_")}_${selectedStatusView.replace(/\s+/g, "_")}_${dateTag}.xlsx`;
@@ -850,18 +845,24 @@ export function DashboardPage() {
     const cleanTitle = editingAudit.title && editingAudit.title !== `${selectedCategory} Inspection Report`
       ? editingAudit.title
       : file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-    const updated: Assignment = {
-      ...editingAudit,
-      title: cleanTitle,
-      audit_type: editingAudit.audit_type || selectedCategory || "Product Audit",
-      attached_file_name: file.name,
-      attached_file_url: URL.createObjectURL(file),
-      status: editingAudit.status || "Planned",
-      is_imported: true,
-      imported_by: profile?.employee_number || "688079",
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const updated: Assignment = {
+        ...editingAudit,
+        title: cleanTitle,
+        audit_type: editingAudit.audit_type || selectedCategory || "Product Audit",
+        attached_file_name: file.name,
+        attached_file_url: dataUrl,
+        status: editingAudit.status || "Planned",
+        is_imported: true,
+        imported_by: profile?.employee_number || "688079",
+      };
+      setEditingAudit(updated);
+      toast.success(`Attached document: ${file.name} — Click "Save Audit Plan" to complete.`);
     };
-    setEditingAudit(updated);
-    toast.success(`Attached document: ${file.name} — Click "Save Audit Plan" to complete.`);
+    reader.readAsDataURL(file);
   };
 
 
@@ -888,6 +889,39 @@ export function DashboardPage() {
     }
 
     toast.success(`Audit [${task.audit_code}] moved to No Production status.`);
+  };
+
+
+  const handleDeleteAuditRecord = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Only authorized Admin can remove audit plans.");
+      return;
+    }
+    const targetItem = rawTaskRows.find((t) => t.id === id || (t.audit_code === id && t.id));
+    const targetId = targetItem?.id || id;
+
+    // Register only the specific unique instance ID as deleted
+    addDeletedAuditIdentifier(targetId);
+
+    const updated = rawTaskRows.filter((t) => t.id !== targetId);
+    setLocalExcelTasks(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
+      deleteSubmittedAudit(targetId);
+      window.dispatchEvent(new Event("excel_tasks_updated"));
+      window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
+    }
+
+    try {
+      if (targetId) {
+        await supabase.from("audit_assignments").delete().eq("id", targetId);
+      }
+      assignmentsQuery.refetch();
+    } catch (err) {
+      console.warn("Error deleting audit_assignments:", err);
+    }
+
+    toast.info("Audit plan record removed by Admin.");
   };
 
   // Restore audit record from No Production back to Planned - Accessible to all users
@@ -1123,47 +1157,6 @@ export function DashboardPage() {
     toast.success(`Audit plan [${finalRecord.audit_code}] saved successfully!`);
     setIsEditModalOpen(false);
     setIsAddPlanModalOpen(false);
-  };
-
-
-  const handleDeleteAuditRecord = async (id: string) => {
-    if (!isAdmin) {
-      toast.error("Only authorized Admin can remove audit plans.");
-      return;
-    }
-    const targetItem = rawTaskRows.find((t) => t.id === id || t.audit_code === id);
-    const targetCode = targetItem?.audit_code || (id.startsWith("REV-") || id.startsWith("AUD-") ? id : undefined);
-    const targetTitle = targetItem?.title;
-
-    addDeletedAuditIdentifier(id, targetCode);
-
-    const updated = rawTaskRows.filter((t) =>
-      t.id !== id &&
-      (!targetCode || t.audit_code !== targetCode) &&
-      (!targetTitle || t.title !== targetTitle)
-    );
-    setLocalExcelTasks(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
-      deleteSubmittedAudit(id);
-      if (targetCode) deleteSubmittedAudit(targetCode);
-      window.dispatchEvent(new Event("excel_tasks_updated"));
-      window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
-    }
-
-    try {
-      if (id) {
-        await supabase.from("audit_assignments").delete().eq("id", id);
-      }
-      if (targetCode) {
-        await supabase.from("audit_assignments").delete().eq("audit_code", targetCode);
-      }
-      assignmentsQuery.refetch();
-    } catch (err) {
-      console.warn("Error deleting audit_assignments:", err);
-    }
-
-    toast.info("Audit plan record removed by Admin.");
   };
 
   const handleDeleteDeviationRecord = async (id: string) => {
