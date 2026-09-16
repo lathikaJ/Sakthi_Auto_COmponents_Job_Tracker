@@ -305,8 +305,7 @@ export function SubmittedAuditsRegister() {
                         <button
                           type="button"
                           onClick={() => {
-                            deleteSubmittedAudit(item.id);
-                            if (item.audit_code) deleteSubmittedAudit(item.audit_code);
+                            deleteSubmittedAudit(item.id, item.audit_code);
                             loadAudits();
                             toast.info(`Submitted audit ${item.audit_code} permanently removed by Admin.`);
                           }}

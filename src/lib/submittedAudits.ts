@@ -157,9 +157,14 @@ export function updateSubmittedAuditStatus(
   }
 }
 
-export function deleteSubmittedAudit(idOrCode: string) {
+export function deleteSubmittedAudit(idOrCode: string, auditCode?: string) {
   if (typeof window === "undefined") return;
   try {
+    // 1. Mark unique ID as permanently deleted identifier
+    if (idOrCode) addDeletedAuditIdentifier(idOrCode);
+    if (auditCode) addDeletedAuditIdentifier(auditCode);
+
+    // 2. Remove from submitted audits storage
     let rawList: SubmittedAuditItem[] = [];
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -174,11 +179,35 @@ export function deleteSubmittedAudit(idOrCode: string) {
       (item) =>
         item.id !== idOrCode &&
         item.audit_code !== idOrCode &&
-        item.audit_code?.toLowerCase() !== idOrCode.toLowerCase()
+        item.audit_code?.toLowerCase() !== idOrCode.toLowerCase() &&
+        (!auditCode || (item.id !== auditCode && item.audit_code !== auditCode))
     );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
+    // 3. Remove from main tasks storage (sakthi_excel_tasks_v8)
+    const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
+    if (storedTasks) {
+      try {
+        const tasks = JSON.parse(storedTasks);
+        if (Array.isArray(tasks)) {
+          const cleanedTasks = tasks.filter(
+            (t: any) =>
+              t.id !== idOrCode &&
+              (!auditCode || t.id !== auditCode)
+          );
+          localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(cleanedTasks));
+        }
+      } catch {}
+    }
+
+    // 4. Delete from Supabase database
+    if (idOrCode) {
+      void supabase.from("audit_assignments").delete().eq("id", idOrCode);
+    }
+
     window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
+    window.dispatchEvent(new Event("excel_tasks_updated"));
+    window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
   } catch (err) {
     console.error("Failed to delete submitted audit", err);
   }
