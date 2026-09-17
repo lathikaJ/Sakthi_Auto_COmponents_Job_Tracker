@@ -502,6 +502,23 @@ export function DashboardPage() {
     return categoryTasks.filter((r) => r.status === "Submitted" || r.status === "Under Review");
   }, [categoryTasks]);
 
+  const underReviewCombinedTasks = useMemo(() => {
+    const combined = [...ongoingTasks, ...underReviewTasks];
+    const map = new Map<string, any>();
+    combined.forEach((t) => {
+      const key = t.id || t.audit_code;
+      if (!map.has(key)) {
+        map.set(key, t);
+      } else {
+        const existing = map.get(key);
+        if (t.status === "Submitted" || t.status === "Under Review") {
+          map.set(key, t);
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [ongoingTasks, underReviewTasks]);
+
   const completedTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "Completed" || r.status === "Approved");
   }, [categoryTasks]);
@@ -571,8 +588,7 @@ export function DashboardPage() {
         "Status": task.status,
       }));
     } else if (selectedStatusView === "Ongoing" || selectedStatusView === "Under Review") {
-      const allUnderReview = [...ongoingTasks, ...underReviewTasks];
-      exportData = allUnderReview.filter(filterByPlanSubView).map((task, idx) => ({
+      exportData = underReviewCombinedTasks.filter(filterByPlanSubView).map((task, idx) => ({
         "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
@@ -1566,7 +1582,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <FileCheck2 className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Under Review" ? "bg-white text-indigo-800" : "bg-indigo-100 text-indigo-800"}`}>
-                      {ongoingTasks.length + underReviewTasks.length}
+                      {underReviewCombinedTasks.length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Under Review</p>
@@ -1902,7 +1918,7 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {[...ongoingTasks, ...underReviewTasks].filter(filterByPlanSubView).map((task, idx) => (
+                      {underReviewCombinedTasks.filter(filterByPlanSubView).map((task, idx) => (
                         <tr key={task.id} className="hover:bg-indigo-50/50 transition-colors">
                           <td className="p-3 text-center font-mono font-bold text-slate-500">
                             {task.sl_no ?? idx + 1}
