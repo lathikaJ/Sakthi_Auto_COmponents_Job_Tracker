@@ -257,6 +257,45 @@ export function DashboardPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingAudit, setEditingAudit] = useState<Assignment | null>(null);
 
+  // Customer List State & Management (for "+ Add Plan" modal)
+  const [customerList, setCustomerList] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sakthi_customer_list");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {}
+      }
+    }
+    return DEFAULT_CUSTOMERS;
+  });
+  const [isManagingCustomers, setIsManagingCustomers] = useState(false);
+  const [newCustomerInput, setNewCustomerInput] = useState("");
+
+  const handleAddCustomer = () => {
+    if (!newCustomerInput.trim()) return;
+    const name = newCustomerInput.trim().toUpperCase();
+    if (!customerList.includes(name)) {
+      const updated = [...customerList, name];
+      setCustomerList(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sakthi_customer_list", JSON.stringify(updated));
+      }
+      toast.success(`Customer "${name}" added to options`);
+    }
+    setNewCustomerInput("");
+  };
+
+  const handleRemoveCustomer = (customerName: string) => {
+    if (customerList.length <= 1) return;
+    const updated = customerList.filter((c) => c !== customerName);
+    setCustomerList(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sakthi_customer_list", JSON.stringify(updated));
+    }
+    toast.success(`Customer "${customerName}" removed`);
+  };
+
   // Queries for DB data
   const assignmentsQuery = useQuery({
     queryKey: ["assignments"],
