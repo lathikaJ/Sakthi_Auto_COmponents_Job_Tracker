@@ -570,6 +570,26 @@ function safeMergeTasks<T extends Record<string, any>>(existing: T, incoming: T)
   const merged = { ...existing };
   for (const [key, val] of Object.entries(incoming)) {
     if (val !== undefined && val !== null && val !== "") {
+      if (key === "status") {
+        const statusPriority: Record<string, number> = {
+          Completed: 5,
+          Approved: 5,
+          Closed: 5,
+          Deviation: 4,
+          "No Production": 4,
+          "Under Review": 3,
+          Submitted: 3,
+          "In Progress": 2,
+          Ongoing: 2,
+          Assigned: 1,
+          Planned: 1,
+        };
+        const existingPriority = statusPriority[String(existing["status"])] || 0;
+        const incomingPriority = statusPriority[String(val)] || 0;
+        if (existingPriority > incomingPriority) {
+          continue; // Keep existing status if it has higher priority than incoming static fallback
+        }
+      }
       (merged as any)[key] = val;
     }
   }

@@ -1947,24 +1947,30 @@ export function DashboardPage() {
                                   }
                                   if (typeof window !== "undefined") {
                                     const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-                                    if (stored) {
-                                      try {
-                                        let tasks = JSON.parse(stored);
-                                        tasks = tasks.map((t: any) => {
-                                          if (t.id === task.id || t.audit_code === task.audit_code) {
-                                            return {
-                                              ...t,
-                                              status: "Completed",
-                                              completion_date: new Date().toISOString().split("T")[0],
-                                              final_result: "PASS / COMPLIANT",
-                                            };
-                                          }
-                                          return t;
-                                        });
-                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-                                        window.dispatchEvent(new Event("excel_tasks_updated"));
-                                      } catch {}
+                                    let tasks = stored ? JSON.parse(stored) : [];
+                                    let updated = false;
+                                    tasks = tasks.map((t: any) => {
+                                      if (t.id === task.id || t.audit_code === task.audit_code) {
+                                        updated = true;
+                                        return {
+                                          ...t,
+                                          status: "Completed",
+                                          completion_date: new Date().toISOString().split("T")[0],
+                                          final_result: "PASS / COMPLIANT",
+                                        };
+                                      }
+                                      return t;
+                                    });
+                                    if (!updated) {
+                                      tasks.push({
+                                        ...task,
+                                        status: "Completed",
+                                        completion_date: new Date().toISOString().split("T")[0],
+                                        final_result: "PASS / COMPLIANT",
+                                      });
                                     }
+                                    localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+                                    window.dispatchEvent(new Event("excel_tasks_updated"));
                                   }
                                   updateSubmittedAuditStatus(task.id, "Completed", "Marked as Completed by Admin Dashboard");
                                   supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
@@ -1990,23 +1996,29 @@ export function DashboardPage() {
                                   }
                                   if (typeof window !== "undefined") {
                                     const stored = localStorage.getItem("sakthi_excel_tasks_v8");
-                                    if (stored) {
-                                      try {
-                                        let tasks = JSON.parse(stored);
-                                        tasks = tasks.map((t: any) => {
-                                          if (t.id === task.id || t.audit_code === task.audit_code) {
-                                            return {
-                                              ...t,
-                                              status: "Deviation",
-                                              final_result: "DEVIATION IDENTIFIED",
-                                            };
-                                          }
-                                          return t;
-                                        });
-                                        localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
-                                        window.dispatchEvent(new Event("excel_tasks_updated"));
-                                      } catch {}
+                                    let tasks = stored ? JSON.parse(stored) : [];
+                                    let updated = false;
+                                    tasks = tasks.map((t: any) => {
+                                      if (t.id === task.id || t.audit_code === task.audit_code) {
+                                        updated = true;
+                                        return {
+                                          ...t,
+                                          status: "Deviation",
+                                          final_result: "DEVIATION IDENTIFIED",
+                                        };
+                                      }
+                                      return t;
+                                    });
+                                    if (!updated) {
+                                      tasks.push({
+                                        ...task,
+                                        status: "Deviation",
+                                        final_result: "DEVIATION IDENTIFIED",
+                                      });
                                     }
+                                    localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+                                    window.dispatchEvent(new Event("excel_tasks_updated"));
+                                  }
 
                                     const storedDevs = localStorage.getItem("sakthi_deviations");
                                     let devs = storedDevs ? JSON.parse(storedDevs) : [];
@@ -2033,7 +2045,6 @@ export function DashboardPage() {
                                       localStorage.setItem("sakthi_deviations", JSON.stringify(devs));
                                       window.dispatchEvent(new Event("sakthi_deviations_updated"));
                                     }
-                                  }
                                   updateSubmittedAuditStatus(task.id, "Deviation", "Moved to Deviations by Admin Dashboard");
                                   supabase.from("audit_assignments").update({ status: "Deviation" as any }).eq("audit_code", task.audit_code).then(() => assignmentsQuery.refetch());
                                   toast.warning(`Deviation logged for ${task.audit_code}. Audit moved to Deviations!`);
