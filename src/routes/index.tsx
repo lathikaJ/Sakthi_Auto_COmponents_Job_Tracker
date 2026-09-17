@@ -11,13 +11,13 @@ export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign In — Sakthi Auto Value Added Engineering & Audits" },
+      { title: "Sign In — Sakthi Auto MACHINE SHOP - AUDITS" },
       {
         name: "description",
         content:
           "Sign in with your Sakthi Auto employee number to access audit plans, assignments and deviation reporting.",
       },
-      { property: "og:title", content: "Sign In — Sakthi Auto Value Added Engineering & Audits" },
+      { property: "og:title", content: "Sign In — Sakthi Auto MACHINE SHOP - AUDITS" },
     ],
   }),
   component: SignInPage,
@@ -106,7 +106,7 @@ function SignInPage() {
             <SakthiLogo imgClassName="h-12 sm:h-14 w-auto object-contain" />
           </div>
           <p className="mt-4 text-center text-lg font-black uppercase tracking-wider text-white drop-shadow-sm">
-            Value Added Engineering & Audits
+            MACHINE SHOP - AUDITS
           </p>
         </div>
 

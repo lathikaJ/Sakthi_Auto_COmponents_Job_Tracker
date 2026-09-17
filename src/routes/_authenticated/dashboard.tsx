@@ -61,12 +61,12 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Audit Dashboard — Sakthi Auto Value Added Engineering & Audits" },
+      { title: "Audit Dashboard — Sakthi Auto MACHINE SHOP - AUDITS" },
       {
         name: "description",
         content: "Product Audit, Revalidation Audit, and Dock Audit management dashboard with live status monitoring.",
       },
-      { property: "og:title", content: "Audit Dashboard — Sakthi Auto Value Added Engineering & Audits" },
+      { property: "og:title", content: "Audit Dashboard — Sakthi Auto MACHINE SHOP - AUDITS" },
     ],
   }),
   component: DashboardPage,
@@ -94,9 +94,28 @@ type Assignment = {
   document_url?: string;
   attached_file_name?: string;
   attached_file_url?: string;
+  customer_name?: string;
   is_imported?: boolean;
   imported_by?: string;
 };
+
+export const DEFAULT_CUSTOMERS = [
+  "GENERAL MOTORS",
+  "MARUTI SUZUKI INDIA LIMITED",
+  "ASHOK LEYLAND",
+  "FIAT CHRYSLER AUTOMOBILES",
+  "FORD INDIA PRIVATE LIMITED",
+  "GENERAL MOTORS INDIA",
+  "HONDA SIEL CARS INDIA LIMITED",
+  "JTEKT INDIA LTD",
+  "MAHINDRA & MAHINDRA LTD",
+  "PEUGEOT CITROEN",
+  "RENAULT NISSAN",
+  "STELLANTIES",
+  "UD TRUCKS",
+  "VOLKSWAGEN",
+  "VOLVO GROUP",
+];
 
 type Deviation = {
   id: string;
@@ -1484,8 +1503,8 @@ export function DashboardPage() {
                 </h2>
               </div>
 
-              {/* 6 STATUS OPTION CARDS */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {/* 5 STATUS OPTION CARDS */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {/* CARD 1: AUDIT PLAN */}
                 <button
                   type="button"
@@ -1505,31 +1524,12 @@ export function DashboardPage() {
                   <p className="mt-2 text-xs font-black uppercase">Audit Plan</p>
                 </button>
 
-                {/* CARD 2: ONGOING AUDIT */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedStatusView("Ongoing")}
-                  className={`rounded-xl border p-3.5 text-left transition-all ${
-                    selectedStatusView === "Ongoing"
-                      ? "border-amber-600 bg-amber-600 text-white shadow-sm ring-2 ring-amber-300"
-                      : "border-slate-200 bg-white hover:bg-amber-50 text-slate-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <Timer className="h-4 w-4" />
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Ongoing" ? "bg-white text-amber-800" : "bg-amber-100 text-amber-800"}`}>
-                      {ongoingTasks.length}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs font-black uppercase">Ongoing Audit</p>
-                </button>
-
-                {/* CARD 3: UNDER REVIEW (6TH AUDIT STATUS CARD WITH ICON) */}
+                {/* CARD 2: UNDER REVIEW */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Under Review")}
                   className={`rounded-xl border p-3.5 text-left transition-all ${
-                    selectedStatusView === "Under Review"
+                    selectedStatusView === "Under Review" || (selectedStatusView as any) === "Ongoing"
                       ? "border-indigo-600 bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300"
                       : "border-slate-200 bg-white hover:bg-indigo-50 text-slate-700"
                   }`}
@@ -1537,15 +1537,13 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <FileCheck2 className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Under Review" ? "bg-white text-indigo-800" : "bg-indigo-100 text-indigo-800"}`}>
-                      {underReviewTasks.length}
+                      {ongoingTasks.length + underReviewTasks.length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Under Review</p>
                 </button>
 
-
-
-                {/* CARD 4: AUDIT COMPLETED */}
+                {/* CARD 3: AUDIT COMPLETED */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Audit Completed")}
@@ -1564,7 +1562,7 @@ export function DashboardPage() {
                   <p className="mt-2 text-xs font-black uppercase">Audit Completed</p>
                 </button>
 
-                {/* CARD 5: DEVIATION */}
+                {/* CARD 4: DEVIATION */}
                 <button
                   type="button"
                   onClick={() => setSelectedStatusView("Deviation")}
@@ -1756,9 +1754,9 @@ export function DashboardPage() {
                       <tr>
                         <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
                         <th className="p-3 font-black text-slate-900">PART NAME</th>
+                        <th className="p-3 font-black text-slate-900">CUSTOMER NAME</th>
                         <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
                         <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
-                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
                         <th className="p-3 font-black text-slate-900">AUDITOR</th>
                         <th className="p-3 font-black text-slate-900">STATUS</th>
                         <th className="p-3 text-right font-black text-slate-900">ACTION</th>
@@ -1773,6 +1771,7 @@ export function DashboardPage() {
                           return (
                             r.audit_code.toLowerCase().includes(q) ||
                             r.title.toLowerCase().includes(q) ||
+                            (r.customer_name && r.customer_name.toLowerCase().includes(q)) ||
                             (r.auditor_name && r.auditor_name.toLowerCase().includes(q)) ||
                             r.area.toLowerCase().includes(q)
                           );
@@ -1783,19 +1782,10 @@ export function DashboardPage() {
                               {task.sl_no ?? idx + 1}
                             </td>
                             <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
+                            <td className="p-3 font-bold text-slate-800">{task.customer_name || "GENERAL MOTORS"}</td>
                             <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                             <td className="p-3 font-bold text-sky-700">
                               {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
-                            </td>
-                            <td className="p-3">
-                              <button
-                                onClick={handleDirectExcelLaunch}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                                title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
-                              >
-                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="truncate max-w-[140px]">Excel</span>
-                              </button>
                             </td>
                             <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
                             <td className="p-3">
@@ -1883,115 +1873,8 @@ export function DashboardPage() {
                 </div>
               )}
 
-              {/* ── VIEW 2: ONGOING AUDIT TABLE ── */}
-              {selectedStatusView === "Ongoing" && (
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
-                      <tr>
-                        <th className="p-3 w-14 text-center font-black text-slate-900">SL. NO.</th>
-                        <th className="p-3 font-black text-slate-900">PART NAME</th>
-                        <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
-                        <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
-                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
-                        <th className="p-3 font-black text-slate-900">AUDITOR</th>
-                        <th className="p-3 font-black text-slate-900">PROGRESS</th>
-                        <th className="p-3 font-black text-slate-900">STATUS</th>
-                        <th className="p-3 text-right font-black text-slate-900">ACTION</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {ongoingTasks.filter(filterByPlanSubView).map((task, idx) => (
-                        <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 text-center font-mono font-bold text-slate-500">
-                            {task.sl_no ?? idx + 1}
-                          </td>
-                          <td className="p-3 font-bold text-slate-900 max-w-xs">{task.title}</td>
-                          <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
-                          <td className="p-3 font-bold text-sky-700">
-                            {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
-                          </td>
-                          <td className="p-3">
-                            <button
-                              onClick={handleDirectExcelLaunch}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                              title="Click to open Excel inspection checklist in Microsoft Excel Desktop"
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                              <span className="truncate max-w-[140px]">Excel</span>
-                            </button>
-                          </td>
-                          <td className="p-3 font-medium text-slate-700">{task.auditor_name ?? task.assigned_to_employee_number}</td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 rounded-full bg-slate-200 overflow-hidden">
-                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${task.progress_pct ?? 60}%` }} />
-                              </div>
-                              <span className="font-bold text-slate-700">{task.progress_pct ?? 60}%</span>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <StatusBadge status={task.status} />
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                              <Button
-                                asChild
-                                size="sm"
-                                className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs"
-                                title={`Import & open audit inspection form for ${task.audit_code}`}
-                              >
-                                <Link to="/audit/$auditId" params={{ auditId: task.id }}>
-                                  <Upload className="h-3.5 w-3.5" /> Import
-                                </Link>
-                              </Button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadRowAuditTemplate(task)}
-                                className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-emerald-400 hover:text-emerald-600 shadow-2xs transition-colors"
-                                title={`Export Excel data for ${task.audit_code}`}
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleMoveToNoProduction(task)}
-                                className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors whitespace-nowrap"
-                                title="Move audit to No Production (Zero Output / Line Stopped)"
-                              >
-                                Move to No Production
-                              </button>
-
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteAuditRecord(task.id)}
-                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-rose-400 hover:text-rose-600 transition-colors shadow-2xs cursor-pointer"
-                                  title="Delete Record (Admin Only)"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {ongoingTasks.filter(filterByPlanSubView).length === 0 && (
-                        <tr>
-                          <td colSpan={9} className="p-6 text-center text-xs font-semibold text-slate-400 italic">
-                            No ongoing audits currently in progress for {selectedCategory}.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* ── VIEW 3: UNDER REVIEW AUDIT TABLE (WITH UNDER REVIEW ICON & ADMIN E-SIGN ACTION) ── */}
-              {selectedStatusView === "Under Review" && (
+              {/* ── VIEW 3: UNDER REVIEW AUDIT TABLE (ONGOING & UNDER REVIEW WORKFLOW FOR USER & ADMIN) ── */}
+              {(selectedStatusView === "Under Review" || (selectedStatusView as any) === "Ongoing") && (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-200 text-slate-900 font-black uppercase tracking-wider border-b border-slate-300">
@@ -2000,16 +1883,16 @@ export function DashboardPage() {
                         <th className="p-3 min-w-[180px] font-black text-slate-900">PART NAME</th>
                         <th className="p-3 w-28 font-black text-slate-900">AUDIT PLAN</th>
                         <th className="p-3 w-32 font-black text-slate-900">PLANNED MONTH</th>
-                        <th className="p-3 w-40 font-black text-slate-900">ATTACHMENT</th>
                         <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
                         <th className="p-3 w-36 font-black text-slate-900">AUDITOR</th>
+                        <th className="p-3 font-black text-slate-900">PROGRESS</th>
                         <th className="p-3 w-36 font-black text-slate-900">STATUS</th>
                         <th className="p-3 min-w-[200px] font-black text-right text-slate-900">ACTION</th>
                         {isAdmin && <th className="p-3 text-center w-16 font-black text-slate-900">DELETE</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {underReviewTasks.filter(filterByPlanSubView).map((task, idx) => (
+                      {[...ongoingTasks, ...underReviewTasks].filter(filterByPlanSubView).map((task, idx) => (
                         <tr key={task.id} className="hover:bg-indigo-50/50 transition-colors">
                           <td className="p-3 text-center font-mono font-bold text-slate-500">
                             {task.sl_no ?? idx + 1}
@@ -2018,19 +1901,6 @@ export function DashboardPage() {
                           <td className="p-3 font-mono font-bold text-indigo-700">{task.audit_code}</td>
                           <td className="p-3 font-bold text-sky-700">
                             {`${MONTHS[(task.month || 1) - 1]} ${task.year || 2026}`}
-                          </td>
-                          <td className="p-3">
-                            <button
-                              type="button"
-                              onClick={handleDirectExcelLaunch}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                              title="Click to open Excel inspection report in Microsoft Excel Desktop"
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                              <span className="truncate max-w-[120px]">
-                                {task.attached_file_name || "Checklist.xlsx"}
-                              </span>
-                            </button>
                           </td>
                           <td className="p-3 text-center">
                             <button
@@ -2046,9 +1916,15 @@ export function DashboardPage() {
                             {task.auditor_name ?? task.assigned_to_employee_number}
                           </td>
                           <td className="p-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-300">
-                              <FileCheck2 className="h-3.5 w-3.5 text-indigo-700" /> Under Review
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-16 rounded-full bg-slate-200 overflow-hidden">
+                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${task.progress_pct ?? 75}%` }} />
+                              </div>
+                              <span className="font-bold text-slate-700">{task.progress_pct ?? 75}%</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <StatusBadge status={task.status === "In Progress" ? "In Progress" : "Under Review"} />
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
@@ -2270,7 +2146,6 @@ export function DashboardPage() {
                         <th className="p-3 font-black text-slate-900">PART NAME</th>
                         <th className="p-3 font-black text-slate-900">AUDIT PLAN</th>
                         <th className="p-3 font-black text-slate-900">PLANNED MONTH</th>
-                        <th className="p-3 font-black text-slate-900">ATTACHMENT</th>
                         <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
                         <th className="p-3 font-black text-slate-900">AUDITOR</th>
                         <th className="p-3 font-black text-slate-900">STATUS</th>
@@ -2296,19 +2171,6 @@ export function DashboardPage() {
                           </td>
                           <td className="p-3 font-bold text-sky-700">
                             {dev.due_date ?? dev.created_at ?? "SEP 2026"}
-                          </td>
-                          <td className="p-3">
-                            <button
-                              type="button"
-                              onClick={() => openDeviationInMSExcel(dev as any)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                              title="Click to open Excel deviation report in Microsoft Excel Desktop"
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                              <span className="truncate max-w-[130px]">
-                                {dev.page2_attachment_name || "QF/08/CQA-55.xlsx"}
-                              </span>
-                            </button>
                           </td>
                           <td className="p-3 text-center">
                             <button
@@ -2420,11 +2282,11 @@ export function DashboardPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleRestoreFromNoProduction(task)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs"
-                                  title="Restore audit plan to Planned status"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors shadow-2xs cursor-pointer"
+                                  title="Move No Production file to Audit File (Changes status to Planned)"
                                 >
                                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                  Restore to Plan
+                                  Move to Audit File
                                 </button>
                               </td>
                             </tr>
@@ -2568,18 +2430,81 @@ export function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700 mb-1">
-                    PART NUMBER
-                  </label>
-                  <input
-                    type="text"
-                    value={editingAudit.audit_code}
-                    onChange={(e) => setEditingAudit({ ...editingAudit, audit_code: e.target.value })}
-                    placeholder="REV-001"
-                    className="w-full rounded-xl border border-slate-300 p-2.5 font-mono font-bold text-indigo-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white shadow-2xs"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-extrabold uppercase text-[10px] tracking-wider text-slate-700">
+                      CUSTOMER NAME *
+                    </label>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setIsManagingCustomers(!isManagingCustomers)}
+                        className="text-[10px] font-bold text-sky-700 hover:underline cursor-pointer"
+                      >
+                        {isManagingCustomers ? "Done" : "Manage"}
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={editingAudit.customer_name || customerList[0]}
+                    onChange={(e) => setEditingAudit({ ...editingAudit, customer_name: e.target.value })}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white text-xs shadow-2xs cursor-pointer"
+                  >
+                    {customerList.map((cust) => (
+                      <option key={cust} value={cust}>
+                        {cust}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              {/* ADMIN CUSTOMER MANAGEMENT BOX */}
+              {isAdmin && isManagingCustomers && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-2">
+                  <span className="block font-bold text-[10px] uppercase text-sky-900">
+                    Admin Customer Management (Add / Remove Options)
+                  </span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCustomerInput}
+                      onChange={(e) => setNewCustomerInput(e.target.value)}
+                      placeholder="New Customer Name (e.g. TOYOTA INDIA)"
+                      className="flex-1 rounded-lg border border-slate-300 p-2 text-xs font-bold uppercase bg-white"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddCustomer}
+                      size="sm"
+                      className="bg-sky-600 text-white font-bold text-xs"
+                    >
+                      Add
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {customerList.map((cust) => (
+                      <span
+                        key={cust}
+                        className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200"
+                      >
+                        {cust}
+                        {customerList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomer(cust)}
+                            className="text-rose-500 hover:text-rose-700 ml-0.5 font-bold cursor-pointer"
+                            title="Remove Customer"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 2. PART NAME */}
               <div>

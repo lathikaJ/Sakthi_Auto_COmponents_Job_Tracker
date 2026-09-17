@@ -180,6 +180,30 @@ export function PlanModal({ existingPlan, onClose }: { existingPlan?: any; onClo
           </div>
 
           <div>
+            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Customer Name</label>
+            <select
+              {...register('customer_name' as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring font-bold"
+            >
+              <option value="GENERAL MOTORS">GENERAL MOTORS</option>
+              <option value="MARUTI SUZUKI INDIA LIMITED">MARUTI SUZUKI INDIA LIMITED</option>
+              <option value="ASHOK LEYLAND">ASHOK LEYLAND</option>
+              <option value="FIAT CHRYSLER AUTOMOBILES">FIAT CHRYSLER AUTOMOBILES</option>
+              <option value="FORD INDIA PRIVATE LIMITED">FORD INDIA PRIVATE LIMITED</option>
+              <option value="GENERAL MOTORS INDIA">GENERAL MOTORS INDIA</option>
+              <option value="HONDA SIEL CARS INDIA LIMITED">HONDA SIEL CARS INDIA LIMITED</option>
+              <option value="JTEKT INDIA LTD">JTEKT INDIA LTD</option>
+              <option value="MAHINDRA & MAHINDRA LTD">MAHINDRA & MAHINDRA LTD</option>
+              <option value="PEUGEOT CITROEN">PEUGEOT CITROEN</option>
+              <option value="RENAULT NISSAN">RENAULT NISSAN</option>
+              <option value="STELLANTIES">STELLANTIES</option>
+              <option value="UD TRUCKS">UD TRUCKS</option>
+              <option value="VOLKSWAGEN">VOLKSWAGEN</option>
+              <option value="VOLVO GROUP">VOLVO GROUP</option>
+            </select>
+          </div>
+
+          <div>
             <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Product / Process Name</label>
             <Input {...register('product_process_name', { required: true })} placeholder="e.g. Steering Knuckle Assembly" />
           </div>

@@ -194,21 +194,20 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, "Sheet1");
-  XLSX.utils.book_append_sheet(wb, ws2, "BACK PAGE ");
 
   return wb;
 }
 
 /**
- * Downloads the exact official Sakthi Auto QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx file
+ * Downloads the exact official Sakthi Auto QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx file (Original User Deviation Report)
  */
 export function downloadDeviationExcelWorkbook(data?: Partial<DeviationItem>): void {
   try {
     const wb = generateDeviationExcelWorkbook(data);
     const fileName = `QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx`;
     XLSX.writeFile(wb, fileName);
-    toast.success("Downloaded Excel Format!", {
-      description: `Saved ${fileName} (Sheet1: QF/08/CQA-55 & BACK PAGE: RCA CAPA)`,
+    toast.success("Downloaded Deviation Report!", {
+      description: `Saved ${fileName} (Original User Deviation Report)`,
     });
   } catch (err) {
     console.error("Download Excel Error:", err);

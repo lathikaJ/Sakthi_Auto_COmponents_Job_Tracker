@@ -20,7 +20,7 @@ export function SakthiLogo({
       />
       {showTagline && (
         <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-          Value Added Engineering & Audits
+          MACHINE SHOP - AUDITS
         </span>
       )}
     </div>

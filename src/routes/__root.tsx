@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sakthi Auto — Value Added Engineering & Audits Platform" },
+      { title: "Sakthi Auto — MACHINE SHOP - AUDITS Platform" },
       {
         name: "description",
         content:
-          "Sakthi Auto Value Added Engineering & Audits platform for planning, executing and reviewing plant audits.",
+          "Sakthi Auto MACHINE SHOP - AUDITS platform for planning, executing and reviewing plant audits.",
       },
       { name: "author", content: "Sakthi Auto" },
-      { property: "og:title", content: "Sakthi Auto — Value Added Engineering & Audits Platform" },
+      { property: "og:title", content: "Sakthi Auto — MACHINE SHOP - AUDITS Platform" },
       {
         property: "og:description",
         content:

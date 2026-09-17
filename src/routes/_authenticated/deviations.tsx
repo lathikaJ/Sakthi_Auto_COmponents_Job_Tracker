@@ -1483,17 +1483,6 @@ function DeviationsPage() {
                             <FileSpreadsheet className="h-3.5 w-3.5" /> Review Excel
                           </button>
 
-                          {/* View Official Report */}
-                          {!dev.is_draft && (
-                            <button
-                              type="button"
-                              onClick={() => setViewReportDev(dev)}
-                              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-extrabold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
-                              title="View Official QF/08/CQA-55 Deviation Report"
-                            >
-                              <FileText className="h-3 w-3 text-amber-600" /> View Report
-                            </button>
-                          )}
 
                           {/* Resume Draft Button */}
                           {(dev.is_draft || dev.status === "open") && (
