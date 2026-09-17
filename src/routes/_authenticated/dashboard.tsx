@@ -531,28 +531,18 @@ export function DashboardPage() {
         "Attachment File": task.attached_file_name || "None",
         "Status": task.status,
       }));
-    } else if (selectedStatusView === "Ongoing") {
-      exportData = ongoingTasks.filter(filterByPlanSubView).map((task, idx) => ({
-        "SL. NO.": task.sl_no ?? (idx + 1),
-        "Audit ID": task.audit_code,
-        "Audit Category": selectedCategory,
-        "Product / Part Number": task.title,
-        "Planned Month": MONTHS[task.month - 1] ?? `Month ${task.month}`,
-        "Start Date & Time": task.start_date_time ?? `${task.due_date} 09:00 AM`,
-        "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
-        "Attachment File": task.attached_file_name || "None",
-        "Progress %": `${task.progress_pct ?? 60}%`,
-        "Status": task.status,
-      }));
-    } else if (selectedStatusView === "Under Review") {
-      exportData = underReviewTasks.filter(filterByPlanSubView).map((task, idx) => ({
+    } else if (selectedStatusView === "Ongoing" || selectedStatusView === "Under Review") {
+      const allUnderReview = [...ongoingTasks, ...underReviewTasks];
+      exportData = allUnderReview.filter(filterByPlanSubView).map((task, idx) => ({
         "SL. NO.": task.sl_no ?? (idx + 1),
         "Audit ID": task.audit_code,
         "Audit Category": selectedCategory,
         "Product / Part Name": task.title,
+        "Customer Name": task.customer_name || "GENERAL MOTORS",
         "Auditor": task.auditor_name ?? task.assigned_to_employee_number,
         "Submission Date": task.due_date,
-        "Status": "Under Review",
+        "Progress %": `${task.progress_pct ?? 75}%`,
+        "Status": task.status === "In Progress" ? "In Progress" : "Under Review",
       }));
     } else if (selectedStatusView === "Audit Completed") {
       exportData = completedTasks.filter(filterByPlanSubView).map((task, idx) => ({
