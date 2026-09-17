@@ -1681,13 +1681,13 @@ export function DashboardPage() {
                     </button>
                   )}
 
-                  {/* EXPORT EXCEL BUTTON (ADMIN ACROSS ALL 6 AUDITS, OR REGULAR USER IN ONGOING AUDIT) */}
-                  {(isAdmin || selectedStatusView === "Ongoing") && (
+                  {/* EXPORT EXCEL BUTTON (ADMIN ACROSS ALL AUDITS, OR REGULAR USER IN UNDER REVIEW) */}
+                  {(isAdmin || selectedStatusView === "Under Review" || (selectedStatusView as any) === "Ongoing") && (
                     <button
                       type="button"
                       onClick={handleTriggerExportModal}
-                      className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2"
-                      title="Select Excel sheet document alone or export records"
+                      className="flex items-center gap-1.5 rounded-lg border border-emerald-500 bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-colors shadow-2xs mr-2 cursor-pointer"
+                      title="Export Excel records / Select Excel sheet document"
                     >
                       <Download className="h-4 w-4" /> Export Excel
                     </button>
