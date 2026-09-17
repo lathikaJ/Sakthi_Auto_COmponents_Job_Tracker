@@ -34,7 +34,7 @@ import { formatDistanceToNow } from "date-fns";
 export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
   const [submittedList, setSubmittedList] = useState<SubmittedAuditItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("Under Review");
   const [selectedJobForReview, setSelectedJobForReview] = useState<SubmittedAuditItem | null>(null);
 
   const loadAudits = () => {
@@ -144,7 +144,8 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       }
     }
 
-    toast.success(`Audit ${item.audit_code} approved & moved to Completed Audit! Deviation record remains archived in Deviations.`);
+    loadAudits();
+    toast.success(`Audit ${item.audit_code} approved & moved to Completed Audit! Click "Completed" tab to view.`);
   };
 
   const handleMoveToDeviation = (item: SubmittedAuditItem) => {
@@ -237,7 +238,8 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       }
     }
 
-    toast.warning(`Deviation recorded for Audit ${item.audit_code}. Audit moved to Deviations!`);
+    loadAudits();
+    toast.warning(`Deviation recorded for Audit ${item.audit_code}. Audit moved to Deviations! Click "Deviation" tab to view.`);
   };
 
   const filtered = submittedList.filter((item) => {
@@ -301,9 +303,17 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
         </button>
       </div>
 
-      {/* KPI Highlight Grid */}
+      {/* KPI Highlight Grid (Clickable Filter Cards) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("Under Review")}
+          className={`rounded-xl border text-left p-4 transition-all cursor-pointer ${
+            statusFilter === "Under Review"
+              ? "border-indigo-500 bg-indigo-100/70 shadow-xs ring-1 ring-indigo-500"
+              : "border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/40"
+          }`}
+        >
           <div className="flex items-center justify-between text-indigo-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
               Under Review
@@ -313,9 +323,17 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           <p className="mt-2 text-2xl font-black text-indigo-900 tabular-nums">
             {underReviewCount} Jobs
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("Completed")}
+          className={`rounded-xl border text-left p-4 transition-all cursor-pointer ${
+            statusFilter === "Completed"
+              ? "border-emerald-500 bg-emerald-100/70 shadow-xs ring-1 ring-emerald-500"
+              : "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/40"
+          }`}
+        >
           <div className="flex items-center justify-between text-emerald-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
               Audit Completed
@@ -325,9 +343,17 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           <p className="mt-2 text-2xl font-black text-emerald-900 tabular-nums">
             {completedCount} Jobs
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("Deviation")}
+          className={`rounded-xl border text-left p-4 transition-all cursor-pointer ${
+            statusFilter === "Deviation"
+              ? "border-rose-500 bg-rose-100/70 shadow-xs ring-1 ring-rose-500"
+              : "border-rose-200 bg-rose-50/50 hover:bg-rose-100/40"
+          }`}
+        >
           <div className="flex items-center justify-between text-rose-700">
             <span className="text-xs font-semibold uppercase tracking-wider">
               Deviations
@@ -337,8 +363,9 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
           <p className="mt-2 text-2xl font-black text-rose-900 tabular-nums">
             {deviationCount} Jobs
           </p>
-        </div>
+        </button>
       </div>
+
 
       {/* Filter & Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
