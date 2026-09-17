@@ -1659,17 +1659,6 @@ export function DashboardPage() {
                     </>
                   )}
 
-                  {/* DOWNLOAD TEMPLATE BUTTON (FOR REGULAR USER IN AUDIT PLAN SECTION) */}
-                  {!isAdmin && selectedStatusView === "Audit Plan" && (
-                    <button
-                      type="button"
-                      onClick={handleDownloadExcelTemplate}
-                      className="flex items-center gap-1.5 rounded-lg border border-sky-400 bg-sky-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-sky-700 transition-colors shadow-2xs mr-2"
-                      title="Download blank Audit Plan Excel template (.xlsx) to prepare audit records"
-                    >
-                      <Download className="h-4 w-4" /> Download Template
-                    </button>
-                  )}
 
                   {/* EXPORT EXCEL BUTTON (ADMIN ACROSS ALL AUDITS, OR REGULAR USER IN UNDER REVIEW) */}
                   {(isAdmin || selectedStatusView === "Under Review" || (selectedStatusView as any) === "Ongoing") && (
@@ -1794,14 +1783,6 @@ export function DashboardPage() {
                                   </Link>
                                 </Button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDownloadRowAuditTemplate(task)}
-                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:border-sky-400 hover:text-sky-600 shadow-2xs transition-colors"
-                                  title={`Download Excel checklist template for ${task.audit_code}`}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                </button>
 
                                 <button
                                   type="button"
