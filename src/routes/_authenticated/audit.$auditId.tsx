@@ -589,7 +589,7 @@ function AuditFormPage() {
     // Record submitted audit metadata for admin review or direct completion
     const now = new Date();
     const formattedDate = format(now, "dd MMM yyyy, hh:mm a");
-    const targetStatus = isAdmin ? "Completed" : "Under Review";
+    const targetStatus = "Under Review";
     const todayStr = now.toISOString().split("T")[0];
 
     recordSubmittedAudit({

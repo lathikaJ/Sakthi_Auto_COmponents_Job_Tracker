@@ -2693,7 +2693,7 @@ export function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const targetStatus = isAdmin ? "Completed" : "Under Review";
+                          const targetStatus = "Under Review";
                           handleSaveAuditRecord({
                             ...editingAudit,
                             status: targetStatus,
