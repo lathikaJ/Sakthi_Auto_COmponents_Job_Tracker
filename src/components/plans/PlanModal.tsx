@@ -51,6 +51,24 @@ export function PlanModal({ existingPlan, onClose }: { existingPlan?: any; onClo
     mutationFn: async (data: PlanFormValues) => {
       const year = Number(data.year);
       const month = Number(data.month);
+      const title = (data.product_process_name || 'Audit Plan').trim();
+
+      // Check duplicate within same month
+      if (!isEdit && typeof window !== 'undefined') {
+        const stored = localStorage.getItem('sakthi_excel_tasks_v8');
+        const existingTasks = stored ? JSON.parse(stored) : [];
+        const isDuplicate = existingTasks.some((t: any) => {
+          const nameMatches =
+            (t.title && String(t.title).trim().toUpperCase() === title.toUpperCase()) ||
+            (t.audit_code && String(t.audit_code).trim().toUpperCase() === title.toUpperCase());
+          return nameMatches && Number(t.month || 1) === month && Number(t.year || new Date().getFullYear()) === year;
+        });
+
+        if (isDuplicate) {
+          throw new Error(`Plan for '${title}' is already scheduled for Month ${month}/${year}! Duplicate plan in the same month is restricted.`);
+        }
+      }
+
       const plannedDate = data.planned_date || `${year}-${String(month).padStart(2, '0')}-01`;
       
       const payload = {

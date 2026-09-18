@@ -1131,6 +1131,27 @@ export function DashboardPage() {
   const handleSaveAuditRecord = async (updated: Assignment) => {
     const rawTitle = updated.title?.trim() || updated.attached_file_name?.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Audit Plan Document";
     const rawCode = updated.audit_code?.trim() || `REV-${String(rawTaskRows.length + 1).padStart(3, "0")}`;
+    const targetMonth = Number(updated.month || selectedMonth || 1);
+    const targetYear = Number(updated.year || new Date().getFullYear());
+
+    // Duplicate Plan Restriction: Prevent repeating the same Part Number / Audit Code within the same month
+    if (isAddPlanModalOpen) {
+      const isDuplicate = rawTaskRows.some((t: any) => {
+        if (t.id && updated.id && String(t.id).toUpperCase() === String(updated.id).toUpperCase()) return false;
+        const codeMatches =
+          (t.audit_code && String(t.audit_code).trim().toUpperCase() === rawCode.toUpperCase()) ||
+          (t.title && String(t.title).trim().toUpperCase() === rawTitle.toUpperCase());
+        const monthMatches = Number(t.month || 1) === targetMonth;
+        const yearMatches = Number(t.year || new Date().getFullYear()) === targetYear;
+        return codeMatches && monthMatches && yearMatches;
+      });
+
+      if (isDuplicate) {
+        toast.error(`Part Number / Audit Code [${rawCode}] is already planned for Month ${targetMonth}/${targetYear}! Duplicate plan in the same month is restricted.`);
+        return;
+      }
+    }
+
     const finalRecord: Assignment = {
       ...updated,
       title: rawTitle,
@@ -1827,16 +1848,31 @@ export function DashboardPage() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs"
-                                  title={`Import & open audit inspection form for ${task.audit_code}`}
-                                >
-                                  <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                {!isAdmin ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      handleDownloadRowAuditTemplate(task);
+                                      toast.info(`Downloading template for [${task.audit_code}] & navigating to Deviation Report...`);
+                                      navigate({ to: "/deviations" });
+                                    }}
+                                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs cursor-pointer"
+                                    title={`Download checklist template & open Deviation Report for ${task.audit_code}`}
+                                  >
                                     <Upload className="h-3.5 w-3.5" /> Import
-                                  </Link>
-                                </Button>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs"
+                                    title={`Import & open audit inspection form for ${task.audit_code}`}
+                                  >
+                                    <Link to="/audit/$auditId" params={{ auditId: task.id }}>
+                                      <Upload className="h-3.5 w-3.5" /> Import
+                                    </Link>
+                                  </Button>
+                                )}
 
 
                                 <button
