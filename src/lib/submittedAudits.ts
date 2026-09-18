@@ -136,11 +136,17 @@ export function updateSubmittedAuditStatus(
   adminNotes?: string,
   extraFields?: Partial<SubmittedAuditItem>
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !idOrCode) return;
   try {
+    const cleanId = String(idOrCode).trim();
     const existing = getSubmittedAudits();
-    const updated = existing.map((item) => {
-      if (item.id === idOrCode || item.audit_code === idOrCode || item.audit_code.toLowerCase() === idOrCode.toLowerCase()) {
+    let foundInSubmitted = false;
+
+    const updatedSubmitted = existing.map((item) => {
+      const matchId = item.id && String(item.id).trim().toUpperCase() === cleanId.toUpperCase();
+      const matchCode = item.audit_code && String(item.audit_code).trim().toUpperCase() === cleanId.toUpperCase();
+      if (matchId || matchCode) {
+        foundInSubmitted = true;
         return {
           ...item,
           status,
@@ -150,8 +156,65 @@ export function updateSubmittedAuditStatus(
       }
       return item;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    const extra: any = extraFields || {};
+    if (!foundInSubmitted) {
+      updatedSubmitted.unshift({
+        id: cleanId.startsWith("aud-") ? cleanId : `sub-${Date.now()}`,
+        audit_code: cleanId,
+        title: extra.title || `Audit Assignment [${cleanId}]`,
+        audit_type: extra.audit_type || "Product",
+        area: extra.area || "Machine Shop Line 1",
+        month: extra.month || new Date().getMonth() + 1,
+        year: extra.year || new Date().getFullYear(),
+        due_date: extra.due_date || new Date().toISOString().split("T")[0],
+        assigned_to_employee_number: extra.assigned_to_employee_number || "688079",
+        auditor_name: extra.auditor_name || "SILAMBARASAN S",
+        status,
+        admin_notes: adminNotes,
+        ...extra,
+      } as any);
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmitted));
+
+    // Also update sakthi_excel_tasks_v8 storage for UI task list consistency
+    const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
+    let tasks: any[] = storedTasks ? JSON.parse(storedTasks) : [];
+    let taskFound = false;
+
+    tasks = tasks.map((t: any) => {
+      const matchId = t.id && String(t.id).trim().toUpperCase() === cleanId.toUpperCase();
+      const matchCode = t.audit_code && String(t.audit_code).trim().toUpperCase() === cleanId.toUpperCase();
+      if (matchId || matchCode) {
+        taskFound = true;
+        return {
+          ...t,
+          status,
+          ...(status === "Completed" ? { completion_date: new Date().toISOString().split("T")[0], final_result: "PASS / COMPLIANT" } : {}),
+          ...(status === "Deviation" ? { final_result: "DEVIATION IDENTIFIED" } : {}),
+        };
+      }
+      return t;
+    });
+
+    if (!taskFound) {
+      tasks.unshift({
+        id: cleanId,
+        audit_code: cleanId,
+        title: extra.title || cleanId,
+        status,
+        month: extra.month || 1,
+        year: extra.year || new Date().getFullYear(),
+        ...(status === "Completed" ? { completion_date: new Date().toISOString().split("T")[0], final_result: "PASS / COMPLIANT" } : {}),
+        ...(status === "Deviation" ? { final_result: "DEVIATION IDENTIFIED" } : {}),
+      });
+    }
+
+    localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(tasks));
+
     window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
+    window.dispatchEvent(new Event("excel_tasks_updated"));
   } catch (err) {
     console.error("Failed to update submitted audit status", err);
   }

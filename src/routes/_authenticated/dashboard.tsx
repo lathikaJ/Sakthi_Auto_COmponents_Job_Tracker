@@ -53,7 +53,7 @@ import {
   mergeAndDeduplicateTasks,
   addDeletedAuditIdentifier,
 } from "@/lib/audit";
-import { updateSubmittedAuditStatus, deleteSubmittedAudit } from "@/lib/submittedAudits";
+import { updateSubmittedAuditStatus, deleteSubmittedAudit, getSubmittedAudits } from "@/lib/submittedAudits";
 import { authenticateAndGetSignature } from "@/lib/electronicSignatures";
 import { openDeviationInMSExcel, downloadDeviationExcelWorkbook } from "@/lib/deviationExcel";
 
@@ -366,11 +366,10 @@ export function DashboardPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [localExcelTasks, setLocalExcelTasks] = useState<Assignment[]>([]);
+  const [localSubmittedAudits, setLocalSubmittedAudits] = useState<any[]>([]);
   const [localDeviations, setLocalDeviations] = useState<Deviation[]>([]);
   const [localLowProd, setLocalLowProd] = useState<LowProductionRecord[]>(DEFAULT_LOW_PRODUCTION_DATA);
   const [documentsMap, setDocumentsMap] = useState<Record<string, AuditDocument[]>>({});
-
-
 
   useEffect(() => {
     const loadStored = () => {
@@ -386,6 +385,13 @@ export function DashboardPage() {
           } catch {
             // Ignore
           }
+        }
+
+        try {
+          const subs = getSubmittedAudits();
+          setLocalSubmittedAudits(subs || []);
+        } catch {
+          // Ignore
         }
 
         const storedDevs = localStorage.getItem("sakthi_deviations");
@@ -430,7 +436,22 @@ export function DashboardPage() {
   // DB is source of truth when available; localStorage is fallback only.
   // DO NOT merge both — that causes duplicates (the "insert 10 times" bug).
   const rawTaskRows: Assignment[] = useMemo(() => {
+    const submittedFormatted = (localSubmittedAudits || []).map((s) => ({
+      id: s.id,
+      audit_code: s.audit_code,
+      title: s.title || s.attached_file_name || `Audit [${s.audit_code}]`,
+      audit_type: s.audit_type || "Product",
+      area: s.area || "Machine Shop Line 1",
+      month: s.month || 1,
+      year: s.year || new Date().getFullYear(),
+      due_date: s.due_date || new Date().toISOString().split("T")[0],
+      assigned_to_employee_number: s.assigned_to_employee_number || "688079",
+      auditor_name: s.auditor_name || "SILAMBARASAN S",
+      status: s.status,
+    }));
+
     const base = [
+      ...submittedFormatted,
       ...localExcelTasks,
       ...dbRows,
       ...DEFAULT_OFFICIAL_AUDITS,
@@ -446,7 +467,7 @@ export function DashboardPage() {
         auditor_name: auditorName,
       };
     });
-  }, [dbRows, localExcelTasks]);
+  }, [dbRows, localExcelTasks, localSubmittedAudits]);
 
 
   const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
