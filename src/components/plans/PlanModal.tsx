@@ -238,7 +238,19 @@ export function PlanModal({ existingPlan, onClose }: { existingPlan?: any; onClo
             </div>
             <div>
               <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Responsible Emp ID</label>
-              <Input {...register('responsible_employee_id', { required: true })} placeholder="e.g. 688079" />
+              <select
+                {...register('responsible_employee_id', { required: true })}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-bold shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="688079">688079 - SILAMBARASAN S</option>
+                <option value="663875">663875 - VENKADESH D</option>
+                <option value="710250">710250 - MOUNIKASRI A</option>
+                <option value="666468">666468 - KAVIN KUMAR K</option>
+                <option value="665773">665773 - KARTHEEBAN K</option>
+                <option value="665965">665965 - DINESHKUMAR A B</option>
+                <option value="708818">708818 - SELVAKUMAR J</option>
+                <option value="667685">667685 - GEETHA S</option>
+              </select>
             </div>
           </div>
 

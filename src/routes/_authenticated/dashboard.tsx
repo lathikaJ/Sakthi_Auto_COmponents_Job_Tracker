@@ -1403,8 +1403,8 @@ export function DashboardPage() {
                   year: new Date().getFullYear(),
                   due_date: today,
                   status: "Planned",
-                  assigned_to_employee_number: profile?.employee_number ?? "688079",
-                  auditor_name: profile?.full_name ?? "Lead Auditor",
+                  assigned_to_employee_number: (profile?.employee_number && profile.employee_number !== "690867") ? profile.employee_number : "688079",
+                  auditor_name: (profile?.employee_number && profile.employee_number !== "690867") ? (profile.full_name ?? "SILAMBARASAN S") : "SILAMBARASAN S",
                   department: "Quality Assurance",
                   attached_file_name: "",
                   attached_file_url: "",
@@ -1719,8 +1719,8 @@ export function DashboardPage() {
                           year: new Date().getFullYear(),
                           due_date: today,
                           status: "Planned",
-                          assigned_to_employee_number: profile?.employee_number ?? "688079",
-                          auditor_name: profile?.full_name ?? "Lead Auditor",
+                          assigned_to_employee_number: (profile?.employee_number && profile.employee_number !== "690867") ? profile.employee_number : "688079",
+                          auditor_name: (profile?.employee_number && profile.employee_number !== "690867") ? (profile.full_name ?? "SILAMBARASAN S") : "SILAMBARASAN S",
                           department: "Quality Assurance",
                           attached_file_name: "",
                           attached_file_url: "",
@@ -2678,11 +2678,13 @@ export function DashboardPage() {
                   }}
                   className="w-full rounded-xl border border-slate-300 p-2.5 font-bold text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none bg-white text-xs shadow-2xs"
                 >
-                  {Object.entries(OFFICIAL_ROSTER).map(([empId, info]) => (
-                    <option key={empId} value={empId}>
-                      {empId} - {info.name}
-                    </option>
-                  ))}
+                  {Object.entries(OFFICIAL_ROSTER)
+                    .filter(([empId, info]) => empId !== "690867" && info.role !== "admin" && info.name !== "KARTHIKEYAN C")
+                    .map(([empId, info]) => (
+                      <option key={empId} value={empId}>
+                        {empId} - {info.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 

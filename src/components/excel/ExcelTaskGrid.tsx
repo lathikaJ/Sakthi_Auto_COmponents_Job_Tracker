@@ -66,7 +66,7 @@ interface ExcelTaskGridProps {
 
 const AUDIT_TYPES = ["Product", "Process", "Revalidation"];
 const STATUSES = ["Assigned", "In Progress", "Submitted", "Under Review", "Completed", "Deviation", "Overdue"];
-const EMPLOYEE_LIST = ["690867", "688079", "663875", "710250", "666468", "665773", "665965", "708818", "667685"];
+const EMPLOYEE_LIST = ["688079", "663875", "710250", "666468", "665773", "665965", "708818", "667685"];
 
 const MONTH_NAMES = [
   "Jan (1)", "Feb (2)", "Mar (3)", "Apr (4)", "May (5)", "Jun (6)",
