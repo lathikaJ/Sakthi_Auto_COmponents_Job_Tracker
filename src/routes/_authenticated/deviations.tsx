@@ -1475,6 +1475,19 @@ function DeviationsPage() {
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {/* View & Print 2-Page Official Report Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewReportDev(dev);
+                              setActiveReportTab("both");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-extrabold text-white hover:bg-indigo-700 transition-colors cursor-pointer shadow-2xs"
+                            title="View and print official 2-Page Deviation Report (QF/08/CQA-55 & RCA CAPA)"
+                          >
+                            <FileText className="h-3.5 w-3.5" /> View Form
+                          </button>
+
                           {/* Open in MS Excel Desktop Protocol Button */}
                           <button
                             type="button"
@@ -2190,9 +2203,9 @@ function DeviationsPage() {
 
         {/* MODAL: VIEW & PRINT OFFICIAL DEVIATION REPORT (IMAGE 1 & IMAGE 2 REPLICAS) */}
         {viewReportDev && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs overflow-y-auto">
-            <div className="w-full max-w-4xl my-8 rounded-2xl border border-slate-300 bg-white p-8 shadow-2xl space-y-6">
-              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static">
+            <div className="printable-deviation-report w-full max-w-4xl my-8 rounded-2xl border border-slate-300 bg-white p-8 shadow-2xl space-y-6 print:m-0 print:p-0 print:border-none print:shadow-none">
+              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 print:hidden">
                 <div>
                   <h2 className="text-2xl font-black tracking-tight text-slate-900">
                     OFFICIAL DEVIATION REPORT & CAPA DOCUMENT
@@ -2202,16 +2215,14 @@ function DeviationsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {isAdmin && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.print()}
-                      className="gap-1.5 text-xs font-bold border-slate-300 cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300"
-                    >
-                      <Printer className="h-4 w-4" /> Download / Print Form
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="gap-1.5 text-xs font-bold border-slate-300 cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300"
+                  >
+                    <Printer className="h-4 w-4" /> Download / Print Form
+                  </Button>
                   <button
                     onClick={() => setViewReportDev(null)}
                     className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
@@ -2557,21 +2568,19 @@ function DeviationsPage() {
               </div>
 
               {/* FOOTER */}
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-2 print:hidden">
                 <span className="text-[11px] font-bold text-slate-500">
                   Workflow Status: <span className="uppercase text-purple-800 font-black">{viewReportDev.status.replace("_", " ")}</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  {isAdmin && (
-                    <Button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="gap-1.5 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
-                      title="Download or print this official 2-Page Deviation Report (Admin only)"
-                    >
-                      <Download className="h-4 w-4" /> Download Form (PDF / Print)
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="gap-1.5 bg-emerald-600 font-bold text-white hover:bg-emerald-700 shadow-sm text-xs cursor-pointer"
+                    title="Download or print this official 2-Page Deviation Report"
+                  >
+                    <Download className="h-4 w-4" /> Download Form (PDF / Print)
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

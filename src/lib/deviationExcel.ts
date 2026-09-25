@@ -55,7 +55,7 @@ export const DEFAULT_EXCEL_CAPA_ITEMS: DeviationCapaItem[] = [
  * Sheet 1: Page 1 - Deviation Report (QF/08/CQA-55)
  * Sheet 2: Page 2 - RCA, CAPA & Quarantine Details
  */
-export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): XLSX.WorkBook {
+export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem> & { title?: string; location?: string; part_no?: string; product_part_number?: string }): XLSX.WorkBook {
   let todayStr = "10.09.2026";
   try {
     todayStr = format(new Date(), "dd.MM.yyyy");
@@ -65,13 +65,13 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
   const fromDept = data?.from_dept || "QUALITY ASSURANCE / LINE 1";
   const toDept = data?.to_dept || "PRODUCTION & MANUFACTURING";
   const partName = data?.part_name || "STEERING KNUCKLE";
-  const partNumber = data?.part_number || "45110-M86R00";
+  const partNumber = data?.part_number || data?.part_no || data?.product_part_number || "45110-M86R00";
   const stage = data?.stage || "INPROCESS";
-  const devTitle = data?.description || "Steering Knuckle Bore Oversize Non-Conformance";
+  const devTitle = data?.description || data?.title || "Steering Knuckle Bore Oversize Non-Conformance";
   const cc = data?.cc || "PLANT HEAD, QA MANAGER, PRODUCTION INCHARGE";
   const docCode = data?.doc_code || "QF/08/CQA-55";
   const docDate = data?.doc_date || "25.12.2015";
-  const inspectedBy = data?.inspected_by || "SILAMBARASAN S (688079)";
+  const inspectedBy = data?.inspected_by || data?.segregated_by || "SILAMBARASAN S (688079)";
   const approvedBy = data?.approved_by || "KARTHIKEYAN C (690867)";
 
   const observations = (data?.observations && data.observations.length > 0)
@@ -80,13 +80,22 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 
   const capaItems = (data?.capa_items && data.capa_items.length > 0)
     ? data.capa_items
-    : DEFAULT_EXCEL_CAPA_ITEMS;
+    : [
+        {
+          date: reportDate,
+          part_name: partName,
+          part_no: partNumber,
+          non_conformance: data?.observed_condition || data?.description || devTitle || "Bore Oversize (+0.01 ~ 0.02mm) observed in sample #5 & #6",
+          root_cause: data?.root_cause || (data as any)?.page2_root_cause || "Insert tip wear out during long run machining & coolant jet misaligned",
+          corrective_action: data?.corrective_action || (data as any)?.page2_corrective_action || "Replaced tool insert, realigned coolant jet nozzle, and 100% re-inspected lot.",
+        }
+      ];
 
   const segQty = data?.quarantine_segregated_qty || data?.segregated_qty || "100";
   const okQty = data?.quarantine_ok_qty || data?.ok_qty || "95";
   const notOkQty = data?.quarantine_not_ok_qty || data?.ng_qty || "5";
   const segBy = data?.quarantine_segregated_by || data?.segregated_by || inspectedBy;
-  const quarantineApprovedBy = data?.quarantine_approved_by || approvedBy;
+  const quarantineApprovedBy = data?.quarantine_approved_by || data?.approved_by || approvedBy;
 
   // ---------------------------------------------------------
   // SHEET 1: PAGE 1 DEVIATION REPORT (QF/08/CQA-55)
@@ -193,7 +202,8 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws1, "Sheet1");
+  XLSX.utils.book_append_sheet(wb, ws1, "Page 1 - Deviation Report");
+  XLSX.utils.book_append_sheet(wb, ws2, "Page 2 - RCA & CAPA");
 
   return wb;
 }
@@ -201,13 +211,14 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem>): X
 /**
  * Downloads the exact official Sakthi Auto QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx file (Original User Deviation Report)
  */
-export function downloadDeviationExcelWorkbook(data?: Partial<DeviationItem>): void {
+export function downloadDeviationExcelWorkbook(data?: Partial<DeviationItem> & { title?: string; location?: string; part_no?: string; product_part_number?: string }): void {
   try {
     const wb = generateDeviationExcelWorkbook(data);
-    const fileName = `QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION.xlsx`;
+    const devCode = data?.dev_code || data?.audit_id || "RECORD";
+    const fileName = `QF 08 CQA - 55 DEVIATION FORMAT FOR DIMENSION - ${devCode}.xlsx`;
     XLSX.writeFile(wb, fileName);
     toast.success("Downloaded Deviation Report!", {
-      description: `Saved ${fileName} (Original User Deviation Report)`,
+      description: `Saved ${fileName} with Page 1 (QF/08/CQA-55) and Page 2 (RCA & CAPA)`,
     });
   } catch (err) {
     console.error("Download Excel Error:", err);

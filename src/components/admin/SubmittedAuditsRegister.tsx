@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/app/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { downloadDeviationExcelWorkbook } from "@/lib/deviationExcel";
 
 export function SubmittedAuditsRegister() {
   const { isAdmin } = useAuth();
@@ -254,21 +255,44 @@ export function SubmittedAuditsRegister() {
                       <button
                         type="button"
                         onClick={() => {
-                          const dataToExport = [{
-                            "Audit Code": item.audit_code,
-                            "Part No": item.part_no,
-                            "Part Name": item.part_name,
-                            "Employee Name": item.employee_name,
-                            "Employee ID": item.employee_number,
-                            "Department": item.department,
-                            "Submitted Date & Time": item.formatted_submitted_date,
-                            "Status": item.status,
-                          }];
-                          const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-                          const workbook = XLSX.utils.book_new();
-                          XLSX.utils.book_append_sheet(workbook, worksheet, "Submitted Audit");
-                          XLSX.writeFile(workbook, `${item.audit_code}_${item.part_no}_Report.xlsx`);
-                          toast.success(`Downloaded submitted report for ${item.audit_code}!`);
+                          if (item.status === "Deviation" || item.status === "Page 1 Approved" || item.status === "Page 2 Submitted") {
+                            // Fetch stored deviation object if available for complete filled fields
+                            let matchedDev = null;
+                            if (typeof window !== "undefined") {
+                              const rawDevs = localStorage.getItem("sakthi_deviations");
+                              if (rawDevs) {
+                                try {
+                                  const devs = JSON.parse(rawDevs);
+                                  matchedDev = devs.find((d: any) => d.audit_id === item.audit_code || d.id === item.deviation_id || d.dev_code === item.audit_code);
+                                } catch {}
+                              }
+                            }
+                            downloadDeviationExcelWorkbook(matchedDev || {
+                              audit_id: item.audit_code,
+                              part_name: item.part_name,
+                              part_number: item.part_no,
+                              inspected_by: item.employee_name,
+                              employee_number: item.employee_number,
+                              from_dept: item.department,
+                              created_at: item.submitted_date,
+                            });
+                          } else {
+                            const dataToExport = [{
+                              "Audit Code": item.audit_code,
+                              "Part No": item.part_no,
+                              "Part Name": item.part_name,
+                              "Employee Name": item.employee_name,
+                              "Employee ID": item.employee_number,
+                              "Department": item.department,
+                              "Submitted Date & Time": item.formatted_submitted_date,
+                              "Status": item.status,
+                            }];
+                            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                            const workbook = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(workbook, worksheet, "Submitted Audit");
+                            XLSX.writeFile(workbook, `${item.audit_code}_${item.part_no}_Report.xlsx`);
+                            toast.success(`Downloaded submitted report for ${item.audit_code}!`);
+                          }
                         }}
                         className="inline-flex items-center justify-center p-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
                         title="Download Excel submitted by employee to review"
