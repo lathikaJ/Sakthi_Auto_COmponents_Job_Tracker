@@ -2431,9 +2431,9 @@ export function DashboardPage() {
               {/* List of existing documents */}
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {(() => {
-                  const docList = (selectedDocAudit?.id && documentsMap[selectedDocAudit.id]?.length)
+                  const docList = ((selectedDocAudit?.id && documentsMap[selectedDocAudit.id]?.length)
                     ? documentsMap[selectedDocAudit.id]
-                    : (selectedDocAudit?.audit_code ? (documentsMap[selectedDocAudit.audit_code] ?? []) : []);
+                    : (selectedDocAudit?.audit_code ? documentsMap[selectedDocAudit.audit_code] : [])) || [];
                   if (docList.length === 0) {
                     return (
                       <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
