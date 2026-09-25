@@ -984,15 +984,18 @@ export function DashboardPage() {
     }
     const targetItem = rawTaskRows.find((t) => t.id === id || (t.audit_code === id && t.id));
     const targetId = targetItem?.id || id;
+    const targetCode = targetItem?.audit_code || (id.startsWith("AUD-") || id.startsWith("REV-") ? id : undefined);
 
-    // Register only the specific unique instance ID as deleted
-    addDeletedAuditIdentifier(targetId);
+    // Register both specific instance ID and audit_code as deleted
+    addDeletedAuditIdentifier(targetId, targetCode);
 
-    const updated = rawTaskRows.filter((t) => t.id !== targetId);
+    const updated = rawTaskRows.filter(
+      (t) => t.id !== targetId && t.audit_code !== targetId && t.id !== id && (t.audit_code !== targetCode || !targetCode)
+    );
     setLocalExcelTasks(updated);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(updated));
-      deleteSubmittedAudit(targetId);
+      deleteSubmittedAudit(targetId, targetCode);
       window.dispatchEvent(new Event("excel_tasks_updated"));
       window.dispatchEvent(new Event("sakthi_deleted_audits_updated"));
     }
@@ -1000,6 +1003,9 @@ export function DashboardPage() {
     try {
       if (targetId) {
         await supabase.from("audit_assignments").delete().eq("id", targetId);
+      }
+      if (targetCode && targetCode !== targetId) {
+        await supabase.from("audit_assignments").delete().eq("audit_code", targetCode);
       }
       assignmentsQuery.refetch();
     } catch (err) {
