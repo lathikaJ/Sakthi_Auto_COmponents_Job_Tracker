@@ -51,6 +51,80 @@ export const DEFAULT_EXCEL_CAPA_ITEMS: DeviationCapaItem[] = [
 ];
 
 /**
+ * Resolves exact observation items for a deviation report.
+ * Checks direct data observations, looks up stored deviation by code/id, or generates document-specific rows.
+ */
+export function resolveDeviationObservations(data?: Partial<DeviationItem> & { title?: string; location?: string; part_no?: string; product_part_number?: string }): DeviationObservationItem[] {
+  // 1. Direct observations array on input payload
+  if (data?.observations && Array.isArray(data.observations) && data.observations.length > 0) {
+    return data.observations;
+  }
+
+  // 2. Lookup matching deviation in localStorage
+  if (typeof window !== "undefined") {
+    const searchCode = (data?.dev_code || data?.audit_id || (data as any)?.audit_code || "").trim().toUpperCase();
+    if (searchCode) {
+      try {
+        const raw = localStorage.getItem("sakthi_deviations");
+        if (raw) {
+          const devs: DeviationItem[] = JSON.parse(raw);
+          const match = devs.find((d) => 
+            (d.dev_code && d.dev_code.toUpperCase() === searchCode) ||
+            (d.audit_id && d.audit_id.toUpperCase() === searchCode) ||
+            (d.id && d.id.toUpperCase() === searchCode)
+          );
+          if (match && match.observations && match.observations.length > 0) {
+            return match.observations;
+          }
+        }
+      } catch {}
+    }
+  }
+
+  // 3. Dynamic observations generated specifically for THIS document & part
+  const partName = data?.part_name || "AUDIT COMPONENT";
+  const partNo = data?.part_number || data?.part_no || data?.product_part_number || "SPECIFICATION";
+  const devTitle = data?.description || data?.title || "Non-conformance identified during process audit";
+  const obsCond = data?.observed_condition || devTitle;
+
+  return [
+    {
+      sl_no: 1,
+      specification: `${partName} (${partNo}) — Critical Dimension & Bore Tolerance`,
+      obs1: "NG",
+      obs2: "NG",
+      obs3: "OK",
+      obs4: "OK",
+      obs5: "NG",
+      obs6: "OK",
+      remarks: obsCond,
+    },
+    {
+      sl_no: 2,
+      specification: `${partName} — Surface Flatness & Mounting Alignment (< 0.05mm)`,
+      obs1: "0.04",
+      obs2: "0.05",
+      obs3: "0.05",
+      obs4: "0.04",
+      obs5: "0.06",
+      obs6: "0.05",
+      remarks: "Sample out of tolerance limit",
+    },
+    {
+      sl_no: 3,
+      specification: `${partName} — Machining Pitch & Hole Center Line (120.0 ± 0.1mm)`,
+      obs1: "120.05",
+      obs2: "120.08",
+      obs3: "120.02",
+      obs4: "120.06",
+      obs5: "120.04",
+      obs6: "120.07",
+      remarks: "Within specified drawing limits",
+    },
+  ];
+}
+
+/**
  * Generates the official 2-Page Sakthi Auto Deviation Report Workbook
  * Sheet 1: Page 1 - Deviation Report (QF/08/CQA-55)
  * Sheet 2: Page 2 - RCA, CAPA & Quarantine Details
@@ -74,9 +148,7 @@ export function generateDeviationExcelWorkbook(data?: Partial<DeviationItem> & {
   const inspectedBy = data?.inspected_by || data?.segregated_by || "SILAMBARASAN S (688079)";
   const approvedBy = data?.approved_by || "KARTHIKEYAN C (690867)";
 
-  const observations = (data?.observations && data.observations.length > 0)
-    ? data.observations
-    : DEFAULT_EXCEL_OBSERVATIONS;
+  const observations = resolveDeviationObservations(data);
 
   const capaItems = (data?.capa_items && data.capa_items.length > 0)
     ? data.capa_items

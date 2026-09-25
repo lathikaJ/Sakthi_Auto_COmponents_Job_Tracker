@@ -1296,12 +1296,20 @@ export function DashboardPage() {
       url: docFileUrlInput,
     };
     const updatedMap = { ...documentsMap };
-    const docArr = updatedMap[selectedDocAudit.id] ?? [];
-    docArr.push(newDoc);
-    updatedMap[selectedDocAudit.id] = docArr;
+    const docArr1 = updatedMap[selectedDocAudit.id] ?? [];
+    docArr1.push(newDoc);
+    updatedMap[selectedDocAudit.id] = docArr1;
+    if (selectedDocAudit.audit_code) {
+      const docArr2 = updatedMap[selectedDocAudit.audit_code] ?? [];
+      if (!docArr2.some((d) => d.id === newDoc.id)) {
+        docArr2.push(newDoc);
+      }
+      updatedMap[selectedDocAudit.audit_code] = docArr2;
+    }
     setDocumentsMap(updatedMap);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_audit_docs", JSON.stringify(updatedMap));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
     }
     setDocNameInput("");
     setDocFileUrlInput("");
@@ -1314,11 +1322,13 @@ export function DashboardPage() {
       return;
     }
     const updatedMap = { ...documentsMap };
-    const docArr = (updatedMap[auditId] ?? []).filter((d) => d.id !== docId);
-    updatedMap[auditId] = docArr;
+    Object.keys(updatedMap).forEach((key) => {
+      updatedMap[key] = (updatedMap[key] ?? []).filter((d) => d.id !== docId);
+    });
     setDocumentsMap(updatedMap);
     if (typeof window !== "undefined") {
       localStorage.setItem("sakthi_audit_docs", JSON.stringify(updatedMap));
+      window.dispatchEvent(new Event("excel_tasks_updated"));
     }
     toast.info("Attached document file removed by Admin.");
   };
@@ -2420,12 +2430,18 @@ export function DashboardPage() {
 
               {/* List of existing documents */}
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {(documentsMap[selectedDocAudit.id] ?? []).length === 0 ? (
+                {((documentsMap[selectedDocAudit.id] && documentsMap[selectedDocAudit.id].length > 0)
+                  ? documentsMap[selectedDocAudit.id]
+                  : (documentsMap[selectedDocAudit.audit_code] ?? [])
+                ).length === 0 ? (
                   <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
                     No documents attached to this audit plan yet.
                   </p>
                 ) : (
-                  (documentsMap[selectedDocAudit.id] ?? []).map((doc) => (
+                  ((documentsMap[selectedDocAudit.id] && documentsMap[selectedDocAudit.id].length > 0)
+                    ? documentsMap[selectedDocAudit.id]
+                    : (documentsMap[selectedDocAudit.audit_code] ?? [])
+                  ).map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-200 text-xs">
                       <div>
                         <p className="font-bold text-slate-800">{doc.document_name}</p>
