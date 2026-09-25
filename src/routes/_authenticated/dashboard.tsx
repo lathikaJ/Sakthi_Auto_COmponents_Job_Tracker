@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -473,10 +473,40 @@ export function DashboardPage() {
   const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
   const currentEmpName = profile?.full_name?.toLowerCase().trim();
 
+  const isAssignedToUser = useCallback(
+    (r: Assignment) => {
+      if (isAdmin) return true; // Admin sees all tasks across all employees
+      if (!currentEmpNumber && !currentEmpName) return true;
+
+      const assignedEmpNum = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
+      
+      const empMatch = Boolean(
+        currentEmpNumber && (
+          assignedEmpNum === currentEmpNumber || 
+          String(r.assigned_to_employee_number || "").trim() === currentEmpNumber
+        )
+      );
+      
+      const auditorNameLower = (r.auditor_name || "").toLowerCase().trim();
+      const nameMatch = Boolean(
+        currentEmpName && (
+          auditorNameLower.includes(currentEmpName) || 
+          currentEmpName.includes(auditorNameLower) ||
+          (OFFICIAL_ROSTER[currentEmpNumber] && auditorNameLower.includes(OFFICIAL_ROSTER[currentEmpNumber].name.toLowerCase()))
+        )
+      );
+
+      const importedMatch = Boolean(currentEmpNumber && r.imported_by && String(r.imported_by).trim() === currentEmpNumber);
+
+      return empMatch || nameMatch || importedMatch;
+    },
+    [isAdmin, currentEmpNumber, currentEmpName]
+  );
+
   const allTaskRows = useMemo(() => {
-    // Show all plant master audit tasks across all categories for all users (Admin & Employees)
-    return rawTaskRows;
-  }, [rawTaskRows]);
+    if (isAdmin) return rawTaskRows;
+    return rawTaskRows.filter(isAssignedToUser);
+  }, [rawTaskRows, isAdmin, isAssignedToUser]);
 
   const allDeviations: Deviation[] = localDeviations.length > 0 ? localDeviations : dbDevs;
 
@@ -504,16 +534,8 @@ export function DashboardPage() {
   }, [categoryTasks]);
 
   const ongoingTasks = useMemo(() => {
-    const list = categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Assigned");
-    if (isAdmin) return list;
-    if (!currentEmpNumber && !currentEmpName) return list;
-    return list.filter((r) => {
-      const assignedEmp = resolveEmployeeNumber(r.assigned_to_employee_number || r.auditor_name);
-      const empMatch = currentEmpNumber && (assignedEmp === currentEmpNumber || String(r.assigned_to_employee_number || "").trim() === currentEmpNumber);
-      const nameMatch = currentEmpName && r.auditor_name && r.auditor_name.toLowerCase().includes(currentEmpName);
-      return Boolean(empMatch || nameMatch);
-    });
-  }, [categoryTasks, isAdmin, currentEmpNumber, currentEmpName]);
+    return categoryTasks.filter((r) => r.status === "In Progress" || r.status === "Ongoing" || r.status === "Assigned");
+  }, [categoryTasks]);
 
   const noProductionTasks = useMemo(() => {
     return categoryTasks.filter((r) => r.status === "No Production");

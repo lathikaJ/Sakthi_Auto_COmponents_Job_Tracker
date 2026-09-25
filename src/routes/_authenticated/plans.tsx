@@ -1,11 +1,11 @@
-// src/routes/_authenticated/plans.tsx
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app/AppShell";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlanModal } from "@/components/plans/PlanModal";
+import { useAuth } from "@/hooks/useAuth";
 
 import { addDeletedAuditIdentifier } from "@/lib/audit";
 
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_authenticated/plans")({
 });
 
 function PlansPage() {
+  const { isAdmin, profile } = useAuth();
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [localTasks, setLocalTasks] = useState<any[]>([]);
@@ -50,13 +51,29 @@ function PlansPage() {
     },
   });
 
-  const combinedPlans = [...dbPlans, ...localTasks.filter((t: any) => t.year === year || !t.year)].reduce((acc: any[], current: any) => {
-    const key = current.id || `${current.audit_code}_M${current.month || 1}`;
-    if (!acc.some((item) => (item.id || `${item.audit_code}_M${item.month || 1}`) === key)) {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
+  const currentEmpNumber = profile?.employee_number ? String(profile.employee_number).trim() : "";
+  const currentEmpName = profile?.full_name?.toLowerCase().trim();
+
+  const combinedPlans = useMemo(() => {
+    const all = [...dbPlans, ...localTasks.filter((t: any) => t.year === year || !t.year)].reduce((acc: any[], current: any) => {
+      const key = current.id || `${current.audit_code}_M${current.month || 1}`;
+      if (!acc.some((item) => (item.id || `${item.audit_code}_M${item.month || 1}`) === key)) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    if (isAdmin) return all;
+    if (!currentEmpNumber && !currentEmpName) return all;
+
+    return all.filter((plan: any) => {
+      const respEmp = String(plan.responsible_employee_id || plan.assigned_to_employee_number || "").trim();
+      const empMatch = currentEmpNumber && (respEmp === currentEmpNumber || respEmp.includes(currentEmpNumber));
+      const auditorNameLower = String(plan.auditor_name || plan.responsible_person || "").toLowerCase();
+      const nameMatch = currentEmpName && (auditorNameLower.includes(currentEmpName) || currentEmpName.includes(auditorNameLower));
+      return empMatch || nameMatch;
+    });
+  }, [dbPlans, localTasks, year, isAdmin, currentEmpNumber, currentEmpName]);
 
   const deleteMutation = useMutation({
     mutationFn: async (planId: string) => {
