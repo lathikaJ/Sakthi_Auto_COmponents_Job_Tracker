@@ -549,7 +549,12 @@ export function DashboardPage() {
     const combined = [...ongoingTasks, ...underReviewTasks];
     const map = new Map<string, any>();
     combined.forEach((t) => {
-      const key = t.id || t.audit_code;
+      const key = (t.audit_code && typeof t.audit_code === "string" && t.audit_code.trim())
+        ? t.audit_code.trim().toUpperCase()
+        : (t.title && typeof t.title === "string" && t.title.trim())
+        ? `${t.title.trim().toUpperCase()}_M${t.month || 1}`
+        : t.id ? t.id.trim().toUpperCase() : `TASK_${Math.random()}`;
+
       if (!map.has(key)) {
         map.set(key, t);
       } else {

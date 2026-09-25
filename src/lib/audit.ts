@@ -620,11 +620,11 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
     if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
       return task.audit_code.trim().toUpperCase();
     }
-    if (task.id && typeof task.id === "string" && task.id.trim()) {
-      return task.id.trim().toUpperCase();
-    }
     if (task.title && typeof task.title === "string" && task.title.trim()) {
       return `${task.title.trim().toUpperCase()}_M${task.month || 1}`;
+    }
+    if (task.id && typeof task.id === "string" && task.id.trim()) {
+      return task.id.trim().toUpperCase();
     }
     return `TASK_${Math.random().toString(36).substring(2, 9)}`;
   };

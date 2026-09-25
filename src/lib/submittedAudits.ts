@@ -108,7 +108,42 @@ export function getSubmittedAudits(): SubmittedAuditItem[] {
       const parsed = JSON.parse(raw);
       items = Array.isArray(parsed) ? parsed : INITIAL_SUBMITTED_AUDITS;
     }
-    return items.filter((item) => !isAuditDeleted(item.id, item.audit_code));
+
+    const filtered = items.filter((item) => !isAuditDeleted(item.id, item.audit_code));
+
+    // Deduplicate items strictly by audit_code / part_name / id to avoid 2x-3x duplication bug
+    const map = new Map<string, SubmittedAuditItem>();
+    filtered.forEach((item) => {
+      const key = (item.audit_code && item.audit_code.trim())
+        ? item.audit_code.trim().toUpperCase()
+        : (item.part_name && item.part_name.trim())
+        ? item.part_name.trim().toUpperCase()
+        : item.id ? item.id.trim().toUpperCase() : `SUB_${Math.random()}`;
+
+      if (!map.has(key)) {
+        map.set(key, item);
+      } else {
+        const existing = map.get(key)!;
+        // Keep item with more recent submission date or active Under Review / Submitted status
+        if (
+          item.status === "Submitted" ||
+          item.status === "Under Review" ||
+          item.status === "Deviation" ||
+          item.status === "Completed"
+        ) {
+          map.set(key, { ...existing, ...item });
+        }
+      }
+    });
+
+    const deduplicated = Array.from(map.values());
+
+    // Auto-heal local storage if duplicates were removed
+    if (deduplicated.length !== filtered.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deduplicated));
+    }
+
+    return deduplicated;
   } catch {
     return INITIAL_SUBMITTED_AUDITS.filter((item) => !isAuditDeleted(item.id, item.audit_code));
   }
@@ -122,7 +157,14 @@ export function recordSubmittedAudit(item: Omit<SubmittedAuditItem, "id">) {
       ...item,
       id: `sub-${Date.now()}`,
     };
-    const updated = [newRecord, ...existing.filter((e) => e.audit_code !== item.audit_code)];
+    const updated = [
+      newRecord,
+      ...existing.filter(
+        (e) =>
+          (e.audit_code && item.audit_code && e.audit_code.trim().toUpperCase() !== item.audit_code.trim().toUpperCase()) &&
+          (e.part_name && item.part_name && e.part_name.trim().toUpperCase() !== item.part_name.trim().toUpperCase())
+      ),
+    ];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
   } catch (err) {
