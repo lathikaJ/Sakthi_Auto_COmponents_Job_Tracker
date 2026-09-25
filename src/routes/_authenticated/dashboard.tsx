@@ -1882,7 +1882,7 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {categoryTasks
+                      {planTasks
                         .filter(filterByPlanSubView)
                         .filter((r) => {
                           if (!searchQuery) return true;
@@ -1976,7 +1976,7 @@ export function DashboardPage() {
                             </td>
                           </tr>
                         ))}
-                      {categoryTasks
+                      {planTasks
                         .filter(filterByPlanSubView)
                         .filter((r) => {
                           if (!searchQuery) return true;
