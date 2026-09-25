@@ -2430,18 +2430,18 @@ export function DashboardPage() {
 
               {/* List of existing documents */}
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {((documentsMap[selectedDocAudit.id] && documentsMap[selectedDocAudit.id].length > 0)
-                  ? documentsMap[selectedDocAudit.id]
-                  : (documentsMap[selectedDocAudit.audit_code] ?? [])
-                ).length === 0 ? (
-                  <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
-                    No documents attached to this audit plan yet.
-                  </p>
-                ) : (
-                  ((documentsMap[selectedDocAudit.id] && documentsMap[selectedDocAudit.id].length > 0)
+                {(() => {
+                  const docList = (selectedDocAudit?.id && documentsMap[selectedDocAudit.id]?.length)
                     ? documentsMap[selectedDocAudit.id]
-                    : (documentsMap[selectedDocAudit.audit_code] ?? [])
-                  ).map((doc) => (
+                    : (selectedDocAudit?.audit_code ? (documentsMap[selectedDocAudit.audit_code] ?? []) : []);
+                  if (docList.length === 0) {
+                    return (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
+                        No documents attached to this audit plan yet.
+                      </p>
+                    );
+                  }
+                  return docList.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-200 text-xs">
                       <div>
                         <p className="font-bold text-slate-800">{doc.document_name}</p>
@@ -2465,8 +2465,8 @@ export function DashboardPage() {
                         )}
                       </div>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
 
               {/* Admin Add/Upload Form */}
