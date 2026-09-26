@@ -1648,7 +1648,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <Calendar className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Audit Plan" ? "bg-white text-sky-800" : "bg-sky-100 text-sky-800"}`}>
-                      {planTasks.length}
+                      {planTasks.filter(filterByPlanSubView).length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Audit Plan</p>
@@ -1667,7 +1667,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <FileCheck2 className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Under Review" ? "bg-white text-indigo-800" : "bg-indigo-100 text-indigo-800"}`}>
-                      {underReviewCombinedTasks.length}
+                      {underReviewCombinedTasks.filter(filterByPlanSubView).length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Under Review</p>
@@ -1686,7 +1686,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <CheckCircle2 className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "Audit Completed" ? "bg-white text-emerald-800" : "bg-emerald-100 text-emerald-800"}`}>
-                      {completedTasks.length}
+                      {completedTasks.filter(filterByPlanSubView).length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">Audit Completed</p>
@@ -1724,7 +1724,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <TrendingDown className="h-4 w-4" />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-black ${selectedStatusView === "No Production" ? "bg-white text-purple-800" : "bg-purple-100 text-purple-800"}`}>
-                      {categoryLowProd.length + noProductionTasks.length}
+                      {categoryLowProd.length + noProductionTasks.filter(filterByPlanSubView).length}
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-black uppercase">No Production</p>

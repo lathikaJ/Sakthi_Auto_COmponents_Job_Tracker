@@ -60,12 +60,13 @@ export function PlanModal({ existingPlan, onClose }: { existingPlan?: any; onClo
         const isDuplicate = existingTasks.some((t: any) => {
           const nameMatches =
             (t.title && String(t.title).trim().toUpperCase() === title.toUpperCase()) ||
-            (t.audit_code && String(t.audit_code).trim().toUpperCase() === title.toUpperCase());
+            (t.audit_code && String(t.audit_code).trim().toUpperCase() === title.toUpperCase()) ||
+            (t.part_no && String(t.part_no).trim().toUpperCase() === title.toUpperCase());
           return nameMatches && Number(t.month || 1) === month && Number(t.year || new Date().getFullYear()) === year;
         });
 
         if (isDuplicate) {
-          throw new Error(`Plan for '${title}' is already scheduled for Month ${month}/${year}! Duplicate plan in the same month is restricted.`);
+          throw new Error(`Part Number / Audit Plan '${title}' is already assigned for Month ${month}/${year}! Duplicate plan in the same month is restricted.`);
         }
       }
 
@@ -237,7 +238,7 @@ export function PlanModal({ existingPlan, onClose }: { existingPlan?: any; onClo
               <Input type="date" {...register('planned_date', { required: true })} />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Responsible Emp ID</label>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Assign Auditor / Employee ID</label>
               <select
                 {...register('responsible_employee_id', { required: true })}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-bold shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app/AppShell";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
@@ -49,6 +50,41 @@ function AuditsPage() {
   const { filter } = Route.useSearch();
   const { isAdmin, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = Route.useNavigate();
+
+  const handleDownloadRowAuditTemplate = (task: any) => {
+    if (task.attached_file_url) {
+      const a = document.createElement("a");
+      a.href = task.attached_file_url;
+      a.download = task.attached_file_name || `${task.audit_code}_Checklist.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success(`Downloading attachment: ${task.attached_file_name || `${task.audit_code}_Checklist.xlsx`}`);
+      return;
+    }
+
+    const exportData = [
+      {
+        "SL. NO.": task.sl_no || 1,
+        "Audit Code / ID": task.audit_code,
+        "Product / Part Name": task.title,
+        "Audit Type": task.audit_type || "Product",
+        "Department / Area": task.area || "Machine Shop Line 1",
+        "Planned Date": task.due_date,
+        "Auditor": task.auditor_name || task.assigned_to_employee_number,
+        "Status": task.status || "Planned",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inspection_Checklist");
+    const safeTitle = (task.title || "Audit").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const fileName = `${task.audit_code}_${safeTitle}_Checklist.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success(`Downloaded Excel Checklist: ${fileName}`);
+  };
 
   const { data = [] } = useQuery({
     queryKey: ["assignments"],
@@ -296,6 +332,7 @@ function AuditsPage() {
               <th className="px-4 py-3">Auditor</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -322,11 +359,25 @@ function AuditsPage() {
                 <td className="px-4 py-3">
                   <StatusBadge status={r.status} />
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      handleDownloadRowAuditTemplate(r);
+                      toast.info(`Downloading file for [${r.audit_code}] & navigating to Deviation Report...`);
+                      navigate({ to: "/deviations" });
+                    }}
+                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs gap-1.5 shadow-2xs cursor-pointer"
+                    title={`Download audit file & open Deviation Report for ${r.audit_code}`}
+                  >
+                    <Upload className="h-3.5 w-3.5" /> Import
+                  </Button>
+                </td>
               </tr>
             ))}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                   No audits match this filter.
                 </td>
               </tr>

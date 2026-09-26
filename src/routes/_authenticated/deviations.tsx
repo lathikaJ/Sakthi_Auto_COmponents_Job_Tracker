@@ -1389,7 +1389,6 @@ function DeviationsPage() {
                   <th className="p-3 min-w-[180px] font-black text-slate-900">PART NAME</th>
                   <th className="p-3 w-28 font-black text-slate-900">AUDIT PLAN</th>
                   <th className="p-3 w-32 font-black text-slate-900">PLANNED MONTH</th>
-                  {isAdmin && <th className="p-3 w-40 font-black text-slate-900">ATTACHMENT</th>}
                   <th className="p-3 text-center w-24 font-black text-slate-900">DOWNLOAD</th>
                   <th className="p-3 w-36 font-black text-slate-900">AUDITOR</th>
                   <th className="p-3 w-36 font-black text-slate-900">STATUS</th>
@@ -1416,21 +1415,6 @@ function DeviationsPage() {
                       <td className="p-3 font-bold text-sky-700">
                         {dev.report_date || dev.created_at || "SEP 2026"}
                       </td>
-                      {isAdmin && (
-                        <td className="p-3">
-                          <button
-                            type="button"
-                            onClick={() => openDeviationInMSExcel(dev)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                            title="Click to open Excel deviation report in Microsoft Excel Desktop"
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span className="truncate max-w-[120px]">
-                              {dev.page2_attachment_name || "QF/08/CQA-55.xlsx"}
-                            </span>
-                          </button>
-                        </td>
-                      )}
                       <td className="p-3 text-center">
                         <button
                           type="button"
@@ -2102,32 +2086,7 @@ function DeviationsPage() {
                     </div>
                   </div>
 
-                  {/* FILE ATTACHMENT (Admin Only) */}
-                  {isAdmin && (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-center space-y-1">
-                      <input type="file" ref={page2FileInputRef} onChange={handlePage2FileUpload} className="hidden" />
-                      <div className="flex items-center justify-center gap-2">
-                        <Upload className="h-4 w-4 text-sky-600" />
-                        <span className="font-bold text-slate-800 text-xs">
-                          Attach Supporting 8D / RCA Document (Optional)
-                        </span>
-                      </div>
-                      {formData.page2_attachment_name ? (
-                        <div className="text-xs font-bold text-emerald-700 bg-emerald-50 py-0.5 px-3 rounded-full inline-block border border-emerald-300">
-                          Attached: {formData.page2_attachment_name}
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => page2FileInputRef.current?.click()}
-                          className="h-6 text-[11px] font-bold border-slate-300 cursor-pointer"
-                        >
-                          Choose File to Upload
-                        </Button>
-                      )}
-                    </div>
-                  )}
+
 
                   {/* Submit Page 2 Bar */}
                   <div className="border-t border-slate-300 pt-3 flex items-center justify-between flex-wrap gap-2">
