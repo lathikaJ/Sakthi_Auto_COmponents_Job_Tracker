@@ -642,7 +642,7 @@ function AuditFormPage() {
 
     // Sync to Supabase DB
     const cleanAuditCode = auditId.startsWith("AUD") ? auditId : `AUD-${auditId}`;
-    supabase.from("audit_assignments").update({ status: targetStatus as any }).eq("audit_code", cleanAuditCode).then(({ error }) => {
+    supabase.from("audit_assignments").update({ status: targetStatus as any }).or(`id.eq.${auditId},audit_code.eq.${cleanAuditCode}`).then(({ error }) => {
       if (error) console.warn("Supabase assignment status update notice:", error);
     });
 

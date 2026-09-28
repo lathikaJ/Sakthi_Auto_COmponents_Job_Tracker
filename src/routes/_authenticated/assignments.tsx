@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 import { DEFAULT_OFFICIAL_AUDITS, mergeAndDeduplicateTasks } from "@/lib/audit";
+import { getSubmittedAudits } from "@/lib/submittedAudits";
 
 export const Route = createFileRoute("/_authenticated/assignments")({
   ssr: false,
@@ -31,6 +32,7 @@ function AssignmentsPage() {
   const dbRows = assignments.data ?? [];
 
   const [localExcelTasks, setLocalExcelTasks] = useState<any[]>([]);
+  const [localSubmittedAudits, setLocalSubmittedAudits] = useState<any[]>([]);
 
   useEffect(() => {
     const loadStored = () => {
@@ -47,17 +49,40 @@ function AssignmentsPage() {
             // Ignore
           }
         }
+        try {
+          const subs = getSubmittedAudits();
+          setLocalSubmittedAudits(subs || []);
+        } catch {}
       }
     };
     loadStored();
     window.addEventListener("excel_tasks_updated", loadStored);
-    return () => window.removeEventListener("excel_tasks_updated", loadStored);
+    window.addEventListener("sakthi_submitted_audits_updated", loadStored);
+    return () => {
+      window.removeEventListener("excel_tasks_updated", loadStored);
+      window.removeEventListener("sakthi_submitted_audits_updated", loadStored);
+    };
   }, []);
 
+  const submittedFormatted = (localSubmittedAudits || []).map((s: any) => ({
+    id: s.id,
+    audit_code: s.audit_code,
+    title: s.title || s.part_name || s.attached_file_name || `Audit [${s.audit_code}]`,
+    audit_type: s.audit_type || "Product",
+    area: s.area || "Machine Shop Line 1",
+    month: s.month || 1,
+    year: s.year || new Date().getFullYear(),
+    due_date: s.due_date || new Date().toISOString().split("T")[0],
+    assigned_to_employee_number: s.assigned_to_employee_number || "688079",
+    auditor_name: s.auditor_name || "SILAMBARASAN S",
+    status: s.status,
+  }));
+
   const initialRows = mergeAndDeduplicateTasks([
-    ...DEFAULT_OFFICIAL_AUDITS,
+    ...submittedFormatted,
     ...localExcelTasks,
     ...dbRows,
+    ...DEFAULT_OFFICIAL_AUDITS,
   ]);
 
   return (

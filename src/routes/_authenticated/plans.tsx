@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PlanModal } from "@/components/plans/PlanModal";
 import { useAuth } from "@/hooks/useAuth";
 
-import { addDeletedAuditIdentifier } from "@/lib/audit";
+import { addDeletedAuditIdentifier, mergeAndDeduplicateTasks } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/plans")({
   ssr: false,
@@ -55,13 +55,7 @@ function PlansPage() {
   const currentEmpName = profile?.full_name?.toLowerCase().trim();
 
   const combinedPlans = useMemo(() => {
-    const all = [...dbPlans, ...localTasks.filter((t: any) => t.year === year || !t.year)].reduce((acc: any[], current: any) => {
-      const key = current.id || `${current.audit_code}_M${current.month || 1}`;
-      if (!acc.some((item) => (item.id || `${item.audit_code}_M${item.month || 1}`) === key)) {
-        acc.push(current);
-      }
-      return acc;
-    }, []);
+    const all = mergeAndDeduplicateTasks([...dbPlans, ...localTasks.filter((t: any) => t.year === year || !t.year)]);
 
     if (isAdmin) return all;
     if (!currentEmpNumber && !currentEmpName) return all;

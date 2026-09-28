@@ -112,7 +112,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       }
 
       // Sync to Supabase DB
-      supabase.from("audit_assignments").update({ status: "Completed" as any }).eq("audit_code", item.audit_code).then(({ error }) => {
+      supabase.from("audit_assignments").update({ status: "Completed" as any }).or(`id.eq.${item.id},audit_code.eq.${item.audit_code}`).then(({ error }) => {
         if (error) console.warn("Supabase status update error:", error);
       });
 
