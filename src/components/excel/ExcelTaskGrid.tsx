@@ -273,9 +273,8 @@ export function ExcelTaskGrid({
   const handleDeleteRow = (id: string) => {
     const target = rows.find((r) => r.id === id);
     if (target) {
-      addDeletedAuditIdentifier(target.id, target.audit_code);
+      addDeletedAuditIdentifier(target.id);
       if (target.id) void supabase.from("audit_assignments").delete().eq("id", target.id);
-      if (target.audit_code) void supabase.from("audit_assignments").delete().eq("audit_code", target.audit_code);
     }
     setRows((prev) => prev.filter((r) => r.id !== id));
     setHasChanges(true);

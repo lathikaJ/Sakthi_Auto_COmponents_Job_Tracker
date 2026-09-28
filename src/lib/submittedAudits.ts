@@ -109,16 +109,12 @@ export function getSubmittedAudits(): SubmittedAuditItem[] {
       items = Array.isArray(parsed) ? parsed : INITIAL_SUBMITTED_AUDITS;
     }
 
-    const filtered = items.filter((item) => !isAuditDeleted(item.id, item.audit_code));
+    const filtered = items.filter((item) => !isAuditDeleted(item.id));
 
-    // Deduplicate items strictly by audit_code / part_name / id to avoid 2x-3x duplication bug
+    // Deduplicate items strictly by id / audit_code to avoid 2x-3x duplication bug
     const map = new Map<string, SubmittedAuditItem>();
     filtered.forEach((item) => {
-      const key = (item.audit_code && item.audit_code.trim())
-        ? item.audit_code.trim().toUpperCase()
-        : (item.part_name && item.part_name.trim())
-        ? item.part_name.trim().toUpperCase()
-        : item.id ? item.id.trim().toUpperCase() : `SUB_${Math.random()}`;
+      const key = item.id ? item.id.trim().toUpperCase() : (item.audit_code && item.audit_code.trim()) ? item.audit_code.trim().toUpperCase() : `SUB_${Math.random()}`;
 
       if (!map.has(key)) {
         map.set(key, item);
@@ -145,24 +141,44 @@ export function getSubmittedAudits(): SubmittedAuditItem[] {
 
     return deduplicated;
   } catch {
-    return INITIAL_SUBMITTED_AUDITS.filter((item) => !isAuditDeleted(item.id, item.audit_code));
+    return INITIAL_SUBMITTED_AUDITS.filter((item) => !isAuditDeleted(item.id));
   }
 }
 
-export function recordSubmittedAudit(item: Omit<SubmittedAuditItem, "id">) {
+export function recordSubmittedAudit(item: Partial<SubmittedAuditItem> & { audit_code: string }) {
   if (typeof window === "undefined") return;
   try {
     const existing = getSubmittedAudits();
+    const recordId = item.id || (item.audit_code.toLowerCase().startsWith("aud-") || item.audit_code.toLowerCase().startsWith("sub-") ? item.audit_code : `sub-${Date.now()}`);
     const newRecord: SubmittedAuditItem = {
-      ...item,
-      id: `sub-${Date.now()}`,
+      id: recordId,
+      audit_code: item.audit_code,
+      part_no: item.part_no || item.audit_code,
+      part_name: item.part_name || `Audit ${item.audit_code}`,
+      employee_name: item.employee_name || "SILAMBARASAN S",
+      employee_number: item.employee_number || "688079",
+      department: item.department || "Quality Assurance",
+      submitted_date: item.submitted_date || new Date().toISOString(),
+      formatted_submitted_date: item.formatted_submitted_date || new Date().toLocaleString(),
+      status: item.status || "Under Review",
+      checkpoints_count: item.checkpoints_count || 5,
+      failing_count: item.failing_count || 0,
+      ...(item.admin_notes ? { admin_notes: item.admin_notes } : {}),
+      ...(item.deviation_id ? { deviation_id: item.deviation_id } : {}),
+      ...(item.deviation_code ? { deviation_code: item.deviation_code } : {}),
+      ...(item.page1_approved !== undefined ? { page1_approved: item.page1_approved } : {}),
+      ...(item.page2_submitted !== undefined ? { page2_submitted: item.page2_submitted } : {}),
     };
+
+    const cleanCode = item.audit_code.trim().toUpperCase();
+    const cleanId = recordId.trim().toUpperCase();
+
     const updated = [
       newRecord,
       ...existing.filter(
         (e) =>
-          (e.audit_code && item.audit_code && e.audit_code.trim().toUpperCase() !== item.audit_code.trim().toUpperCase()) &&
-          (e.part_name && item.part_name && e.part_name.trim().toUpperCase() !== item.part_name.trim().toUpperCase())
+          e.id.trim().toUpperCase() !== cleanId &&
+          (!e.audit_code || e.audit_code.trim().toUpperCase() !== cleanCode)
       ),
     ];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -176,21 +192,47 @@ export function updateSubmittedAuditStatus(
   idOrCode: string,
   status: SubmittedAuditItem["status"],
   adminNotes?: string,
-  extraFields?: Partial<SubmittedAuditItem>
+  extraFields?: Partial<SubmittedAuditItem> & { title?: string }
 ) {
   if (typeof window === "undefined" || !idOrCode) return;
   try {
     const cleanId = String(idOrCode).trim();
+    const cleanUpper = cleanId.toUpperCase();
     const existing = getSubmittedAudits();
     let foundInSubmitted = false;
 
+    // Search sakthi_excel_tasks_v8 for authentic task metadata matching this ID/code
+    const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
+    let matchedTask: any = null;
+    let tasks: any[] = [];
+    if (storedTasks) {
+      try {
+        const parsed = JSON.parse(storedTasks);
+        if (Array.isArray(parsed)) {
+          tasks = parsed;
+          matchedTask = tasks.find(
+            (t: any) =>
+              (t.id && String(t.id).trim().toUpperCase() === cleanUpper) ||
+              (t.audit_code && String(t.audit_code).trim().toUpperCase() === cleanUpper)
+          );
+        }
+      } catch {}
+    }
+
+    const targetId = matchedTask?.id || cleanId;
+    const targetCode = extraFields?.audit_code || matchedTask?.audit_code || cleanId;
+    const targetTitle = extraFields?.part_name || extraFields?.title || matchedTask?.title || cleanId;
+
     const updatedSubmitted = existing.map((item) => {
-      const matchId = item.id && String(item.id).trim().toUpperCase() === cleanId.toUpperCase();
-      const matchCode = item.audit_code && String(item.audit_code).trim().toUpperCase() === cleanId.toUpperCase();
+      const matchId = item.id && String(item.id).trim().toUpperCase() === targetId.toUpperCase();
+      const matchCode = item.audit_code && String(item.audit_code).trim().toUpperCase() === targetCode.toUpperCase();
       if (matchId || matchCode) {
         foundInSubmitted = true;
         return {
           ...item,
+          id: targetId,
+          audit_code: targetCode,
+          part_name: targetTitle,
           status,
           ...(adminNotes ? { admin_notes: adminNotes } : {}),
           ...(extraFields || {}),
@@ -199,19 +241,18 @@ export function updateSubmittedAuditStatus(
       return item;
     });
 
-    const extra: any = extraFields || {};
     if (!foundInSubmitted) {
+      const extra: any = extraFields || {};
       updatedSubmitted.unshift({
-        id: cleanId.startsWith("aud-") ? cleanId : `sub-${Date.now()}`,
-        audit_code: cleanId,
-        title: extra.title || `Audit Assignment [${cleanId}]`,
-        audit_type: extra.audit_type || "Product",
-        area: extra.area || "Machine Shop Line 1",
-        month: extra.month || new Date().getMonth() + 1,
-        year: extra.year || new Date().getFullYear(),
-        due_date: extra.due_date || new Date().toISOString().split("T")[0],
-        assigned_to_employee_number: extra.assigned_to_employee_number || "688079",
-        auditor_name: extra.auditor_name || "SILAMBARASAN S",
+        id: targetId,
+        audit_code: targetCode,
+        part_no: extra.part_no || targetCode,
+        part_name: targetTitle,
+        employee_name: extra.employee_name || matchedTask?.auditor_name || "SILAMBARASAN S",
+        employee_number: extra.employee_number || extra.assigned_to_employee_number || matchedTask?.assigned_to_employee_number || "688079",
+        department: extra.department || matchedTask?.area || "Quality Assurance",
+        submitted_date: extra.submitted_date || new Date().toISOString(),
+        formatted_submitted_date: extra.formatted_submitted_date || new Date().toLocaleString(),
         status,
         admin_notes: adminNotes,
         ...extra,
@@ -220,19 +261,17 @@ export function updateSubmittedAuditStatus(
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSubmitted));
 
-    // Also update sakthi_excel_tasks_v8 storage for UI task list consistency
-    const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
-    let tasks: any[] = storedTasks ? JSON.parse(storedTasks) : [];
+    // Update sakthi_excel_tasks_v8 storage in place
     let taskFound = false;
-
     tasks = tasks.map((t: any) => {
-      const matchId = t.id && String(t.id).trim().toUpperCase() === cleanId.toUpperCase();
-      const matchCode = t.audit_code && String(t.audit_code).trim().toUpperCase() === cleanId.toUpperCase();
+      const matchId = t.id && String(t.id).trim().toUpperCase() === targetId.toUpperCase();
+      const matchCode = t.audit_code && String(t.audit_code).trim().toUpperCase() === targetCode.toUpperCase();
       if (matchId || matchCode) {
         taskFound = true;
         return {
           ...t,
           status,
+          ...(extraFields || {}),
           ...(status === "Completed" ? { completion_date: new Date().toISOString().split("T")[0], final_result: "PASS / COMPLIANT" } : {}),
           ...(status === "Deviation" ? { final_result: "DEVIATION IDENTIFIED" } : {}),
         };
@@ -241,13 +280,14 @@ export function updateSubmittedAuditStatus(
     });
 
     if (!taskFound) {
+      const extra: any = extraFields || {};
       tasks.unshift({
-        id: cleanId,
-        audit_code: cleanId,
-        title: extra.title || cleanId,
+        id: targetId,
+        audit_code: targetCode,
+        title: targetTitle,
         status,
-        month: extra.month || 1,
-        year: extra.year || new Date().getFullYear(),
+        month: extra.month || matchedTask?.month || 1,
+        year: extra.year || matchedTask?.year || new Date().getFullYear(),
         ...(status === "Completed" ? { completion_date: new Date().toISOString().split("T")[0], final_result: "PASS / COMPLIANT" } : {}),
         ...(status === "Deviation" ? { final_result: "DEVIATION IDENTIFIED" } : {}),
       });
@@ -262,14 +302,16 @@ export function updateSubmittedAuditStatus(
   }
 }
 
-export function deleteSubmittedAudit(idOrCode: string, auditCode?: string) {
-  if (typeof window === "undefined") return;
+export function deleteSubmittedAudit(id: string) {
+  if (typeof window === "undefined" || !id) return;
   try {
-    // 1. Mark unique ID as permanently deleted identifier
-    if (idOrCode) addDeletedAuditIdentifier(idOrCode);
-    if (auditCode) addDeletedAuditIdentifier(auditCode);
+    const cleanId = String(id).trim();
+    const cleanUpper = cleanId.toUpperCase();
 
-    // 2. Remove from submitted audits storage
+    // 1. Mark unique ID as permanently deleted identifier
+    addDeletedAuditIdentifier(cleanId);
+
+    // 2. Remove from submitted audits storage strictly by ID
     let rawList: SubmittedAuditItem[] = [];
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -278,37 +320,28 @@ export function deleteSubmittedAudit(idOrCode: string, auditCode?: string) {
         if (Array.isArray(parsed)) rawList = parsed;
       } catch {}
     }
-    if (rawList.length === 0) rawList = INITIAL_SUBMITTED_AUDITS;
 
     const updated = rawList.filter(
-      (item) =>
-        item.id !== idOrCode &&
-        item.audit_code !== idOrCode &&
-        item.audit_code?.toLowerCase() !== idOrCode.toLowerCase() &&
-        (!auditCode || (item.id !== auditCode && item.audit_code !== auditCode))
+      (item) => !item.id || item.id.trim().toUpperCase() !== cleanUpper
     );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-    // 3. Remove from main tasks storage (sakthi_excel_tasks_v8)
+    // 3. Remove from main tasks storage (sakthi_excel_tasks_v8) strictly by ID
     const storedTasks = localStorage.getItem("sakthi_excel_tasks_v8");
     if (storedTasks) {
       try {
         const tasks = JSON.parse(storedTasks);
         if (Array.isArray(tasks)) {
           const cleanedTasks = tasks.filter(
-            (t: any) =>
-              t.id !== idOrCode &&
-              (!auditCode || t.id !== auditCode)
+            (t: any) => !t.id || String(t.id).trim().toUpperCase() !== cleanUpper
           );
           localStorage.setItem("sakthi_excel_tasks_v8", JSON.stringify(cleanedTasks));
         }
       } catch {}
     }
 
-    // 4. Delete from Supabase database
-    if (idOrCode) {
-      void supabase.from("audit_assignments").delete().eq("id", idOrCode);
-    }
+    // 4. Delete from Supabase database strictly by ID
+    void supabase.from("audit_assignments").delete().eq("id", cleanId);
 
     window.dispatchEvent(new Event("sakthi_submitted_audits_updated"));
     window.dispatchEvent(new Event("excel_tasks_updated"));

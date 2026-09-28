@@ -57,7 +57,7 @@ export function JobReviewTab({ isAdmin }: { isAdmin: boolean }) {
       toast.error("Access Denied: Only authorized Admins can delete audit records.");
       return;
     }
-    deleteSubmittedAudit(item.id, item.audit_code);
+    deleteSubmittedAudit(item.id);
     loadAudits();
     toast.info(`Audit record ${item.audit_code} permanently deleted by Admin.`);
   };

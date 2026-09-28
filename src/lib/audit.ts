@@ -538,20 +538,14 @@ export function getDeletedAuditIdentifiers(): Set<string> {
   return new Set();
 }
 
-export function addDeletedAuditIdentifier(id?: string, auditCode?: string) {
-  if (typeof window === "undefined") return;
+export function addDeletedAuditIdentifier(id?: string) {
+  if (typeof window === "undefined" || !id) return;
   try {
     const deleted = getDeletedAuditIdentifiers();
-    if (id && typeof id === "string" && id.trim() && id.trim().toLowerCase() !== "undefined") {
+    if (typeof id === "string" && id.trim() && id.trim().toLowerCase() !== "undefined") {
       const cleanId = id.trim().toUpperCase();
       if (!PROTECTED_AUDIT_CODES.has(cleanId)) {
         deleted.add(cleanId);
-      }
-    }
-    if (auditCode && typeof auditCode === "string" && auditCode.trim() && auditCode.trim().toLowerCase() !== "undefined") {
-      const cleanCode = auditCode.trim().toUpperCase();
-      if (!PROTECTED_AUDIT_CODES.has(cleanCode)) {
-        deleted.add(cleanCode);
       }
     }
     localStorage.setItem(DELETED_AUDITS_KEY, JSON.stringify(Array.from(deleted)));
@@ -561,11 +555,10 @@ export function addDeletedAuditIdentifier(id?: string, auditCode?: string) {
   }
 }
 
-export function isAuditDeleted(id?: string, auditCode?: string): boolean {
+export function isAuditDeleted(id?: string): boolean {
+  if (!id || typeof id !== "string" || !id.trim()) return false;
   const deleted = getDeletedAuditIdentifiers();
-  if (id && typeof id === "string" && id.trim() && deleted.has(id.trim().toUpperCase())) return true;
-  if (auditCode && typeof auditCode === "string" && auditCode.trim() && deleted.has(auditCode.trim().toUpperCase())) return true;
-  return false;
+  return deleted.has(id.trim().toUpperCase());
 }
 
 function safeMergeTasks<T extends Record<string, any>>(existing: T, incoming: T): T {
@@ -599,7 +592,7 @@ function safeMergeTasks<T extends Record<string, any>>(existing: T, incoming: T)
 }
 
 /**
- * Utility to merge and deduplicate task arrays by audit_code / id / title.
+ * Utility to merge and deduplicate task arrays by unique ID / audit_code / title.
  * Prevents identical audit records from being duplicated 25+ times upon file import or reload.
  * Automatically filters out any permanently deleted audit records while preserving assigned employee fields.
  */
@@ -612,19 +605,18 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
 
   const isDeleted = (task: T) => {
     if (task.id && typeof task.id === "string" && task.id.trim() && deleted.has(task.id.trim().toUpperCase())) return true;
-    if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim() && deleted.has(task.audit_code.trim().toUpperCase())) return true;
     return false;
   };
 
   const getKey = (task: T): string => {
+    if (task.id && typeof task.id === "string" && task.id.trim()) {
+      return task.id.trim().toUpperCase();
+    }
     if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
-      return task.audit_code.trim().toUpperCase();
+      return `${task.audit_code.trim().toUpperCase()}_M${task.month || 1}_${(task as any).audit_type || ""}`;
     }
     if (task.title && typeof task.title === "string" && task.title.trim()) {
       return `${task.title.trim().toUpperCase()}_M${task.month || 1}`;
-    }
-    if (task.id && typeof task.id === "string" && task.id.trim()) {
-      return task.id.trim().toUpperCase();
     }
     return `TASK_${Math.random().toString(36).substring(2, 9)}`;
   };
