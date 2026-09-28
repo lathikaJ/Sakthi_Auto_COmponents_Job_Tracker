@@ -609,14 +609,19 @@ export function mergeAndDeduplicateTasks<T extends { audit_code?: string; id?: s
   };
 
   const getKey = (task: T): string => {
-    if (task.id && typeof task.id === "string" && task.id.trim()) {
-      return task.id.trim().toUpperCase();
-    }
     if (task.audit_code && typeof task.audit_code === "string" && task.audit_code.trim()) {
-      return `${task.audit_code.trim().toUpperCase()}_M${task.month || 1}_${(task as any).audit_type || ""}`;
+      const code = task.audit_code.trim().toUpperCase();
+      const m = task.month || 1;
+      const type = (task as any).audit_type ? String((task as any).audit_type).trim().toUpperCase() : "";
+      return `${code}_M${m}_${type}`;
     }
     if (task.title && typeof task.title === "string" && task.title.trim()) {
-      return `${task.title.trim().toUpperCase()}_M${task.month || 1}`;
+      const title = task.title.trim().toUpperCase();
+      const m = task.month || 1;
+      return `${title}_M${m}`;
+    }
+    if (task.id && typeof task.id === "string" && task.id.trim()) {
+      return task.id.trim().toUpperCase();
     }
     return `TASK_${Math.random().toString(36).substring(2, 9)}`;
   };
