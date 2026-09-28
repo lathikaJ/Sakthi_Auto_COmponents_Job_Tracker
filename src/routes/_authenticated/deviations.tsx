@@ -218,18 +218,19 @@ function DeviationsPage() {
   const handleDirectSyncDeviation = async () => {
     const today = getTodayDateStr();
     const existingDev = editingDevId ? deviations.find((d) => d.id === editingDevId) : null;
+    const targetId = editingDevId || `dev-${Date.now()}`;
     const devCode = existingDev?.dev_code || `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
 
     const syncedDev: DeviationItem = {
-      id: editingDevId || `dev-${Date.now()}`,
-      audit_id: formData.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: targetId,
+      audit_id: formData.audit_id || existingDev?.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
       dev_code: devCode,
       description: formData.title || "Plant Non-Conformance Deviation",
-      observed_condition: formData.observations[0]?.specification || "Non-conformance identified during process audit.",
+      observed_condition: formData.observations[0]?.specification || formData.title || "Non-conformance identified during process audit.",
       location_operation: formData.location || "Machine Shop - Line 1",
       employee_number: profile?.employee_number || "688079",
       severity: formData.severity,
-      status: "page1_submitted",
+      status: activeTab === 2 || formData.capa_items.some((c) => c.root_cause) ? "page2_submitted" : "page1_submitted",
       is_draft: false,
       created_at: existingDev?.created_at || today,
 
@@ -249,31 +250,42 @@ function DeviationsPage() {
       approved_by_signature: formData.approved_by_signature,
 
       page1_approved: existingDev?.page1_approved || false,
-      page2_submitted: existingDev?.page2_submitted || false,
+      page2_submitted: existingDev?.page2_submitted || activeTab === 2,
+      page2_submitted_at: existingDev?.page2_submitted_at || today,
       capa_items: formData.capa_items,
       quarantine_segregated_qty: formData.quarantine_segregated_qty,
       quarantine_ok_qty: formData.quarantine_ok_qty,
       quarantine_not_ok_qty: formData.quarantine_not_ok_qty,
       quarantine_segregated_by: formData.quarantine_segregated_by,
+      quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature,
       quarantine_approved_by: formData.quarantine_approved_by,
+      quarantine_approved_by_signature: formData.quarantine_approved_by_signature,
+      page2_attachment_name: formData.page2_attachment_name,
     };
 
+    setEditingDevId(targetId);
+
     let updated: DeviationItem[];
-    if (editingDevId && deviations.some((d) => d.id === editingDevId)) {
-      updated = deviations.map((d) => (d.id === editingDevId ? syncedDev : d));
+    if (deviations.some((d) => d.id === targetId)) {
+      updated = deviations.map((d) => (d.id === targetId ? syncedDev : d));
     } else {
       updated = [syncedDev, ...deviations];
     }
 
     await saveDeviationsList(updated);
 
+    if (viewReportDev && viewReportDev.id === targetId) {
+      setViewReportDev(syncedDev);
+    }
+
     if (typeof window !== "undefined") {
+      localStorage.removeItem("sakthi_active_deviation_draft");
       window.dispatchEvent(new Event("sakthi_deviations_updated"));
       window.dispatchEvent(new Event("excel_tasks_updated"));
     }
 
-    toast.success(`Directly synced ${devCode} across all team members!`, {
-      description: "Format 1 (Deviation Report QF/08/CQA-55) & Format 2 (RCA CAPA) saved to cloud & broadcast live.",
+    toast.success(`✓ Filled Deviation Report ${devCode} Saved & Synced Successfully!`, {
+      description: "Page 1 & Page 2 details synced across all team members and saved to cloud.",
       duration: 4000,
     });
   };
@@ -282,10 +294,11 @@ function DeviationsPage() {
   const handleSubmitCompleteDeviation = async (devToSubmit?: DeviationItem) => {
     const today = getTodayDateStr();
     const targetDev = devToSubmit || (editingDevId ? deviations.find((d) => d.id === editingDevId) : null);
+    const targetId = targetDev?.id || editingDevId || `dev-${Date.now()}`;
     const devCode = targetDev?.dev_code || `DEV-2026-${Math.floor(100 + Math.random() * 900)}`;
 
     const completeDev: DeviationItem = {
-      id: targetDev?.id || editingDevId || `dev-${Date.now()}`,
+      id: targetId,
       audit_id: formData.audit_id || targetDev?.audit_id || `AUD-${Math.floor(1000 + Math.random() * 9000)}`,
       dev_code: devCode,
       description: formData.title || targetDev?.description || "Plant Non-Conformance Deviation Report",
@@ -303,7 +316,7 @@ function DeviationsPage() {
       part_name: formData.part_name || "STEERING KNUCKLE",
       part_number: formData.part_number || "45110-M86R00",
       stage: formData.stage,
-      observations: formData.observations.length > 0 ? formData.observations : DEFAULT_OBSERVATIONS,
+      observations: formData.observations,
       cc: formData.cc,
       doc_code: formData.doc_code || "QF/08/CQA-55",
       doc_date: formData.doc_date || "25.12.2015",
@@ -315,7 +328,7 @@ function DeviationsPage() {
       page1_approved: true,
       page2_submitted: true,
       page2_submitted_at: today,
-      capa_items: formData.capa_items.length > 0 ? formData.capa_items : DEFAULT_CAPA_ITEMS,
+      capa_items: formData.capa_items,
       quarantine_segregated_qty: formData.quarantine_segregated_qty || "100",
       quarantine_ok_qty: formData.quarantine_ok_qty || "95",
       quarantine_not_ok_qty: formData.quarantine_not_ok_qty || "5",
@@ -323,16 +336,23 @@ function DeviationsPage() {
       quarantine_segregated_by_signature: formData.quarantine_segregated_by_signature,
       quarantine_approved_by: formData.quarantine_approved_by,
       quarantine_approved_by_signature: formData.quarantine_approved_by_signature,
+      page2_attachment_name: formData.page2_attachment_name,
     };
 
+    setEditingDevId(targetId);
+
     let updated: DeviationItem[];
-    if (targetDev && deviations.some((d) => d.id === targetDev.id)) {
-      updated = deviations.map((d) => (d.id === targetDev.id ? completeDev : d));
+    if (deviations.some((d) => d.id === targetId)) {
+      updated = deviations.map((d) => (d.id === targetId ? completeDev : d));
     } else {
       updated = [completeDev, ...deviations];
     }
 
     await saveDeviationsList(updated);
+
+    if (viewReportDev && viewReportDev.id === targetId) {
+      setViewReportDev(completeDev);
+    }
 
     if (typeof window !== "undefined") {
       localStorage.removeItem("sakthi_active_deviation_in_progress");
@@ -350,7 +370,7 @@ function DeviationsPage() {
     }
 
     setIsModalOpen(false);
-    toast.success(`Complete Deviation Form ${devCode} Submitted for Admin Review!`, {
+    toast.success(`✓ Filled Deviation Form ${devCode} Saved & Synced for Admin Review!`, {
       description: "All details (Format 1 QF/08/CQA-55 & Format 2 RCA/CAPA/Quarantine) synced & routed to Admin (KARTHIKEYAN C).",
       duration: 5000,
     });
@@ -570,17 +590,45 @@ function DeviationsPage() {
       if (prefillRaw) {
         try {
           const prefill = JSON.parse(prefillRaw);
+          const partName = prefill.part_name || prefill.title || "STEERING KNUCKLE";
+          const partNo = prefill.part_no || prefill.audit_id || "45110-M86R00";
+          const defectDesc = prefill.observed_condition || prefill.title || "Non-conformance identified during inspection audit.";
+          const newDevId = `dev-${Date.now()}`;
+
           setFormData((prev) => ({
             ...prev,
             audit_id: prefill.audit_id || "",
-            title: prefill.title || "Audit Non-Conformance Deviation",
-            part_name: prefill.part_name || prev.part_name,
-            part_number: prefill.part_no || prev.part_number,
+            title: prefill.title || `Audit ${prefill.audit_id || ""} Non-Conformance Deviation`,
+            part_name: partName,
+            part_number: partNo,
             location: prefill.location || "Audit Checkpoint",
             severity: prefill.severity || "High",
             inspected_by: prefill.segregated_by || prev.inspected_by,
+            observations: [
+              {
+                sl_no: 1,
+                specification: `${partName} - ${defectDesc}`,
+                obs1: "NG",
+                obs2: "NG",
+                obs3: "OK",
+                obs4: "OK",
+                obs5: "NG",
+                obs6: "NG",
+                remarks: `Non-conformance identified during ${prefill.location || "inspection audit"}`,
+              },
+            ],
+            capa_items: [
+              {
+                date: getTodayDateStr(),
+                part_name: partName,
+                part_no: partNo,
+                non_conformance: defectDesc,
+                root_cause: "",
+                corrective_action: "",
+              },
+            ],
           }));
-          setEditingDevId(null);
+          setEditingDevId(newDevId);
           setActiveTab(1);
           setIsModalOpen(true);
           localStorage.removeItem("sakthi_deviation_prefill");
@@ -1711,28 +1759,102 @@ function DeviationsPage() {
                     </div>
                   </div>
 
-                  {/* MS EXCEL PROTOCOL INTEGRATION FOR PAGE 1 FORMAT (REPLACING HTML GRID) */}
-                  <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs uppercase tracking-wider">
-                        <FileSpreadsheet className="h-5 w-5 text-emerald-600 shrink-0" />
-                        <span>MS Excel Protocol Method — Page 1: Deviation Report (QF/08/CQA-55)</span>
+                  {/* PAGE 1: INTERACTIVE OBSERVATION MATRIX TABLE (FORMAT QF/08/CQA-55) */}
+                  <div className="space-y-3 rounded-xl border border-slate-300 bg-white p-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-emerald-600" />
+                        <span className="font-extrabold uppercase text-slate-900 text-xs tracking-wider">
+                          Observation Matrix (Parameter Specifications & Readings Obs 1..6)
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
-                        Protocol Active
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => excelImportRef.current?.click()}
+                          className="h-7 text-[11px] font-bold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 gap-1 cursor-pointer"
+                        >
+                          <Upload className="h-3 w-3" /> Upload Excel Data
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDeviationInMSExcel(formData)}
+                          className="h-7 text-[11px] font-bold text-sky-700 border-sky-300 bg-sky-50 hover:bg-sky-100 gap-1 cursor-pointer"
+                        >
+                          <FileSpreadsheet className="h-3 w-3" /> Open Excel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAddObservationRow}
+                          className="h-7 text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-white gap-1 cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add Observation Row
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-emerald-800 font-medium">
-                      The official Observation Matrix Table (Samples 1..6) and Deviation Report layout (QF/08/CQA-55) are pre-formatted directly inside your local Microsoft Excel Desktop application via native MS Excel protocol.
-                    </p>
-                    <div className="pt-1">
-                      <Button
-                        type="button"
-                        onClick={() => openDeviationInMSExcel(formData)}
-                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-sm"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" /> Open Format 1 in Local MS Excel
-                      </Button>
+
+                    <div className="overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full text-left text-[11px] font-sans">
+                        <thead>
+                          <tr className="bg-slate-100 font-mono text-[10px] font-black uppercase text-slate-800 border-b border-slate-300">
+                            <th className="p-2 w-10 text-center">SL</th>
+                            <th className="p-2 min-w-[220px]">Parameter / Specification *</th>
+                            <th className="p-2 w-16 text-center">Obs 1</th>
+                            <th className="p-2 w-16 text-center">Obs 2</th>
+                            <th className="p-2 w-16 text-center">Obs 3</th>
+                            <th className="p-2 w-16 text-center">Obs 4</th>
+                            <th className="p-2 w-16 text-center">Obs 5</th>
+                            <th className="p-2 w-16 text-center">Obs 6</th>
+                            <th className="p-2 min-w-[150px]">Remarks / Variance</th>
+                            <th className="p-2 w-10 text-center">Del</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {formData.observations.map((obs, index) => (
+                            <tr key={index} className="hover:bg-slate-50">
+                              <td className="p-2 text-center font-bold text-slate-600">{obs.sl_no || index + 1}</td>
+                              <td className="p-1">
+                                <Input
+                                  value={obs.specification}
+                                  onChange={(e) => handleUpdateObservationRow(index, "specification", e.target.value)}
+                                  placeholder="e.g. Bore Dia Ø 62.00 +0.02/+0.05 mm"
+                                  className="h-7 text-xs font-semibold bg-white border-slate-300"
+                                />
+                              </td>
+                              <td className="p-1"><Input value={obs.obs1} onChange={(e) => handleUpdateObservationRow(index, "obs1", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1"><Input value={obs.obs2} onChange={(e) => handleUpdateObservationRow(index, "obs2", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1"><Input value={obs.obs3} onChange={(e) => handleUpdateObservationRow(index, "obs3", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1"><Input value={obs.obs4} onChange={(e) => handleUpdateObservationRow(index, "obs4", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1"><Input value={obs.obs5} onChange={(e) => handleUpdateObservationRow(index, "obs5", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1"><Input value={obs.obs6} onChange={(e) => handleUpdateObservationRow(index, "obs6", e.target.value)} className="h-7 text-xs text-center font-mono bg-white border-slate-300" /></td>
+                              <td className="p-1">
+                                <Input
+                                  value={obs.remarks}
+                                  onChange={(e) => handleUpdateObservationRow(index, "remarks", e.target.value)}
+                                  placeholder="Variance remarks..."
+                                  className="h-7 text-xs bg-white border-slate-300"
+                                />
+                              </td>
+                              <td className="p-1 text-center">
+                                {formData.observations.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveObservationRow(index)}
+                                    className="text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50 cursor-pointer"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
@@ -1873,6 +1995,16 @@ function DeviationsPage() {
                         <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft
                       </Button>
 
+                      {/* SAVE & SYNC REPORT BUTTON */}
+                      <Button
+                        type="button"
+                        onClick={handleDirectSyncDeviation}
+                        className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
+                        title="Save & Sync filled Page 1 details across team"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> Save & Sync Report
+                      </Button>
+
                       {/* PROCEED TO PAGE 2 */}
                       <Button
                         type="button"
@@ -1899,28 +2031,117 @@ function DeviationsPage() {
                     </span>
                   </div>
 
-                  {/* MS EXCEL PROTOCOL INTEGRATION FOR PAGE 2 FORMAT (REPLACING HTML GRID 2) */}
-                  <div className="rounded-xl border border-sky-300 bg-sky-50/80 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sky-900 font-extrabold text-xs uppercase tracking-wider">
-                        <FileSpreadsheet className="h-5 w-5 text-sky-600 shrink-0" />
-                        <span>MS Excel Protocol Method — Page 2: RCA, CAPA & Quarantine Details</span>
+                  {/* PAGE 2: INTERACTIVE RCA & CAPA TABLE */}
+                  <div className="space-y-3 rounded-xl border border-slate-300 bg-white p-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-sky-600" />
+                        <span className="font-extrabold uppercase text-slate-900 text-xs tracking-wider">
+                          Root Cause Analysis (RCA) & Corrective Action (CAPA) Details
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold bg-sky-200 text-sky-900 px-2 py-0.5 rounded-full">
-                        Sheet 2 Active
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDeviationInMSExcel(formData)}
+                          className="h-7 text-[11px] font-bold text-sky-700 border-sky-300 bg-sky-50 hover:bg-sky-100 gap-1 cursor-pointer"
+                        >
+                          <FileSpreadsheet className="h-3 w-3" /> Open Format 2 in Excel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAddCapaRow}
+                          className="h-7 text-[11px] font-bold bg-sky-900 hover:bg-sky-800 text-white gap-1 cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add CAPA Row
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-sky-800 font-medium">
-                      The Non-Conformance & Corrective Action Log (RCA, CAPA) and Quarantine Details are pre-formatted directly inside Sheet 2 of your local Microsoft Excel Desktop workbook via native MS Excel protocol.
-                    </p>
-                    <div className="pt-1">
-                      <Button
-                        type="button"
-                        onClick={() => openDeviationInMSExcel(formData)}
-                        className="gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs cursor-pointer shadow-sm"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" /> Open Format 2 in Local MS Excel
-                      </Button>
+
+                    <div className="space-y-3">
+                      {formData.capa_items.map((item, index) => (
+                        <div key={index} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                          <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                            <span className="font-bold text-[11px] text-slate-800 uppercase tracking-wider">
+                              CAPA Entry #{index + 1}
+                            </span>
+                            {formData.capa_items.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCapaRow(index)}
+                                className="text-rose-600 hover:text-rose-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-black uppercase text-slate-700">DATE</label>
+                              <Input
+                                type="date"
+                                value={item.date}
+                                onChange={(e) => handleUpdateCapaRow(index, "date", e.target.value)}
+                                className="h-7 text-xs bg-white border-slate-300 font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black uppercase text-slate-700">PART NAME</label>
+                              <Input
+                                value={item.part_name}
+                                onChange={(e) => handleUpdateCapaRow(index, "part_name", e.target.value)}
+                                className="h-7 text-xs bg-white border-slate-300 font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black uppercase text-slate-700">PART NUMBER</label>
+                              <Input
+                                value={item.part_no}
+                                onChange={(e) => handleUpdateCapaRow(index, "part_no", e.target.value)}
+                                className="h-7 text-xs bg-white border-slate-300 font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black uppercase text-slate-800 mb-0.5">NON-CONFORMANCE / DEFECT *</label>
+                            <Input
+                              value={item.non_conformance}
+                              onChange={(e) => handleUpdateCapaRow(index, "non_conformance", e.target.value)}
+                              placeholder="e.g. Bore Oversize (+0.01~0.02mm) observed in sample #5 & #6"
+                              className="h-8 text-xs font-bold bg-white border-slate-300 text-slate-900"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-black uppercase text-slate-800 mb-0.5">ROOT CAUSE ANALYSIS (RCA) *</label>
+                              <textarea
+                                value={item.root_cause}
+                                onChange={(e) => handleUpdateCapaRow(index, "root_cause", e.target.value)}
+                                placeholder="Enter detailed root cause analysis..."
+                                rows={2}
+                                className="w-full rounded-md border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black uppercase text-slate-800 mb-0.5">CORRECTIVE & PREVENTIVE ACTION (CAPA) *</label>
+                              <textarea
+                                value={item.corrective_action}
+                                onChange={(e) => handleUpdateCapaRow(index, "corrective_action", e.target.value)}
+                                placeholder="Enter corrective & preventive actions taken..."
+                                rows={2}
+                                className="w-full rounded-md border border-slate-300 bg-white p-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2133,14 +2354,14 @@ function DeviationsPage() {
                         <Save className="h-3.5 w-3.5 text-amber-600" /> Save Draft
                       </Button>
 
-                      {/* DIRECT SYNC BUTTON */}
+                      {/* SAVE & SYNC REPORT BUTTON */}
                       <Button
                         type="button"
                         onClick={handleDirectSyncDeviation}
                         className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
-                        title="Sync Excel details into the form"
+                        title="Save & Sync filled report details across all employee accounts and cloud"
                       >
-                        <RefreshCw className="h-3.5 w-3.5" /> Sync Excel Data
+                        <RefreshCw className="h-3.5 w-3.5" /> Save & Sync Report
                       </Button>
 
                       {/* SUBMIT BUTTON AFTER SYNC BUTTON FOR ADMIN REVIEW */}
